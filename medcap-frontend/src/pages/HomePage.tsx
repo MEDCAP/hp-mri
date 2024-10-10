@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './../styles/pages.css';
+import S_Image from './../images/s_image.png';
 
 const HomePage: React.FC = () => {
   return (
@@ -10,21 +11,19 @@ const HomePage: React.FC = () => {
       <p className="home-subtitle">Format and Store, Simulate and Analyze MRI Instrument Data</p>
 
       <div className="home-buttons">
-        <Link to="/retrieve">
-          <button className="button primary">Retrieve</button>
+        <Link to="/">
+          <button className="button primary">Tool Box</button>
         </Link>
-        <Link to="/upload">
-          <button className="button primary">Upload</button>
-        </Link>
-        <button className="button secondary">Guides</button>
+        <button className="button secondary">GitHub</button>
         <button className="button secondary">PIGLAB</button>
       </div>
 
       <img
-        src="mri_machine_image_url"
+        src={S_Image}
         alt="MRI Machine"
         className="home-image"
       />
+      <h2>Guides</h2>
     </div>
   );
 };
