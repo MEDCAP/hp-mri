@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { Link } from 'react-router-dom'; // Importing Link to handle navigation
+import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
-import HeaderAccount from '../components/HeaderAccount';
 
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');

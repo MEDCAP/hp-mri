@@ -6,6 +6,7 @@ import RetrievePage from './pages/RetrievePage';
 import UploadPage from './pages/UploadPage';
 import ImagesPage from './pages/ImagesPage';
 import SimulatorPage from './pages/SimulatorPage';
+import AccountPage from './pages/AccountPage';
 
 const App: React.FC = () => {
   return (
@@ -16,6 +17,7 @@ const App: React.FC = () => {
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/images" element={<ImagesPage />} />
         <Route path="/simulator" element={<SimulatorPage />} />
+        <Route path="/account" element={<AccountPage />} />
       </Routes>
     </Router>
   );

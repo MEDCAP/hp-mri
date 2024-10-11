@@ -1,8 +1,9 @@
 // src/pages/UploadPage.tsx
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
-import './../styles/upload.css'; 
+import './../styles/upload.css';
 
 const UploadPage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -22,6 +23,7 @@ const UploadPage: React.FC = () => {
 
   return (
     <div className="page-container">
+      <HeaderAccount />
       <Sidebar />
       <div className="upload-container">
         <h1>Upload MRD Files</h1>

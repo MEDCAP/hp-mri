@@ -27,7 +27,7 @@ const HeaderAccount: React.FC = () => {
         <FaCog className="header-icon" /> */}
 
         {/* Account section */}
-        <Link to="/about" className="account-box">
+        <Link to="/account" className="account-box">
           <FaUserCircle className="header-icon profile-icon" />
           <span className="account-text">Account</span>
         </Link>

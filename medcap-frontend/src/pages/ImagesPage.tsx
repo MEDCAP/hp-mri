@@ -1,6 +1,7 @@
 // src/pages/ImagesPage.tsx
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
 
@@ -19,6 +20,7 @@ const ImagesPage: React.FC = () => {
 
   return (
     <div className="page-container">
+      <HeaderAccount />
       <Sidebar />
       <div className="retrieve-content">
         <div className="retrieve-container">
