@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './../styles/pages.css';
-import S_Image from './../images/s_image.png';
+import SImage from './../images/s_image.png';
 
 const HomePage: React.FC = () => {
   return (
@@ -19,7 +19,7 @@ const HomePage: React.FC = () => {
       </div>
 
       <img
-        src={S_Image}
+        src={SImage}
         alt="MRI Machine"
         className="home-image"
       />
