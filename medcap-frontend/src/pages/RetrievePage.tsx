@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { Link } from 'react-router-dom'; // Importing Link to handle navigation
+import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
-import './../styles/retrieve.css'; 
+import './../styles/retrieve.css';
 
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -20,6 +21,7 @@ const RetrievePage: React.FC = () => {
 
   return (
     <div className="page-container">
+      <HeaderAccount />
       <Sidebar />
       <div className="retrieve-content">
         {/* Upload button on the top right */}

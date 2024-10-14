@@ -1,8 +1,9 @@
 // src/pages/SimulatorPage.tsx
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
-import './../styles/retrieve.css'; 
+import './../styles/retrieve.css';
 
 const SimulatorPage: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -19,6 +20,7 @@ const SimulatorPage: React.FC = () => {
 
   return (
     <div className="page-container">
+      <HeaderAccount />
       <Sidebar />
       <div className="retrieve-content">
         <div className="retrieve-container">

@@ -10,7 +10,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* Center items in the sidebar */
+    top: 60px;
+    /* Start just below the header */
+    left: 0;
+    height: calc(100vh - 80px);
+    /* Ensure it doesn't overlap with the header */
+    width: 250px;
+    /* Keep sidebar width fixed */
 }
 
 /* Collapsed sidebar width */

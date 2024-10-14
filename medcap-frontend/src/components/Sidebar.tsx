@@ -19,7 +19,7 @@ const Sidebar: React.FC = () => {
       </button>
       {isOpen && (
         <div className="sidebar-links">
-          <Link to="/retrieve">MRD Files</Link>
+          <Link to="/">MRD Files</Link>
           <Link to="/images">Images</Link>
           <Link to="/simulator">Simulator</Link>
         </div>

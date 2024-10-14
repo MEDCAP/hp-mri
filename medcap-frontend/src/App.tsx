@@ -6,16 +6,18 @@ import RetrievePage from './pages/RetrievePage';
 import UploadPage from './pages/UploadPage';
 import ImagesPage from './pages/ImagesPage';
 import SimulatorPage from './pages/SimulatorPage';
+import AccountPage from './pages/AccountPage';
 
 const App: React.FC = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/retrieve" element={<RetrievePage />} />
+        <Route path="/about" element={<HomePage />} />
+        <Route path="/" element={<RetrievePage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/images" element={<ImagesPage />} />
         <Route path="/simulator" element={<SimulatorPage />} />
+        <Route path="/account" element={<AccountPage />} />
       </Routes>
     </Router>
   );
