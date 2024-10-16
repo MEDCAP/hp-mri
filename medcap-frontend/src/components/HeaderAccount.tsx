@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaSearch, FaBell, FaCog, FaUserCircle } from 'react-icons/fa';
 import './../styles/headeraccount.css';
-import PigiLogo from './../images/pigi-logo.png';
+import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
 
 const HeaderAccount: React.FC = () => {
   return (
