@@ -37,15 +37,22 @@ body {
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
+    background-color: #011F5B;
 }
 
 .primary {
-    background-color: #007bff;
+    padding: 10px 20px;
+    margin: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    background-color: #011F5B;
     color: white;
 }
 
 .secondary {
-    background-color: #6c757d;
+    background-color: #011F5B;
     color: white;
 }
 
@@ -89,18 +96,6 @@ body {
     margin-top: 60px;
     /* Matches the height of the header */
     display: flex;
-}
-
-.retrieve-container {
-    margin-left: 250px;
-    /* Adjust according to sidebar width */
-    padding: 50px;
-    transition: margin-left 0.3s;
-}
-
-.sidebar.closed+.retrieve-container {
-    margin-left: 50px;
-    /* Adjust when sidebar is closed */
 }
 
 .search-bar {

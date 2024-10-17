@@ -7,6 +7,7 @@ import './../styles/upload.css';
 
 const UploadPage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -24,8 +25,8 @@ const UploadPage: React.FC = () => {
   return (
     <div className="page-container">
       <HeaderAccount />
-      <Sidebar />
-      <div className="upload-container">
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> {/* Pass state to sidebar */}
+      <div className={`upload-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <h1>Upload MRD Files</h1>
         <div className="file-select">
           <p>Select from local file</p>
@@ -36,7 +37,7 @@ const UploadPage: React.FC = () => {
         </div>
         <div className="file-browser">
           <input type="file" onChange={handleFileChange} />
-          <button className="button primary" onClick={handleUpload}>
+          <button className="primary" onClick={handleUpload}>
             Upload
           </button>
         </div>

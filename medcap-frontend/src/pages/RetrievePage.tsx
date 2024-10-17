@@ -8,6 +8,7 @@ import './../styles/retrieve.css';
 
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
 
   const dataList = [
     'MEDCAP | Sequence 1 | Date',
@@ -22,16 +23,16 @@ const RetrievePage: React.FC = () => {
   return (
     <div className="page-container">
       <HeaderAccount />
-      <Sidebar />
-      <div className="retrieve-content">
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> {/* Pass state to sidebar */}
+      <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
           <Link to="/upload">
-            <button className="button primary">Upload</button>
+            <button className="primary">Upload</button>
           </Link>
         </div>
         <div className="retrieve-container">
-          <h1>Retrieve Data</h1>
+          <h1>MRD Files</h1>
           <input
             type="text"
             className="search-bar"

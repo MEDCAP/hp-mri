@@ -1,14 +1,28 @@
 /* src/styles/upload.css */
 
 .upload-container {
-    margin-left: 250px; /* Adjust for sidebar */
-    padding: 50px;
+    padding: 0px;
     background-color: #f8f9fa;
     height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    position: relative;
+    flex-grow: 1;
+    transition: margin-left 0.3s ease;
+}
+
+/* When sidebar is open */
+.upload-container.sidebar-open {
+    margin-left: 250px;
+    /* Sidebar width when open */
+}
+
+/* When sidebar is closed */
+.upload-container.sidebar-closed {
+    margin-left: 60px;
+    /* Sidebar width when closed */
 }
 
 .upload-container h1 {

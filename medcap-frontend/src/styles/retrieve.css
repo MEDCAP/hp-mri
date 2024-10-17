@@ -2,7 +2,6 @@
 
 /* Dynamically center the content */
 .retrieve-content {
-    margin-left: 250px;
     /* Adjust for sidebar */
     display: flex;
     flex-direction: column;
@@ -12,7 +11,20 @@
     /* Full viewport height */
     position: relative;
     flex-grow: 1;
-    /* Make it responsive */
+    transition: margin-left 0.3s ease;
+    /* Smooth transition when sidebar changes */
+}
+
+/* When sidebar is open */
+.retrieve-content.sidebar-open {
+    margin-left: 250px;
+    /* Sidebar width when open */
+}
+
+/* When sidebar is closed */
+.retrieve-content.sidebar-closed {
+    margin-left: 60px;
+    /* Sidebar width when closed */
 }
 
 /* Styling for the container with transparency */

@@ -12,10 +12,10 @@ const HomePage: React.FC = () => {
 
       <div className="home-buttons">
         <Link to="/">
-          <button className="button primary">Tool Box</button>
+          <button className="primary">Tool Box</button>
         </Link>
-        <button className="button secondary">GitHub</button>
-        <button className="button secondary">PIGLAB</button>
+        <button className="primary">GitHub</button>
+        <button className="primary">PIGLAB</button>
       </div>
 
       <img

@@ -1,7 +1,7 @@
 // src/components/HeaderAccount.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaSearch, FaBell, FaCog, FaUserCircle } from 'react-icons/fa';
+import { FaUserCircle } from 'react-icons/fa';
 import './../styles/headeraccount.css';
 import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
 

@@ -7,6 +7,7 @@ import './../styles/retrieve.css';
 
 const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
 
   const dataList = [
     'MEDCAP | Image 1 | Date | Sequence 1',
@@ -21,10 +22,10 @@ const ImagesPage: React.FC = () => {
   return (
     <div className="page-container">
       <HeaderAccount />
-      <Sidebar />
-      <div className="retrieve-content">
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> {/* Pass state to sidebar */}
+      <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <div className="retrieve-container">
-          <h1>Image Data</h1>
+          <h1>Images</h1>
           <input
             type="text"
             className="search-bar"
