@@ -46,6 +46,3 @@ Thumbs.db
 .env.local
 .env.production
 .env.development
-
-# ignore pycache files
-**/__pycache__/
