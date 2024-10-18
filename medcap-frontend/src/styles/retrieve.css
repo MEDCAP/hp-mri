@@ -13,6 +13,7 @@
     flex-grow: 1;
     transition: margin-left 0.3s ease;
     /* Smooth transition when sidebar changes */
+    padding: 20px;
 }
 
 /* When sidebar is open */
@@ -78,12 +79,41 @@
 /* Grid headers */
 .grid-header {
     display: grid;
-    grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+    grid-template-columns: 50px 1fr 1fr 1fr 1fr;
     font-weight: bold;
-    padding: 10px 0;
+    padding: 10px;
     border-bottom: 2px solid #ccc;
     margin-top: 20px;
     color: #333;
+    background-color: #f8f8f8;
+    align-items: center;
+    /* Ensure vertical alignment in the center */
+}
+
+.grid-header-images {
+    display: grid;
+    grid-template-columns: 50px 1fr 2fr 2fr 1fr;
+    font-weight: bold;
+    padding: 10px;
+    border-bottom: 2px solid #ccc;
+    margin-top: 20px;
+    color: #333;
+    background-color: #f8f8f8;
+    align-items: center;
+    /* Ensure vertical alignment in the center */
+}
+
+.grid-header-simulator {
+    display: grid;
+    grid-template-columns: 50px 1fr 2fr 2fr 2fr 1fr;
+    font-weight: bold;
+    padding: 10px;
+    border-bottom: 2px solid #ccc;
+    margin-top: 20px;
+    color: #333;
+    background-color: #f8f8f8;
+    align-items: center;
+    /* Ensure vertical alignment in the center */
 }
 
 /* Grid container */
@@ -96,7 +126,33 @@
 /* Grid row for each MRD file */
 .grid-row {
     display: grid;
-    grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+    grid-template-columns: 50px 1fr 1fr 1fr 1fr;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #ccc;
+    /* Add a border to separate rows visually */
+}
+
+.grid-row-images {
+    display: grid;
+    grid-template-columns: 50px 1fr 2fr 2fr 1fr;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.grid-row-simulator {
+    display: grid;
+    grid-template-columns: 50px 1fr 2fr 2fr 2fr 1fr;
     align-items: center;
     padding: 10px;
     background-color: rgba(255, 255, 255, 0.8);
@@ -111,7 +167,7 @@
 }
 
 .grid-row input[type="checkbox"] {
-    margin-right: 10px;
+    justify-self: center;
 }
 
 .search-bar {
@@ -121,4 +177,52 @@
     margin-bottom: 20px;
     border: 1px solid #ccc;
     border-radius: 5px;
+}
+
+/* Sorting headers */
+.grid-header span {
+    cursor: pointer;
+    align-items: center;
+}
+
+.grid-header span:hover {
+    color: #007bff;
+    /* Add hover effect for sorting */
+}
+
+.grid-header svg {
+    margin-left: 5px;
+    /* Add a little space between the text and the arrow */
+}
+
+/* Sorting headers */
+.grid-header-images span {
+    cursor: pointer;
+    align-items: center;
+}
+
+.grid-header-images span:hover {
+    color: #007bff;
+    /* Add hover effect for sorting */
+}
+
+.grid-header-images svg {
+    margin-left: 5px;
+    /* Add a little space between the text and the arrow */
+}
+
+/* Sorting headers */
+.grid-header-simulator span {
+    cursor: pointer;
+    align-items: center;
+}
+
+.grid-header-simulator span:hover {
+    color: #007bff;
+    /* Add hover effect for sorting */
+}
+
+.grid-header-simulator svg {
+    margin-left: 5px;
+    /* Add a little space between the text and the arrow */
 }
