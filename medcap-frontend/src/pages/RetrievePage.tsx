@@ -83,7 +83,6 @@ const RetrievePage: React.FC = () => {
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
-          <button className="primary">Analyze</button>
           <button className="primary">Download</button>
           <button className="primary">Delete</button>
           <Link to="/upload">
