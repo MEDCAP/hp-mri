@@ -1,4 +1,4 @@
-// src/pages/RetrievePage.tsx
+// src/pages/ImagesPage.tsx
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { Link } from 'react-router-dom'; // Importing Link to handle navigation
@@ -11,11 +11,11 @@ interface MRDFile {
   name: string;
   date: string;
   owner: string;
-  reconImagesCount: number;
+  sequence: string;
   isSelected: boolean;
 }
 
-const RetrievePage: React.FC = () => {
+const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
@@ -25,31 +25,31 @@ const RetrievePage: React.FC = () => {
     // TEMPORARY, SHOULD BE SENT FROM BACKEND
     setFiles([
       {
-        "name": "Sequence 1",
+        "name": "Image 1",
         "date": "2024-10-18",
         "owner": "MEDCAP",
-        "reconImagesCount": 12,
+        "sequence": "Sequence 1",
         "isSelected": false,
       },
       {
-        "name": "Sequence 2",
+        "name": "Image 2",
         "date": "2024-10-17",
         "owner": "Ben Yoon",
-        "reconImagesCount": 8,
+        "sequence": "Sequence 2",
         "isSelected": false,
       },
       {
-        "name": "Sequence 3",
+        "name": "Image 3",
         "date": "2024-10-16",
         "owner": "Kento",
-        "reconImagesCount": 15,
+        "sequence": "Sequence 3",
         "isSelected": false,
       },
       {
-        "name": "Sequence 4",
+        "name": "Image 4",
         "date": "2024-10-16",
         "owner": "Zihao",
-        "reconImagesCount": 15,
+        "sequence": "Sequence 4",
         "isSelected": false,
       },
     ])
@@ -83,7 +83,7 @@ const RetrievePage: React.FC = () => {
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
-          <button className="primary">Analyze</button>
+        <button className="primary">Analyze</button>
           <button className="primary">Download</button>
           <button className="primary">Delete</button>
           <Link to="/upload">
@@ -91,7 +91,7 @@ const RetrievePage: React.FC = () => {
           </Link>
         </div>
         <div className="retrieve-container">
-          <h1>MRD Files</h1>
+          <h1>Images</h1>
           <input
             type="text"
             className="search-bar"
@@ -105,7 +105,7 @@ const RetrievePage: React.FC = () => {
             <span>Name</span>
             <span>Date</span>
             <span>Owner</span>
-            <span># of Recon Images</span>
+            <span>Sequence</span>
           </div>
 
           {/* List of Files */}
@@ -120,7 +120,7 @@ const RetrievePage: React.FC = () => {
                 <span>{file.name}</span>
                 <span>{file.date}</span>
                 <span>{file.owner}</span>
-                <span>{file.reconImagesCount}</span>
+                <span>{file.sequence}</span>
               </div>
             ))}
           </div>
@@ -130,4 +130,4 @@ const RetrievePage: React.FC = () => {
   );
 };
 
-export default RetrievePage;
+export default ImagesPage;

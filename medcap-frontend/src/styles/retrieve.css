@@ -1,0 +1,124 @@
+/* src/styles/retrieve.css */
+
+/* Dynamically center the content */
+.retrieve-content {
+    /* Adjust for sidebar */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* Full viewport height */
+    position: relative;
+    flex-grow: 1;
+    transition: margin-left 0.3s ease;
+    /* Smooth transition when sidebar changes */
+}
+
+/* When sidebar is open */
+.retrieve-content.sidebar-open {
+    margin-left: 250px;
+    /* Sidebar width when open */
+}
+
+/* When sidebar is closed */
+.retrieve-content.sidebar-closed {
+    margin-left: 60px;
+    /* Sidebar width when closed */
+}
+
+/* Styling for the container with transparency */
+.retrieve-container {
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.7);
+    /* Add transparency */
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(5px);
+    /* Optional: Adds a blur effect to the background */
+}
+
+/* Top-right "Upload" button positioning */
+.top-right {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.data-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.data-item {
+    background-color: rgba(255, 255, 255, 0.8);
+    /* Transparent background for items */
+    margin: 10px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    width: 300px;
+    text-align: center;
+}
+
+.button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.button:hover {
+    opacity: 0.9;
+}
+
+/* Grid headers */
+.grid-header {
+    display: grid;
+    grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+    font-weight: bold;
+    padding: 10px 0;
+    border-bottom: 2px solid #ccc;
+    margin-top: 20px;
+    color: #333;
+}
+
+/* Grid container */
+.grid-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Grid row for each MRD file */
+.grid-row {
+    display: grid;
+    grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.grid-row:hover {
+    background-color: rgba(200, 200, 200, 0.1);
+}
+
+.grid-row input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.search-bar {
+    width: 300px;
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}

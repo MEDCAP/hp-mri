@@ -1,0 +1,103 @@
+/* src/styles/sidebar.css */
+
+/* General sidebar styles */
+.sidebar {
+    background-color: #f8f9fa;
+    height: 100vh;
+    position: fixed;
+    top: 60px;
+    /* Below the header */
+    left: 0;
+    transition: width 0.3s ease;
+    /* Smooth transition when expanding/retracting */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar.open {
+    width: 250px;
+    /* Expanded width */
+}
+
+.sidebar.closed {
+    width: 60px;
+    /* Collapsed width */
+}
+
+/* Hamburger button container */
+.toggle-btn-wrapper {
+    display: flex;
+    justify-content: center;
+    /* Center horizontally */
+    align-items: center;
+    /* Center vertically */
+    height: 60px;
+    /* Ensure the button has enough height to avoid being cut off */
+    width: 100%;
+}
+
+.sidebar .toggle-btn {
+    background-color: transparent;
+    color: #007bff;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    /* Center the icon */
+    align-items: center;
+    /* Center the icon vertically */
+    width: 100%;
+    height: 100%;
+    /* Full height of the wrapper to prevent cutting off */
+}
+
+/* Sidebar links */
+.sidebar-links {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    text-decoration: none;
+    color: #333;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+.sidebar-link:hover {
+    background-color: #e0e0e0;
+}
+
+.sidebar-icon {
+    margin-right: 10px;
+    color: #007bff;
+}
+
+/* Hide the link text when collapsed */
+.sidebar.closed .link-text {
+    display: none;
+}
+
+/* Ensure sidebar link icons are centered when collapsed */
+.sidebar.closed .sidebar-link {
+    justify-content: center;
+    /* Center the icon when the sidebar is collapsed */
+    padding-left: 1;
+    /* Remove padding on the left for proper centering */
+}
+
+/* Sidebar link with both icon and text */
+.sidebar-link .sidebar-icon {
+    margin-right: 10px;
+}
+
+.sidebar.closed .sidebar-icon {
+    margin-right: 0;
+    /* Remove margin in collapsed state */
+}
