@@ -1,18 +1,17 @@
-// src/pages/RetrievePage.tsx
+// src/pages/SimulatorPage.tsx
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Link } from 'react-router-dom'; // Importing Link to handle navigation
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
 
-const RetrievePage: React.FC = () => {
+const SimulatorPage: React.FC = () => {
   const [search, setSearch] = useState('');
 
   const dataList = [
-    'MEDCAP | Sequence 1 | Date',
-    'MEDCAP | Sequence 2 | Date',
-    'MEDCAP | Sequence 3 | Date',
+    'MEDCAP | Simulator 1 | Date | Sequence 1 | Image 1',
+    'MEDCAP | Simulator 2 | Date | Sequence 2 | Image 2',
+    'MEDCAP | Simulator 3 | Date | Sequence 3 | Image 3',
   ];
 
   const filteredData = dataList.filter((item) =>
@@ -24,14 +23,8 @@ const RetrievePage: React.FC = () => {
       <HeaderAccount />
       <Sidebar />
       <div className="retrieve-content">
-        {/* Upload button on the top right */}
-        <div className="top-right">
-          <Link to="/upload">
-            <button className="button primary">Upload</button>
-          </Link>
-        </div>
         <div className="retrieve-container">
-          <h1>Retrieve Data</h1>
+          <h1>Simulate Data</h1>
           <input
             type="text"
             className="search-bar"
@@ -50,4 +43,4 @@ const RetrievePage: React.FC = () => {
   );
 };
 
-export default RetrievePage;
+export default SimulatorPage;

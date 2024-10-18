@@ -60,10 +60,47 @@ body {
     margin-top: 40px;
 }
 
-/* RetrievePage styling */
-.retrieve-container {
+/* UploadPage styling */
+.upload-container {
     text-align: center;
     padding: 50px;
+}
+
+.file-browser {
+    margin-top: 20px;
+    display: inline-block;
+    text-align: left;
+}
+
+.file-browser input {
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.file-browser button {
+    display: block;
+    margin-top: 10px;
+    padding: 10px 20px;
+}
+
+/* RetrievePage styling */
+
+.page-container {
+    margin-top: 60px;
+    /* Matches the height of the header */
+    display: flex;
+}
+
+.retrieve-container {
+    margin-left: 250px;
+    /* Adjust according to sidebar width */
+    padding: 50px;
+    transition: margin-left 0.3s;
+}
+
+.sidebar.closed+.retrieve-container {
+    margin-left: 50px;
+    /* Adjust when sidebar is closed */
 }
 
 .search-bar {
@@ -86,27 +123,4 @@ body {
     padding: 15px;
     border: 1px solid #ddd;
     border-radius: 5px;
-}
-
-/* UploadPage styling */
-.upload-container {
-    text-align: center;
-    padding: 50px;
-}
-
-.file-browser {
-    margin-top: 20px;
-    display: inline-block;
-    text-align: left;
-}
-
-.file-browser input {
-    padding: 10px;
-    margin-bottom: 20px;
-}
-
-.file-browser button {
-    display: block;
-    margin-top: 10px;
-    padding: 10px 20px;
 }
