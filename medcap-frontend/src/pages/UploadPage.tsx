@@ -1,9 +1,6 @@
 // src/pages/UploadPage.tsx
 import React, { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
-import './../styles/upload.css';
 
 const UploadPage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -18,7 +15,7 @@ const UploadPage: React.FC = () => {
   const handleUpload = () => {
     if (file) {
       console.log(file);
-      // Add file upload logic here
+      // Add your file upload logic here
     }
   };
 
