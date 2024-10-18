@@ -1,24 +1,80 @@
 // src/pages/RetrievePage.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { Link } from 'react-router-dom'; // Importing Link to handle navigation
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
+import axios from 'axios';
+
+interface MRDFile {
+  name: string;
+  date: string;
+  owner: string;
+  reconImagesCount: number;
+  isSelected: boolean;
+}
 
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
 
-  const dataList = [
-    'MEDCAP | Sequence 1 | Date',
-    'MEDCAP | Sequence 2 | Date',
-    'MEDCAP | Sequence 3 | Date',
-  ];
+  // Fetch data from backend on component mount
+  useEffect(() => {
+    // TEMPORARY, SHOULD BE SENT FROM BACKEND
+    setFiles([
+      {
+        "name": "Sequence 1",
+        "date": "2024-10-18",
+        "owner": "MEDCAP",
+        "reconImagesCount": 12,
+        "isSelected": false,
+      },
+      {
+        "name": "Sequence 2",
+        "date": "2024-10-17",
+        "owner": "Ben Yoon",
+        "reconImagesCount": 8,
+        "isSelected": false,
+      },
+      {
+        "name": "Sequence 3",
+        "date": "2024-10-16",
+        "owner": "Kento",
+        "reconImagesCount": 15,
+        "isSelected": false,
+      },
+      {
+        "name": "Sequence 4",
+        "date": "2024-10-16",
+        "owner": "Zihao",
+        "reconImagesCount": 15,
+        "isSelected": false,
+      },
+    ])
+    axios.get('http://localhost:5000/api/mrd-files')
+      .then(response => {
+        setFiles(response.data);
+      })
+      .catch(error => {
+        console.error('Error fetching MRD files:', error);
+      });
+  }, []);
 
-  const filteredData = dataList.filter((item) =>
-    item.toLowerCase().includes(search.toLowerCase())
+  // Filter the files based on search input
+  const filteredFiles = files.filter(file =>
+    file.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Handle checkbox selection (only one file selected at a time)
+  const handleSelection = (index: number) => {
+    const updatedFiles = files.map((file, i) => ({
+      ...file,
+      isSelected: i === index, // Set the selected file to true, others to false
+    }));
+    setFiles(updatedFiles);
+  };
 
   return (
     <div className="page-container">
@@ -27,6 +83,9 @@ const RetrievePage: React.FC = () => {
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
+          <button className="primary">Analyze</button>
+          <button className="primary">Download</button>
+          <button className="primary">Delete</button>
           <Link to="/upload">
             <button className="primary">Upload</button>
           </Link>
@@ -40,11 +99,31 @@ const RetrievePage: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <ul className="data-list">
-            {filteredData.map((item, index) => (
-              <li key={index} className="data-item">{item}</li>
+
+          {/* Table Headers */}
+          <div className="grid-header">
+            <span>Name</span>
+            <span>Date</span>
+            <span>Owner</span>
+            <span># of Recon Images</span>
+          </div>
+
+          {/* List of Files */}
+          <div className="grid-container">
+            {filteredFiles.map((file, index) => (
+              <div key={index} className="grid-row" onClick={() => handleSelection(index)}>
+                <input
+                  type="checkbox"
+                  checked={file.isSelected}
+                  onChange={() => handleSelection(index)}
+                />
+                <span>{file.name}</span>
+                <span>{file.date}</span>
+                <span>{file.owner}</span>
+                <span>{file.reconImagesCount}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
     </div>

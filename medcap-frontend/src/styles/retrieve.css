@@ -46,15 +46,6 @@
     right: 20px;
 }
 
-.search-bar {
-    width: 300px;
-    padding: 10px;
-    font-size: 16px;
-    margin-bottom: 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
 .data-list {
     list-style-type: none;
     padding: 0;
@@ -82,4 +73,52 @@
 
 .button:hover {
     opacity: 0.9;
+}
+
+/* Grid headers */
+.grid-header {
+    display: grid;
+    grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+    font-weight: bold;
+    padding: 10px 0;
+    border-bottom: 2px solid #ccc;
+    margin-top: 20px;
+    color: #333;
+}
+
+/* Grid container */
+.grid-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Grid row for each MRD file */
+.grid-row {
+    display: grid;
+    grid-template-columns: 50px 2fr 1fr 1fr 1fr;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.grid-row:hover {
+    background-color: rgba(200, 200, 200, 0.1);
+}
+
+.grid-row input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.search-bar {
+    width: 300px;
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
 }
