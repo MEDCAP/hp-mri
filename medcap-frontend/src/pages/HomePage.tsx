@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './../styles/pages.css';
+import SImage from './../images/s_image.png';
 
 const HomePage: React.FC = () => {
   return (
@@ -18,10 +19,11 @@ const HomePage: React.FC = () => {
       </div>
 
       <img
-        src="mri_machine_image_url"
+        src={SImage}
         alt="MRI Machine"
         className="home-image"
       />
+      <h2>Guides</h2>
     </div>
   );
 };

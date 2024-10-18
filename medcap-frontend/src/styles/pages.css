@@ -67,8 +67,8 @@ body {
     margin-top: 40px;
 }
 
-/* RetrievePage styling */
-.retrieve-container {
+/* UploadPage styling */
+.upload-container {
     text-align: center;
     padding: 50px;
 }
@@ -118,27 +118,4 @@ body {
     padding: 15px;
     border: 1px solid #ddd;
     border-radius: 5px;
-}
-
-/* UploadPage styling */
-.upload-container {
-    text-align: center;
-    padding: 50px;
-}
-
-.file-browser {
-    margin-top: 20px;
-    display: inline-block;
-    text-align: left;
-}
-
-.file-browser input {
-    padding: 10px;
-    margin-bottom: 20px;
-}
-
-.file-browser button {
-    display: block;
-    margin-top: 10px;
-    padding: 10px 20px;
 }
