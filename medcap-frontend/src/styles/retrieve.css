@@ -63,17 +63,24 @@
     text-align: center;
 }
 
-.button {
+.button-retrieve {
     padding: 10px 20px;
-    background-color: #007bff;
+    background-color: #011F5B;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
 }
 
-.button:hover {
+.button-retrieve:hover {
     opacity: 0.9;
+}
+
+/* Disabled button styling */
+.button-retrieve:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 /* Grid headers */
