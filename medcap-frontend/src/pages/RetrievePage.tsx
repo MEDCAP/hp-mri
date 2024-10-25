@@ -96,6 +96,9 @@ const RetrievePage: React.FC = () => {
     setFiles(updatedFiles);
   };
 
+  // Check if any file is selected
+  const isAnyFileSelected = files.some(file => file.isSelected);
+
   return (
     <div className="page-container">
       <HeaderAccount />
@@ -103,10 +106,10 @@ const RetrievePage: React.FC = () => {
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
-          <button className="primary">Download</button>
-          <button className="primary">Delete</button>
+          <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
+          <button className="button-retrieve" disabled={!isAnyFileSelected}>Delete</button>
           <Link to="/upload">
-            <button className="primary">Upload</button>
+            <button className="button-retrieve">Upload</button>
           </Link>
         </div>
         <div className="retrieve-container">

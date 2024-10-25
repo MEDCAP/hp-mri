@@ -8,7 +8,7 @@ import './../styles/retrieve.css';
 import axios from 'axios';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa'; // Icons for sorting
 
-interface MRDFile {
+interface Image {
   name: string;
   date: string;
   owner: string;
@@ -18,9 +18,9 @@ interface MRDFile {
 
 const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [files, setFiles] = useState<MRDFile[]>([]);
+  const [files, setFiles] = useState<Image[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
-  const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Image; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
 
   // Fetch data from backend on component mount
   useEffect(() => {
@@ -81,7 +81,7 @@ const ImagesPage: React.FC = () => {
   });
 
   // Handle column sorting
-  const handleSort = (key: keyof MRDFile) => {
+  const handleSort = (key: keyof Image) => {
     setSortConfig(prevState => ({
       key,
       direction: prevState.key === key && prevState.direction === 'asc' ? 'desc' : 'asc',
@@ -97,6 +97,9 @@ const ImagesPage: React.FC = () => {
     setFiles(updatedFiles);
   };
 
+  // Check if any file is selected
+  const isAnyFileSelected = files.some(file => file.isSelected);
+
   return (
     <div className="page-container">
       <HeaderAccount />
@@ -104,10 +107,10 @@ const ImagesPage: React.FC = () => {
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
-          <button className="primary">Download</button>
-          <button className="primary">Delete</button>
+          <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
+          <button className="button-retrieve" disabled={!isAnyFileSelected}>Delete</button>
           <Link to="/upload">
-            <button className="primary">Upload</button>
+            <button className="button-retrieve">Upload</button>
           </Link>
         </div>
         <div className="retrieve-container">
