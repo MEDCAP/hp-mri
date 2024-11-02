@@ -24,38 +24,7 @@ const ImagesPage: React.FC = () => {
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    // TEMPORARY, SHOULD BE SENT FROM BACKEND
-    setFiles([
-      {
-        "name": "Image 1",
-        "date": "2024-10-18",
-        "owner": "MEDCAP",
-        "sequence": "Sequence 1",
-        "isSelected": false,
-      },
-      {
-        "name": "Image 2",
-        "date": "2024-10-17",
-        "owner": "Ben Yoon",
-        "sequence": "Sequence 2",
-        "isSelected": false,
-      },
-      {
-        "name": "Image 3",
-        "date": "2024-10-16",
-        "owner": "Kento",
-        "sequence": "Sequence 3",
-        "isSelected": false,
-      },
-      {
-        "name": "Image 4",
-        "date": "2024-10-15",
-        "owner": "Zihao",
-        "sequence": "Sequence 4",
-        "isSelected": false,
-      },
-    ])
-    axios.get('http://localhost:5000/api/mrd-files')
+    axios.get('http://localhost:5000/api/images')
       .then(response => {
         setFiles(response.data);
       })

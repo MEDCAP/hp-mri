@@ -24,38 +24,7 @@ const RetrievePage: React.FC = () => {
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    // TEMPORARY, SHOULD BE SENT FROM BACKEND
-    setFiles([
-      {
-        "name": "Sequence 1",
-        "date": "2024-10-18",
-        "owner": "MEDCAP",
-        "reconImagesCount": 12,
-        "isSelected": false,
-      },
-      {
-        "name": "Sequence 2",
-        "date": "2024-10-17",
-        "owner": "Ben Yoon",
-        "reconImagesCount": 8,
-        "isSelected": false,
-      },
-      {
-        "name": "Sequence 3",
-        "date": "2024-10-16",
-        "owner": "Kento",
-        "reconImagesCount": 15,
-        "isSelected": false,
-      },
-      {
-        "name": "Sequence 4",
-        "date": "2024-10-15",
-        "owner": "Zihao",
-        "reconImagesCount": 15,
-        "isSelected": false,
-      },
-    ])
-    axios.get('http://localhost:5000/api/mrd-files')
+    axios.get('http://127.0.0.1:5000/api/mrd-files')
       .then(response => {
         setFiles(response.data);
       })
