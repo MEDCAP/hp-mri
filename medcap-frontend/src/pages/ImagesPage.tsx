@@ -24,7 +24,7 @@ const ImagesPage: React.FC = () => {
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    axios.get('http://localhost:5000/api/images')
+    axios.get('http://127.0.0.1:5000/api/images')
       .then(response => {
         setFiles(response.data);
       })

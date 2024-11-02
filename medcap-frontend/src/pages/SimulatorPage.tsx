@@ -24,7 +24,7 @@ const SimulatorPage: React.FC = () => {
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    axios.get('http://localhost:5000/api/simulator')
+    axios.get('http://127.0.0.1:5000/api/simulator')
       .then(response => {
         setFiles(response.data);
       })
