@@ -233,3 +233,16 @@
     margin-left: 5px;
     /* Add a little space between the text and the arrow */
 }
+
+/* Style for the MRD file name link */
+.file-link {
+    color: #333;
+    text-decoration: underline;
+    cursor: pointer;
+    text-decoration-color: gray;
+}
+
+.file-link:hover {
+    color: blue;
+    /* Blue color on hover */
+}

@@ -1,7 +1,7 @@
 // src/pages/RetrievePage.tsx
 import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Link } from 'react-router-dom'; // Importing Link to handle navigation
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
@@ -21,6 +21,7 @@ const RetrievePage: React.FC = () => {
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
   const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const navigate = useNavigate();
 
   // Fetch data from backend on component mount
   useEffect(() => {
@@ -68,6 +69,11 @@ const RetrievePage: React.FC = () => {
   // Check if any file is selected
   const isAnyFileSelected = files.some(file => file.isSelected);
 
+  // Handle navigating to the details page with state
+  const goToDetails = (file: MRDFile) => {
+    navigate(`/file-details/${file.name}`, { state: { owner: file.owner, date: file.date } });
+  };
+
   return (
     <div className="page-container">
       <HeaderAccount />
@@ -111,13 +117,21 @@ const RetrievePage: React.FC = () => {
           {/* List of Files */}
           <div className="grid-container">
             {sortedFiles.map((file, index) => (
-              <div key={index} className="grid-row" onClick={() => handleSelection(index)}>
+              <div key={index} className="grid-row">
                 <input
                   type="checkbox"
                   checked={file.isSelected}
                   onChange={() => handleSelection(index)}
                 />
-                <span>{file.name}</span>
+                <span
+                  className="file-link"
+                  onClick={() => goToDetails(file)}
+                  style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
+                  onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
+                  onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+                >
+                  {file.name}
+                </span>
                 <span>{file.date}</span>
                 <span>{file.owner}</span>
                 <span>{file.reconImagesCount}</span>
