@@ -1,7 +1,7 @@
 // src/pages/RetrievePage.tsx
 import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Link } from 'react-router-dom'; // Importing Link to handle navigation
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
@@ -21,41 +21,11 @@ const RetrievePage: React.FC = () => {
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
   const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const navigate = useNavigate();
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    // TEMPORARY, SHOULD BE SENT FROM BACKEND
-    setFiles([
-      {
-        "name": "Sequence 1",
-        "date": "2024-10-18",
-        "owner": "MEDCAP",
-        "reconImagesCount": 12,
-        "isSelected": false,
-      },
-      {
-        "name": "Sequence 2",
-        "date": "2024-10-17",
-        "owner": "Ben Yoon",
-        "reconImagesCount": 8,
-        "isSelected": false,
-      },
-      {
-        "name": "Sequence 3",
-        "date": "2024-10-16",
-        "owner": "Kento",
-        "reconImagesCount": 15,
-        "isSelected": false,
-      },
-      {
-        "name": "Sequence 4",
-        "date": "2024-10-15",
-        "owner": "Zihao",
-        "reconImagesCount": 15,
-        "isSelected": false,
-      },
-    ])
-    axios.get('http://localhost:5000/api/mrd-files')
+    axios.get('http://127.0.0.1:5000/api/mrd-files')
       .then(response => {
         setFiles(response.data);
       })
@@ -98,6 +68,11 @@ const RetrievePage: React.FC = () => {
 
   // Check if any file is selected
   const isAnyFileSelected = files.some(file => file.isSelected);
+
+  // Handle navigating to the details page with state
+  const goToDetails = (file: MRDFile) => {
+    navigate(`/file-details/${file.name}`, { state: { owner: file.owner, date: file.date } });
+  };
 
   return (
     <div className="page-container">
@@ -142,13 +117,21 @@ const RetrievePage: React.FC = () => {
           {/* List of Files */}
           <div className="grid-container">
             {sortedFiles.map((file, index) => (
-              <div key={index} className="grid-row" onClick={() => handleSelection(index)}>
+              <div key={index} className="grid-row">
                 <input
                   type="checkbox"
                   checked={file.isSelected}
                   onChange={() => handleSelection(index)}
                 />
-                <span>{file.name}</span>
+                <span
+                  className="file-link"
+                  onClick={() => goToDetails(file)}
+                  style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
+                  onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
+                  onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+                >
+                  {file.name}
+                </span>
                 <span>{file.date}</span>
                 <span>{file.owner}</span>
                 <span>{file.reconImagesCount}</span>

@@ -7,7 +7,8 @@ import SImage from './../images/s_image.png';
 const HomePage: React.FC = () => {
   return (
     <div className="home-container">
-      <h1 className="home-title">MEDCAP</h1>
+      <h1 className="home-title">PIGI Lab MEDCAP</h1>
+      <h1 className="home-title">HP-MRI Web Application</h1>
       <p className="home-subtitle">Format and Store, Simulate and Analyze MRI Instrument Data</p>
 
       <div className="home-buttons">

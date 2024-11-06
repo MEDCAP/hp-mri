@@ -24,42 +24,7 @@ const SimulatorPage: React.FC = () => {
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    // TEMPORARY, SHOULD BE SENT FROM BACKEND
-    setFiles([
-      {
-        "name": "Simulator 1",
-        "date": "2024-10-18",
-        "owner": "MEDCAP",
-        "sequence": "Sequence 1",
-        "image": "Image 1",
-        "isSelected": false,
-      },
-      {
-        "name": "Simulator 2",
-        "date": "2024-10-17",
-        "owner": "Ben Yoon",
-        "sequence": "Sequence 2",
-        "image": "Image 2",
-        "isSelected": false,
-      },
-      {
-        "name": "Simulator 3",
-        "date": "2024-10-16",
-        "owner": "Kento",
-        "sequence": "Sequence 3",
-        "image": "Image 3",
-        "isSelected": false,
-      },
-      {
-        "name": "Simulator 4",
-        "date": "2024-10-15",
-        "owner": "Zihao",
-        "sequence": "Sequence 4",
-        "image": "Image 4",
-        "isSelected": false,
-      },
-    ]);
-    axios.get('http://localhost:5000/api/mrd-files')
+    axios.get('http://127.0.0.1:5000/api/simulator')
       .then(response => {
         setFiles(response.data);
       })
