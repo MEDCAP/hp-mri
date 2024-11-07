@@ -43,11 +43,6 @@
     padding: 5px;
 }
 
-.tab.active {
-    color: #333;
-    border-bottom: 2px solid #007bff;
-}
-
 .details-section {
     margin-top: 20px;
     background-color: #fafafa;
@@ -91,15 +86,25 @@
     padding: 5px;
 }
 
-.file-tab.active {
-    color: #333;
-    border-bottom: 2px solid #007bff;
-}
-
 .file-display {
     margin-top: 15px;
     padding: 15px;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Styles for tabs and active state */
+.file-tab.active,
+.tab.active {
+    color: #333;
+    border-bottom: 2px solid #007bff;
+}
+
+/* Styles for input fields during editing */
+.details-section input {
+    display: block;
+    margin-bottom: 8px;
+    padding: 5px;
+    width: 100%;
 }
