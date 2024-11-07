@@ -108,3 +108,28 @@
     padding: 5px;
     width: 100%;
 }
+
+.top-right-details {
+    position: absolute;
+    top: 80px;
+    right: 25px;
+}
+
+.button-retrieve-details {
+    padding: 10px 20px;
+    background-color: #011F5B;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.button-retrieve-details:hover {
+    opacity: 0.9;
+}
+
+.button-retrieve-details:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}

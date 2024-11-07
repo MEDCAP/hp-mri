@@ -83,6 +83,20 @@ def show_images():
     return jsonify(db_image)
 
 
+# Route to retrieve images by sequence_id
+@bp.route("/images/<int:sequence_id>", methods=["GET"])
+def get_images_by_sequence(sequence_id):
+    images = [image for image in db_image if image["sequence_id"] == sequence_id]
+    return jsonify(images)
+
+
+@bp.route("/images/<int:image_id>/delete", methods=["DELETE"])
+def delete_image(image_id):
+    global db_image
+    db_image = [image for image in db_image if image["id"] != image_id]
+    return jsonify({"message": "Image deleted successfully"})
+
+
 # Route to list MRD files
 @bp.route("/simulator", methods=["GET"])
 def show_simulator():
@@ -99,6 +113,7 @@ def upload_file():
 
 @bp.route("/mrd-file/<int:file_id>", methods=["DELETE"])
 def delete_file(file_id):
+    global db_mrd
     # Find the file by ID and delete it
     db_mrd = [file for file in db_mrd if file["id"] != file_id]
     return jsonify({"message": "File deleted successfully"}), 200
