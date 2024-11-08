@@ -9,6 +9,7 @@ import axios from 'axios';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa'; // Icons for sorting
 
 interface MRDFile {
+  id: number;
   name: string;
   date: string;
   owner: string;
@@ -44,8 +45,13 @@ const RetrievePage: React.FC = () => {
   // Sort the filtered files based on sortConfig
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
-    if (a[key] < b[key]) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a[key] > b[key]) return sortConfig.direction === 'asc' ? 1 : -1;
+
+    // Check if the sorting key is 'date' and parse it as a Date object
+    const aValue = key === 'date' ? new Date(a[key]) : a[key];
+    const bValue = key === 'date' ? new Date(b[key]) : b[key];
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
 
@@ -57,13 +63,12 @@ const RetrievePage: React.FC = () => {
     }));
   };
 
-  // Handle checkbox selection (only one file selected at a time)
-  const handleSelection = (index: number) => {
-    const updatedFiles = files.map((file, i) => ({
-      ...file,
-      isSelected: i === index ? !file.isSelected : false, // Toggle the selected file, deselect others
-    }));
-    setFiles(updatedFiles);
+  const handleSelection = (fileId: number) => {
+    setFiles(prevFiles =>
+      prevFiles.map(file =>
+        file.id === fileId ? { ...file, isSelected: !file.isSelected } : { ...file, isSelected: false }
+      )
+    );
   };
 
   // Check if any file is selected
@@ -71,7 +76,22 @@ const RetrievePage: React.FC = () => {
 
   // Handle navigating to the details page with state
   const goToDetails = (file: MRDFile) => {
-    navigate(`/file-details/${file.name}`, { state: { owner: file.owner, date: file.date } });
+    navigate(`/file-details/${file.id}`);
+  };
+
+  const handleDelete = () => {
+    // // API Call for delete, commented so that we don't accidentally delete during dev
+    // // TODO: Uncomment, eventually
+    // const selectedFile = files.find(file => file.isSelected);
+    // if (!selectedFile) return;
+
+    // axios
+    //   .delete(`http://127.0.0.1:5000/api/mrd-file/${selectedFile.id}`)
+    //   .then(() => {
+    //     // Remove the deleted file from the local state
+    //     setFiles(files.filter(file => file.id !== selectedFile.id));
+    //   })
+    //   .catch(error => console.error("Error deleting file:", error));
   };
 
   return (
@@ -82,7 +102,13 @@ const RetrievePage: React.FC = () => {
         {/* Upload button on the top right */}
         <div className="top-right">
           <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
-          <button className="button-retrieve" disabled={!isAnyFileSelected}>Delete</button>
+          <button
+            className="button-retrieve"
+            disabled={!isAnyFileSelected}
+            onClick={handleDelete} // Call the delete function
+          >
+            Delete
+          </button>
           <Link to="/upload">
             <button className="button-retrieve">Upload</button>
           </Link>
@@ -121,7 +147,7 @@ const RetrievePage: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={file.isSelected}
-                  onChange={() => handleSelection(index)}
+                  onChange={() => handleSelection(file.id)}
                 />
                 <span
                   className="file-link"

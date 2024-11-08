@@ -1,5 +1,12 @@
-from flask import Blueprint, jsonify, Flask, request
+from flask import Blueprint, jsonify, request
 from flask_cors import CORS
+
+# Temporary mock data
+# TODO: Replace with RDS Database for quick querying on file details
+# TODO: When uploading actual file to S3 Bucket, add to this database
+from data import db_mrd
+from data import db_image
+from data import db_simulator
 
 bp = Blueprint("mrds", __name__)
 
@@ -16,116 +23,85 @@ def index():
 # Route to list MRD files
 @bp.route("/mrd-files", methods=["GET"])
 def show_files():
-    # Mock data (replace this with real database queries later)
-    files = [
+    # Transform the data to include only the specified fields
+    filtered_files = [
         {
-            "name": "Sequence 1",
-            "date": "2024-10-18",
-            "owner": "MEDCAP",
-            "reconImagesCount": 12,
-            "isSelected": False,
-        },
-        {
-            "name": "Sequence 2",
-            "date": "2024-10-17",
-            "owner": "Ben Yoon",
-            "reconImagesCount": 8,
-            "isSelected": False,
-        },
-        {
-            "name": "Sequence 3",
-            "date": "2024-10-16",
-            "owner": "Kento",
-            "reconImagesCount": 15,
-            "isSelected": False,
-        },
-        {
-            "name": "Sequence 3",
-            "date": "2024-10-16",
-            "owner": "Zihao",
-            "reconImagesCount": 15,
-            "isSelected": False,
-        },
+            "id": file["id"],
+            "name": file["name"],
+            "date": file["date"],
+            "owner": file["owner"],
+            "reconImagesCount": file["reconImagesCount"],
+            "isSelected": file["isSelected"],
+        }
+        for file in db_mrd
     ]
-    return jsonify(files)
+    return jsonify(filtered_files)
+
+
+# Route to retrieve specific file details
+@bp.route("/mrd-files/<file_id>", methods=["GET"])
+def get_file_details(file_id):
+    try:
+        # Convert file_id to an integer for comparison
+        file_id = int(file_id)
+        file_data = next((file for file in db_mrd if file["id"] == file_id), None)
+        if file_data:
+            return jsonify(file_data)
+        return jsonify({"error": "File not found"}), 404
+    except ValueError:
+        # If file_id is not a valid integer, return an error
+        return jsonify({"error": "Invalid file ID"}), 400
+
+
+# Route to update file tags
+@bp.route("/mrd-files/<file_id>/edit-tags", methods=["POST"])
+def edit_file_tags(file_id):
+    try:
+        file_id = int(file_id)
+        new_tags = request.json.get("tags")
+        for file in db_mrd:
+            if file["id"] == file_id:
+                # Update the 'parameter' tag
+                file["parameter"] = new_tags.get("parameter", file["parameter"])
+
+                # Update the 'description' field inside 'raw'
+                if "raw" in file and isinstance(file["raw"], dict):
+                    file["raw"]["description"] = new_tags.get(
+                        "raw", file["raw"].get("description", "")
+                    )
+
+                return jsonify({"message": "Tags updated successfully"})
+        return jsonify({"error": "File not found"}), 404
+    except ValueError:
+        return jsonify({"error": "Invalid file ID"}), 400
 
 
 # Route to list Images
 @bp.route("/images", methods=["GET"])
 def show_images():
     # Mock data (replace this with real database queries later)
-    files = [
-        {
-            "name": "Image 1",
-            "date": "2024-10-18",
-            "owner": "MEDCAP",
-            "sequence": "Sequence 1",
-            "isSelected": False,
-        },
-        {
-            "name": "Image 2",
-            "date": "2024-10-17",
-            "owner": "Ben Yoon",
-            "sequence": "Sequence 2",
-            "isSelected": False,
-        },
-        {
-            "name": "Image 3",
-            "date": "2024-10-16",
-            "owner": "Kento",
-            "sequence": "Sequence 3",
-            "isSelected": False,
-        },
-        {
-            "name": "Image 4",
-            "date": "2024-10-15",
-            "owner": "Zihao",
-            "sequence": "Sequence 4",
-            "isSelected": False,
-        },
-    ]
-    return jsonify(files)
+    return jsonify(db_image)
+
+
+# Route to retrieve images by sequence_id
+@bp.route("/images/<int:sequence_id>", methods=["GET"])
+def get_images_by_sequence(sequence_id):
+    images = [image for image in db_image if image["sequence_id"] == sequence_id]
+    return jsonify(images)
+
+
+@bp.route("/images/<int:image_id>/delete", methods=["DELETE"])
+def delete_image(image_id):
+    global db_image
+    db_image = [image for image in db_image if image["id"] != image_id]
+    return jsonify({"message": "Image deleted successfully"})
 
 
 # Route to list MRD files
 @bp.route("/simulator", methods=["GET"])
 def show_simulator():
     # Mock data (replace this with real database queries later)
-    files = [
-        {
-            "name": "Simulator 1",
-            "date": "2024-10-18",
-            "owner": "MEDCAP",
-            "sequence": "Sequence 1",
-            "image": "Image 1",
-            "isSelected": False,
-        },
-        {
-            "name": "Simulator 2",
-            "date": "2024-10-17",
-            "owner": "Ben Yoon",
-            "sequence": "Sequence 2",
-            "image": "Image 2",
-            "isSelected": False,
-        },
-        {
-            "name": "Simulator 3",
-            "date": "2024-10-16",
-            "owner": "Kento",
-            "sequence": "Sequence 3",
-            "image": "Image 3",
-            "isSelected": False,
-        },
-        {
-            "name": "Simulator 4",
-            "date": "2024-10-15",
-            "owner": "Zihao",
-            "sequence": "Sequence 4",
-            "image": "Image 4",
-            "isSelected": False,
-        },
-    ]
-    return jsonify(files)
+    return jsonify(db_simulator)
 
 
 # Route to upload MRD file page
@@ -135,8 +111,15 @@ def upload_file():
     return jsonify({"message": "File upload endpoint is ready!"})
 
 
-@bp.route("/file/<file_id>")
-def select_file(file_id):
-    # delete file
+@bp.route("/mrd-file/<int:file_id>", methods=["DELETE"])
+def delete_file(file_id):
+    global db_mrd
+    # Find the file by ID and delete it
+    db_mrd = [file for file in db_mrd if file["id"] != file_id]
+    return jsonify({"message": "File deleted successfully"}), 200
+
+
+@bp.route("/mrd-file/<int:file_id>/download")
+def download_file(file_id):
     # download file
     pass

@@ -15,7 +15,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/about" element={<HomePage />} />
         <Route path="/" element={<RetrievePage />} />
-        <Route path="/file-details/:fileName" element={<MRDFileDetails />} />
+        <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/images" element={<ImagesPage />} />
         <Route path="/simulator" element={<SimulatorPage />} />

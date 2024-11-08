@@ -38,6 +38,7 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(5px);
     /* Optional: Adds a blur effect to the background */
+    margin-top: 60px;
 }
 
 /* Top-right "Upload" button positioning */

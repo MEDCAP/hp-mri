@@ -9,6 +9,7 @@ import axios from 'axios';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa'; // Icons for sorting
 
 interface Image {
+  id: number;
   name: string;
   date: string;
   owner: string;
@@ -44,8 +45,13 @@ const ImagesPage: React.FC = () => {
   // Sort the filtered files based on sortConfig
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
-    if (a[key] < b[key]) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a[key] > b[key]) return sortConfig.direction === 'asc' ? 1 : -1;
+
+    // Check if the sorting key is 'date' and parse it as a Date object
+    const aValue = key === 'date' ? new Date(a[key]) : a[key];
+    const bValue = key === 'date' ? new Date(b[key]) : b[key];
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
 
@@ -57,13 +63,12 @@ const ImagesPage: React.FC = () => {
     }));
   };
 
-  // Handle checkbox selection (only one file selected at a time)
-  const handleSelection = (index: number) => {
-    const updatedFiles = files.map((file, i) => ({
-      ...file,
-      isSelected: i === index ? !file.isSelected : false, // Toggle the selected file, deselect others
-    }));
-    setFiles(updatedFiles);
+  const handleSelection = (fileId: number) => {
+    setFiles(prevFiles =>
+      prevFiles.map(file =>
+        file.id === fileId ? { ...file, isSelected: !file.isSelected } : { ...file, isSelected: false }
+      )
+    );
   };
 
   // Check if any file is selected
@@ -116,7 +121,7 @@ const ImagesPage: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={file.isSelected}
-                  onChange={() => handleSelection(index)}
+                  onChange={() => handleSelection(file.id)}
                 />
                 <span>{file.name}</span>
                 <span>{file.date}</span>
