@@ -1,4 +1,4 @@
-# MEDCAP MRI Instrument Data Web Application
+# PIGI MEDCAP HP-MRI Web Application
 
 A full-stack web application to format, store, simulate, and analyze MRI instrument data. The project includes a **React** frontend and a **Flask** backend.
 
