@@ -1,18 +1,21 @@
 // src/pages/ImagesPage.tsx
+
+// Import necessary libraries
 import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Link } from 'react-router-dom'; // Importing Link to handle navigation
 import HeaderAccount from '../components/HeaderAccount';
+import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
 import axios from 'axios';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa'; // Icons for sorting
 
 interface Image {
   id: number;
   name: string;
   date: string;
   owner: string;
+  sequence_id: number;
   sequence: string;
   isSelected: boolean;
 }
@@ -20,8 +23,9 @@ interface Image {
 const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<Image[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Image; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const navigate = useNavigate();
 
   // Fetch data from backend on component mount
   useEffect(() => {
@@ -30,7 +34,7 @@ const ImagesPage: React.FC = () => {
         setFiles(response.data);
       })
       .catch(error => {
-        console.error('Error fetching MRD files:', error);
+        console.error('Error fetching Images:', error);
       });
   }, []);
 
@@ -46,7 +50,6 @@ const ImagesPage: React.FC = () => {
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
 
-    // Check if the sorting key is 'date' and parse it as a Date object
     const aValue = key === 'date' ? new Date(a[key]) : a[key];
     const bValue = key === 'date' ? new Date(b[key]) : b[key];
 
@@ -63,6 +66,23 @@ const ImagesPage: React.FC = () => {
     }));
   };
 
+  const isAnyFileSelected = files.some(file => file.isSelected);
+
+  const handleDelete = () => {
+    // // API Call for delete, commented so that we don't accidentally delete during dev
+    // // TODO: Uncomment, eventually
+    // const selectedFile = files.find(file => file.isSelected);
+    // if (!selectedFile) return;
+
+    // axios
+    //   axios.delete(`http://127.0.0.1:5000/api/images/${selectedFile.id}/delete`)
+    //   .then(() => {
+    //     // Remove the deleted file from the local state
+    //     setFiles(files.filter(file => file.id !== selectedFile.id));
+    //   })
+    //   .catch(error => console.error("Error deleting file:", error));
+  };
+
   const handleSelection = (fileId: number) => {
     setFiles(prevFiles =>
       prevFiles.map(file =>
@@ -71,18 +91,28 @@ const ImagesPage: React.FC = () => {
     );
   };
 
-  // Check if any file is selected
-  const isAnyFileSelected = files.some(file => file.isSelected);
+  // Navigate to MRDFileDetails with activeTab and selectedImageId state
+  const goToDetails = (file: Image) => {
+    navigate(`/file-details/${file.sequence_id}`, {
+      state: { activeTab: "Image", selectedImageId: file.id }
+    });
+  };
 
   return (
     <div className="page-container">
       <HeaderAccount />
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> {/* Pass state to sidebar */}
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
           <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
-          <button className="button-retrieve" disabled={!isAnyFileSelected}>Delete</button>
+          <button
+            className="button-retrieve"
+            disabled={!isAnyFileSelected}
+            onClick={handleDelete}
+          >
+            Delete
+          </button>
           <Link to="/upload">
             <button className="button-retrieve">Upload</button>
           </Link>
@@ -99,7 +129,7 @@ const ImagesPage: React.FC = () => {
 
           {/* Table Headers */}
           <div className="grid-header-images">
-            <span></span> {/* For the checkbox column */}
+            <span></span>
             <span onClick={() => handleSort('name')}>
               Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
             </span>
@@ -117,13 +147,21 @@ const ImagesPage: React.FC = () => {
           {/* List of Files */}
           <div className="grid-container">
             {sortedFiles.map((file, index) => (
-              <div key={index} className="grid-row-images" onClick={() => handleSelection(index)}>
+              <div key={index} className="grid-row-images">
                 <input
                   type="checkbox"
                   checked={file.isSelected}
                   onChange={() => handleSelection(file.id)}
                 />
-                <span>{file.name}</span>
+                <span
+                  className="file-link"
+                  onClick={() => goToDetails(file)}
+                  style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
+                  onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
+                  onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+                >
+                  {file.name}
+                </span>
                 <span>{file.date}</span>
                 <span>{file.owner}</span>
                 <span>{file.sequence}</span>

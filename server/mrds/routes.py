@@ -79,8 +79,20 @@ def edit_file_tags(file_id):
 # Route to list Images
 @bp.route("/images", methods=["GET"])
 def show_images():
-    # Mock data (replace this with real database queries later)
-    return jsonify(db_image)
+    # Transform the data to include only the specified fields
+    filtered_images = [
+        {
+            "id": image["id"],
+            "name": image["name"],
+            "date": image["date"],
+            "owner": image["owner"],
+            "sequence_id": image["sequence_id"],
+            "sequence": image["sequence"],
+            "isSelected": image["isSelected"],
+        }
+        for image in db_image
+    ]
+    return jsonify(filtered_images)
 
 
 # Route to retrieve images by sequence_id

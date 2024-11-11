@@ -1,24 +1,33 @@
 // src/pages/MRDFileDetails.tsx
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
-import { FaSyncAlt } from 'react-icons/fa'; // Import refresh icon
+import { FaSyncAlt } from 'react-icons/fa';
 import './../styles/mrdDetails.css';
 import axios from 'axios'
 
 const MRDFileDetails: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();
+    const location = useLocation();
     const [fileDetails, setFileDetails] = useState<any>(null);
     const [activeTab, setActiveTab] = useState("Files");
     const [activeSubTab, setActiveSubTab] = useState("MRD");
     const [images, setImages] = useState<any[]>([]);
-    const [selectedImageId, setSelectedImageId] = useState<number | null>(null); // State to track selected image ID
+    const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editedTags, setEditedTags] = useState<{ parameter: string; raw: string }>({ parameter: "", raw: "" });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     useEffect(() => {
+        // Check if navigation state is provided (from ImagesPage)
+        if (location.state) {
+            const { activeTab, selectedImageId } = location.state as { activeTab?: string; selectedImageId?: number };
+            if (activeTab) setActiveTab(activeTab);
+            if (selectedImageId) setSelectedImageId(selectedImageId);
+        }
+
         // Fetch file details from the backend
         axios.get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
             .then(response => {
@@ -26,7 +35,7 @@ const MRDFileDetails: React.FC = () => {
                 setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
             })
             .catch(error => console.error("Error fetching file details:", error));
-    }, [fileId]);
+    }, [fileId, location.state]);
 
     // Fetch images when the "Image" tab is selected
     const fetchImages = () => {
@@ -54,7 +63,7 @@ const MRDFileDetails: React.FC = () => {
 
     // Handle image selection (only one selection allowed)
     const handleImageSelection = (imageId: number) => {
-        setSelectedImageId(prevId => (prevId === imageId ? null : imageId)); // Toggle selection
+        setSelectedImageId(prevId => (prevId === imageId ? null : imageId));
     };
 
     // Handle delete action
