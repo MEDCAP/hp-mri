@@ -22,7 +22,7 @@ interface Image {
 
 const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [files, setFiles] = useState<Image[]>([]);
+  const [images, setImages] = useState<Image[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Image; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const navigate = useNavigate();
@@ -31,7 +31,7 @@ const ImagesPage: React.FC = () => {
   useEffect(() => {
     axios.get('http://127.0.0.1:5000/api/images')
       .then(response => {
-        setFiles(response.data);
+        setImages(response.data);
       })
       .catch(error => {
         console.error('Error fetching Images:', error);
@@ -39,7 +39,7 @@ const ImagesPage: React.FC = () => {
   }, []);
 
   // Filter the files based on search input
-  const filteredFiles = files.filter(file =>
+  const filteredFiles = images.filter(file =>
     file.name.toLowerCase().includes(search.toLowerCase()) ||
     file.date.toLowerCase().includes(search.toLowerCase()) ||
     file.owner.toLowerCase().includes(search.toLowerCase()) ||
@@ -66,27 +66,26 @@ const ImagesPage: React.FC = () => {
     }));
   };
 
-  const isAnyFileSelected = files.some(file => file.isSelected);
+  const isAnyFileSelected = images.some(image => image.isSelected);
 
   const handleDelete = () => {
     // // API Call for delete, commented so that we don't accidentally delete during dev
     // // TODO: Uncomment, eventually
-    // const selectedFile = files.find(file => file.isSelected);
-    // if (!selectedFile) return;
+    // const selectedImageIds = images.filter(image => image.isSelected).map(image => image.id);
+    // if (selectedImageIds.length === 0) return;
 
     // axios
-    //   axios.delete(`http://127.0.0.1:5000/api/images/${selectedFile.id}/delete`)
+    //   .delete(`http://127.0.0.1:5000/api/images/delete`, { data: { ids: selectedImageIds } })
     //   .then(() => {
-    //     // Remove the deleted file from the local state
-    //     setFiles(files.filter(file => file.id !== selectedFile.id));
+    //     setImages(images.filter(image => !image.isSelected));
     //   })
-    //   .catch(error => console.error("Error deleting file:", error));
+    //   .catch(error => console.error("Error deleting images:", error));
   };
 
-  const handleSelection = (fileId: number) => {
-    setFiles(prevFiles =>
-      prevFiles.map(file =>
-        file.id === fileId ? { ...file, isSelected: !file.isSelected } : { ...file, isSelected: false }
+  const handleSelection = (imageId: number) => {
+    setImages(prevImages =>
+      prevImages.map(image =>
+        image.id === imageId ? { ...image, isSelected: !image.isSelected } : image
       )
     );
   };

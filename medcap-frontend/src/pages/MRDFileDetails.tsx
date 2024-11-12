@@ -15,7 +15,7 @@ const MRDFileDetails: React.FC = () => {
     const [activeTab, setActiveTab] = useState("Files");
     const [activeSubTab, setActiveSubTab] = useState("MRD");
     const [images, setImages] = useState<any[]>([]);
-    const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
+    const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]); // Track multiple selected image IDs
     const [isEditing, setIsEditing] = useState(false);
     const [editedTags, setEditedTags] = useState<{ parameter: string; raw: string }>({ parameter: "", raw: "" });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -26,7 +26,7 @@ const MRDFileDetails: React.FC = () => {
         if (location.state) {
             const { activeTab, selectedImageId } = location.state as { activeTab?: string; selectedImageId?: number };
             if (activeTab) setActiveTab(activeTab);
-            if (selectedImageId) setSelectedImageId(selectedImageId);
+            if (selectedImageId) setSelectedImageIds([selectedImageId]);
         }
 
         // Fetch file details from the backend
@@ -62,33 +62,36 @@ const MRDFileDetails: React.FC = () => {
         //     .catch(error => console.error("Error saving tags:", error));
     };
 
-    // Handle image selection (only one selection allowed)
+    // Handle image selection to allow multiple selections
     const handleImageSelection = (imageId: number) => {
-        setSelectedImageId(prevId => (prevId === imageId ? null : imageId));
+        setSelectedImageIds(prevIds =>
+            prevIds.includes(imageId)
+                ? prevIds.filter(id => id !== imageId) // Deselect if already selected
+                : [...prevIds, imageId] // Select if not already selected
+        );
     };
 
     // Handle delete action
     const handleDeleteImage = () => {
         // // API Call for delete, commented so that we don't accidentally delete during dev
         // // TODO: Uncomment, eventually
-        // if (selectedImageId !== null) {
-        //     axios.delete(`http://127.0.0.1:5000/api/images/${selectedImageId}/delete`)
-        //         .then(() => {
-        //             // Remove deleted image from local state
-        //             setImages(images.filter(image => image.id !== selectedImageId));
-        //             setSelectedImageId(null); // Reset selection
-        //         })
-        //         .catch(error => console.error("Error deleting image:", error));
-        // }
-    };
+        // const selectedImagesIds = images.filter(image => image.isSelected).map(image => image.id);
+        // if (selectedImagesIds.length === 0) return;
 
-    if (!fileDetails) return <div>Loading...</div>;
+        // axios
+        //   .delete(`http://127.0.0.1:5000/api/images/delete`, { data: { ids: selectedImagesIds } })
+        //   .then(() => {
+        //     setImages(images.filter(image => !image.isSelected));
+        //   })
+        //   .catch(error => console.error("Error deleting images:", error));
+    };
 
     // Handle navigating to the details page with state
     const goToDetails = (image_id: number, file_id: number) => {
-        navigate(`/images-details/${image_id}/${file_id}`, {
-        });
+        navigate(`/images-details/${image_id}/${file_id}`);
     };
+
+    if (!fileDetails) return <div>Loading...</div>;
 
     return (
         <div className="page-container">
@@ -106,10 +109,10 @@ const MRDFileDetails: React.FC = () => {
             {activeTab === "Image" && (
                 <div className="top-right-details">
                     <button className="button-retrieve-details" onClick={fetchImages}>
-                        <FaSyncAlt /> {/* Refresh Icon */}
+                        <FaSyncAlt />
                     </button>
-                    <button className="button-retrieve-details" disabled={!selectedImageId}>Download Image file</button>
-                    <button className="button-retrieve-details" disabled={!selectedImageId} onClick={handleDeleteImage}>Delete</button>
+                    <button className="button-retrieve-details" disabled={selectedImageIds.length === 0}>Download Image file</button>
+                    <button className="button-retrieve-details" disabled={selectedImageIds.length === 0} onClick={handleDeleteImage}>Delete</button>
                 </div>
             )}
 
@@ -183,7 +186,7 @@ const MRDFileDetails: React.FC = () => {
                                 <div key={index} className="grid-row">
                                     <input
                                         type="checkbox"
-                                        checked={selectedImageId === image.id}
+                                        checked={selectedImageIds.includes(image.id)}
                                         onChange={() => handleImageSelection(image.id)}
                                     />
                                     <span

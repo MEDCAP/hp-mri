@@ -102,11 +102,15 @@ def get_images_by_sequence(sequence_id):
     return jsonify(images)
 
 
-@bp.route("/images/<int:image_id>/delete", methods=["DELETE"])
-def delete_image(image_id):
+@bp.route("/images/delete", methods=["DELETE"])
+def delete_images():
     global db_image
-    db_image = [image for image in db_image if image["id"] != image_id]
-    return jsonify({"message": "Image deleted successfully"})
+    image_ids = request.json.get("ids", [])
+    if not image_ids:
+        return jsonify({"error": "No image IDs provided"}), 400
+
+    db_image = [image for image in db_image if image["id"] not in image_ids]
+    return jsonify({"message": "Images deleted successfully"}), 200
 
 
 # Route to retrieve specific image file details
@@ -145,12 +149,15 @@ def upload_file():
     return jsonify({"message": "File upload endpoint is ready!"})
 
 
-@bp.route("/mrd-file/<int:file_id>", methods=["DELETE"])
-def delete_file(file_id):
+@bp.route("/mrd-file", methods=["DELETE"])
+def delete_files():
     global db_mrd
-    # Find the file by ID and delete it
-    db_mrd = [file for file in db_mrd if file["id"] != file_id]
-    return jsonify({"message": "File deleted successfully"}), 200
+    file_ids = request.json.get("ids", [])
+    if not file_ids:
+        return jsonify({"error": "No file IDs provided"}), 400
+
+    db_mrd = [file for file in db_mrd if file["id"] not in file_ids]
+    return jsonify({"message": "Files deleted successfully"}), 200
 
 
 @bp.route("/mrd-file/<int:file_id>/download")

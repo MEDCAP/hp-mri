@@ -1,6 +1,5 @@
 // src/pages/RetrievePage.tsx
 
-// Import necessary libraries
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
@@ -8,7 +7,7 @@ import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
 import axios from 'axios';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa'; // Icons for sorting
+import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
 interface MRDFile {
   id: number;
@@ -22,7 +21,7 @@ interface MRDFile {
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const navigate = useNavigate();
 
@@ -68,13 +67,10 @@ const RetrievePage: React.FC = () => {
   const handleSelection = (fileId: number) => {
     setFiles(prevFiles =>
       prevFiles.map(file =>
-        file.id === fileId ? { ...file, isSelected: !file.isSelected } : { ...file, isSelected: false }
+        file.id === fileId ? { ...file, isSelected: !file.isSelected } : file
       )
     );
   };
-
-  // Check if any file is selected
-  const isAnyFileSelected = files.some(file => file.isSelected);
 
   // Handle navigating to the details page with state
   const goToDetails = (file: MRDFile) => {
@@ -84,17 +80,19 @@ const RetrievePage: React.FC = () => {
   const handleDelete = () => {
     // // API Call for delete, commented so that we don't accidentally delete during dev
     // // TODO: Uncomment, eventually
-    // const selectedFile = files.find(file => file.isSelected);
-    // if (!selectedFile) return;
+    // const selectedFileIds = files.filter(file => file.isSelected).map(file => file.id);
+    // if (selectedFileIds.length === 0) return;
 
     // axios
-    //   .delete(`http://127.0.0.1:5000/api/mrd-file/${selectedFile.id}`)
+    //   .delete(`http://127.0.0.1:5000/api/mrd-file/`, { data: { ids: selectedFileIds } })
     //   .then(() => {
-    //     // Remove the deleted file from the local state
-    //     setFiles(files.filter(file => file.id !== selectedFile.id));
+    //     // Remove the deleted files from the local state
+    //     setFiles(files.filter(file => !file.isSelected));
     //   })
-    //   .catch(error => console.error("Error deleting file:", error));
+    //   .catch(error => console.error("Error deleting files:", error));
   };
+
+  const isAnyFileSelected = files.some(file => file.isSelected);
 
   return (
     <div className="page-container">
