@@ -117,7 +117,7 @@ const ImagesPage: React.FC = () => {
             <button className="button-retrieve">Upload</button>
           </Link>
         </div>
-        <div className="retrieve-container">
+        <div className="retrieve-container-images">
           <h1>Images</h1>
           <input
             type="text"
