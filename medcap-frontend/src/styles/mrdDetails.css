@@ -133,3 +133,15 @@
     cursor: not-allowed;
     opacity: 0.6;
 }
+
+/* Style for the Image name link */
+.image-link {
+    color: #333;
+    text-decoration: underline;
+    cursor: pointer;
+    text-decoration-color: gray;
+}
+
+.image-link:hover {
+    color: blue;
+}

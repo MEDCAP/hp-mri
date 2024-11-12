@@ -109,6 +109,28 @@ def delete_image(image_id):
     return jsonify({"message": "Image deleted successfully"})
 
 
+# Route to retrieve specific image file details
+@bp.route("/image-details/<image_id>", methods=["GET"])
+def get_image(image_id):
+    try:
+        image_id = int(image_id)
+        image_data = next(
+            (image for image in db_image if image["id"] == image_id), None
+        )
+        if image_data:
+            return jsonify(image_data)
+        return jsonify({"error": "Image not found"}), 404
+    except ValueError:
+        return jsonify({"error": "Invalid image ID"}), 400
+
+
+# TODO: Route to get actual image associated with this image id from
+# the s3 bucket and return it to the frontend
+@bp.route("/image/<int:image_id>/", methods=["GET"])
+def get_image_details(image_id):
+    return jsonify({"message": "TODO: Display Image"})
+
+
 # Route to list MRD files
 @bp.route("/simulator", methods=["GET"])
 def show_simulator():

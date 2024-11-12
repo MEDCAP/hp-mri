@@ -1,7 +1,7 @@
 // src/pages/MRDFileDetails.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import { FaSyncAlt } from 'react-icons/fa';
@@ -19,6 +19,7 @@ const MRDFileDetails: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedTags, setEditedTags] = useState<{ parameter: string; raw: string }>({ parameter: "", raw: "" });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
         // Check if navigation state is provided (from ImagesPage)
@@ -82,6 +83,12 @@ const MRDFileDetails: React.FC = () => {
     };
 
     if (!fileDetails) return <div>Loading...</div>;
+
+    // Handle navigating to the details page with state
+    const goToDetails = (image_id: number, file_id: number) => {
+        navigate(`/images-details/${image_id}/${file_id}`, {
+        });
+    };
 
     return (
         <div className="page-container">
@@ -179,7 +186,15 @@ const MRDFileDetails: React.FC = () => {
                                         checked={selectedImageId === image.id}
                                         onChange={() => handleImageSelection(image.id)}
                                     />
-                                    <span>{image.name}</span>
+                                    <span
+                                        className="image-link"
+                                        onClick={() => goToDetails(image.id, image.sequence_id)}
+                                        style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
+                                        onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
+                                        onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+                                    >
+                                        {image.name}
+                                    </span>
                                 </div>
                             ))}
                         </div>
