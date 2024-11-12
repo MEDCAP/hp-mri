@@ -17,11 +17,10 @@ const HeaderAccount: React.FC = () => {
         <img src={TheMedcap} alt="App Logo 2" className="app-logo" />
       </div>
 
-      {/* Search bar */}
-      {/* <div className="header-search">
-        <FaSearch className="search-icon" />
-        <input type="text" placeholder="Search..." className="search-input" />
-      </div> */}
+      {/* Title */}
+      <div className="header-title">
+        <span className="title-input">HP-MRI</span>
+      </div>
 
       {/* Right section with Account and icons */}
       <div className="header-right">
