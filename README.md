@@ -39,7 +39,7 @@ To set up and run the frontend (React/Vite):
 
 1. Clone the repository and navigate to the frontend directory:
    ```bash
-   cd medcap-frontend
+   cd hp-mri-frontend
    ```
 
 2. Install dependencies:
