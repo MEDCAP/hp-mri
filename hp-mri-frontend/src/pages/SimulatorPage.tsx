@@ -1,11 +1,13 @@
+// src/pages/SimulatorPage.tsx
+
 import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Link } from 'react-router-dom'; // Importing Link to handle navigation
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/retrieve.css';
 import axios from 'axios';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa'; // Icons for sorting
+import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
 interface Simulator {
   id: number;
@@ -19,35 +21,33 @@ interface Simulator {
 
 const SimulatorPage: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [files, setFiles] = useState<Simulator[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
+  const [simulators, setSimulators] = useState<Simulator[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Simulator; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const navigate = useNavigate();
 
   // Fetch data from backend on component mount
   useEffect(() => {
     axios.get('http://127.0.0.1:5000/api/simulator')
       .then(response => {
-        setFiles(response.data);
+        setSimulators(response.data);
       })
       .catch(error => {
-        console.error('Error fetching MRD files:', error);
+        console.error('Error fetching Simulator:', error);
       });
   }, []);
 
   // Filter the files based on search input
-  const filteredFiles = files.filter(file =>
+  const filteredFiles = simulators.filter(file =>
     file.name.toLowerCase().includes(search.toLowerCase()) ||
     file.date.toLowerCase().includes(search.toLowerCase()) ||
-    file.owner.toLowerCase().includes(search.toLowerCase()) ||
-    file.sequence.toLowerCase().includes(search.toLowerCase()) ||
-    file.image.toLowerCase().includes(search.toLowerCase())
+    file.owner.toLowerCase().includes(search.toLowerCase())
   );
 
   // Sort the filtered files based on sortConfig
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
 
-    // Check if the sorting key is 'date' and parse it as a Date object
     const aValue = key === 'date' ? new Date(a[key]) : a[key];
     const bValue = key === 'date' ? new Date(b[key]) : b[key];
 
@@ -65,30 +65,53 @@ const SimulatorPage: React.FC = () => {
   };
 
   const handleSelection = (fileId: number) => {
-    setFiles(prevFiles =>
+    setSimulators(prevFiles =>
       prevFiles.map(file =>
-        file.id === fileId ? { ...file, isSelected: !file.isSelected } : { ...file, isSelected: false }
+        file.id === fileId ? { ...file, isSelected: !file.isSelected } : file
       )
     );
   };
 
-  // Check if any file is selected
-  const isAnyFileSelected = files.some(file => file.isSelected);
+  const goToDetails = (simulator: Simulator) => {
+  };
+
+  const handleDelete = () => {
+    // // API Call for delete, commented so that we don't accidentally delete during dev
+    // // TODO: Uncomment, eventually
+    // const selectedSimulatorIds = simulators.filter(simulator => simulator.isSelected).map(simulator => simulator.id);
+    // if (selectedSimulatorIds.length === 0) return;
+
+    // axios
+    //   .delete(`http://127.0.0.1:5000/api/simulators/`, { data: { ids: selectedSimulatorIds } })
+    //   .then(() => {
+    //     // Remove the deleted simulator from the local state
+    //     setSimulators(simulators.filter(file => !file.isSelected));
+    //   })
+    //   .catch(error => console.error("Error deleting simulator:", error));
+  };
+
+  const isAnyFileSelected = simulators.some(file => file.isSelected);
 
   return (
     <div className="page-container">
       <HeaderAccount />
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> {/* Pass state to sidebar */}
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         {/* Upload button on the top right */}
         <div className="top-right">
           <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
-          <button className="button-retrieve" disabled={!isAnyFileSelected}>Delete</button>
+          <button
+            className="button-retrieve"
+            disabled={!isAnyFileSelected}
+            onClick={handleDelete}
+          >
+            Delete
+          </button>
           <Link to="/upload">
             <button className="button-retrieve">Upload</button>
           </Link>
         </div>
-        <div className="retrieve-container">
+        <div className="retrieve-container-simulator">
           <h1>Simulator</h1>
           <input
             type="text"
@@ -100,7 +123,7 @@ const SimulatorPage: React.FC = () => {
 
           {/* Table Headers */}
           <div className="grid-header-simulator">
-            <span></span> {/* Checkbox column */}
+            <span></span>
             <span onClick={() => handleSort('name')}>
               Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
             </span>
@@ -121,13 +144,21 @@ const SimulatorPage: React.FC = () => {
           {/* List of Files */}
           <div className="grid-container">
             {sortedFiles.map((file, index) => (
-              <div key={index} className="grid-row-simulator" onClick={() => handleSelection(index)}>
+              <div key={index} className="grid-row-simulator">
                 <input
                   type="checkbox"
                   checked={file.isSelected}
                   onChange={() => handleSelection(file.id)}
                 />
-                <span>{file.name}</span>
+                <span
+                  className="file-link"
+                  onClick={() => goToDetails(file)}
+                  style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
+                  onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
+                  onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+                >
+                  {file.name}
+                </span>
                 <span>{file.date}</span>
                 <span>{file.owner}</span>
                 <span>{file.sequence}</span>
