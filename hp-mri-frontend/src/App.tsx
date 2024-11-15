@@ -8,6 +8,7 @@ import UploadPage from './pages/UploadPage';
 import ImagesPage from './pages/ImagesPage';
 import SimulatorPage from './pages/SimulatorPage';
 import AccountPage from './pages/AccountPage';
+import ImagesDetails from './pages/ImagesDetails';
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,7 @@ const App: React.FC = () => {
         <Route path="/images" element={<ImagesPage />} />
         <Route path="/simulator" element={<SimulatorPage />} />
         <Route path="/account" element={<AccountPage />} />
+        <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
       </Routes>
     </Router>
   );

@@ -1,24 +1,34 @@
 // src/pages/MRDFileDetails.tsx
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
-import { FaSyncAlt } from 'react-icons/fa'; // Import refresh icon
+import { FaSyncAlt } from 'react-icons/fa';
 import './../styles/mrdDetails.css';
 import axios from 'axios'
 
 const MRDFileDetails: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();
+    const location = useLocation();
     const [fileDetails, setFileDetails] = useState<any>(null);
     const [activeTab, setActiveTab] = useState("Files");
     const [activeSubTab, setActiveSubTab] = useState("MRD");
     const [images, setImages] = useState<any[]>([]);
-    const [selectedImageId, setSelectedImageId] = useState<number | null>(null); // State to track selected image ID
+    const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]); // Track multiple selected image IDs
     const [isEditing, setIsEditing] = useState(false);
     const [editedTags, setEditedTags] = useState<{ parameter: string; raw: string }>({ parameter: "", raw: "" });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
+        // Check if navigation state is provided (from ImagesPage)
+        if (location.state) {
+            const { activeTab, selectedImageId } = location.state as { activeTab?: string; selectedImageId?: number };
+            if (activeTab) setActiveTab(activeTab);
+            if (selectedImageId) setSelectedImageIds([selectedImageId]);
+        }
+
         // Fetch file details from the backend
         axios.get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
             .then(response => {
@@ -26,7 +36,7 @@ const MRDFileDetails: React.FC = () => {
                 setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
             })
             .catch(error => console.error("Error fetching file details:", error));
-    }, [fileId]);
+    }, [fileId, location.state]);
 
     // Fetch images when the "Image" tab is selected
     const fetchImages = () => {
@@ -52,24 +62,33 @@ const MRDFileDetails: React.FC = () => {
         //     .catch(error => console.error("Error saving tags:", error));
     };
 
-    // Handle image selection (only one selection allowed)
+    // Handle image selection to allow multiple selections
     const handleImageSelection = (imageId: number) => {
-        setSelectedImageId(prevId => (prevId === imageId ? null : imageId)); // Toggle selection
+        setSelectedImageIds(prevIds =>
+            prevIds.includes(imageId)
+                ? prevIds.filter(id => id !== imageId) // Deselect if already selected
+                : [...prevIds, imageId] // Select if not already selected
+        );
     };
 
     // Handle delete action
     const handleDeleteImage = () => {
         // // API Call for delete, commented so that we don't accidentally delete during dev
         // // TODO: Uncomment, eventually
-        // if (selectedImageId !== null) {
-        //     axios.delete(`http://127.0.0.1:5000/api/images/${selectedImageId}/delete`)
-        //         .then(() => {
-        //             // Remove deleted image from local state
-        //             setImages(images.filter(image => image.id !== selectedImageId));
-        //             setSelectedImageId(null); // Reset selection
-        //         })
-        //         .catch(error => console.error("Error deleting image:", error));
-        // }
+        // const selectedImagesIds = images.filter(image => image.isSelected).map(image => image.id);
+        // if (selectedImagesIds.length === 0) return;
+
+        // axios
+        //   .delete(`http://127.0.0.1:5000/api/images/delete`, { data: { ids: selectedImagesIds } })
+        //   .then(() => {
+        //     setImages(images.filter(image => !image.isSelected));
+        //   })
+        //   .catch(error => console.error("Error deleting images:", error));
+    };
+
+    // Handle navigating to the details page with state
+    const goToDetails = (image_id: number, file_id: number) => {
+        navigate(`/images-details/${image_id}/${file_id}`);
     };
 
     if (!fileDetails) return <div>Loading...</div>;
@@ -90,10 +109,10 @@ const MRDFileDetails: React.FC = () => {
             {activeTab === "Image" && (
                 <div className="top-right-details">
                     <button className="button-retrieve-details" onClick={fetchImages}>
-                        <FaSyncAlt /> {/* Refresh Icon */}
+                        <FaSyncAlt />
                     </button>
-                    <button className="button-retrieve-details" disabled={!selectedImageId}>Download Image file</button>
-                    <button className="button-retrieve-details" disabled={!selectedImageId} onClick={handleDeleteImage}>Delete</button>
+                    <button className="button-retrieve-details" disabled={selectedImageIds.length === 0}>Download Image file</button>
+                    <button className="button-retrieve-details" disabled={selectedImageIds.length === 0} onClick={handleDeleteImage}>Delete</button>
                 </div>
             )}
 
@@ -167,10 +186,18 @@ const MRDFileDetails: React.FC = () => {
                                 <div key={index} className="grid-row">
                                     <input
                                         type="checkbox"
-                                        checked={selectedImageId === image.id}
+                                        checked={selectedImageIds.includes(image.id)}
                                         onChange={() => handleImageSelection(image.id)}
                                     />
-                                    <span>{image.name}</span>
+                                    <span
+                                        className="image-link"
+                                        onClick={() => goToDetails(image.id, image.sequence_id)}
+                                        style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
+                                        onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
+                                        onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+                                    >
+                                        {image.name}
+                                    </span>
                                 </div>
                             ))}
                         </div>

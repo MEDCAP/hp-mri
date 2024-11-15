@@ -79,8 +79,20 @@ def edit_file_tags(file_id):
 # Route to list Images
 @bp.route("/images", methods=["GET"])
 def show_images():
-    # Mock data (replace this with real database queries later)
-    return jsonify(db_image)
+    # Transform the data to include only the specified fields
+    filtered_images = [
+        {
+            "id": image["id"],
+            "name": image["name"],
+            "date": image["date"],
+            "owner": image["owner"],
+            "sequence_id": image["sequence_id"],
+            "sequence": image["sequence"],
+            "isSelected": image["isSelected"],
+        }
+        for image in db_image
+    ]
+    return jsonify(filtered_images)
 
 
 # Route to retrieve images by sequence_id
@@ -90,18 +102,37 @@ def get_images_by_sequence(sequence_id):
     return jsonify(images)
 
 
-@bp.route("/images/<int:image_id>/delete", methods=["DELETE"])
-def delete_image(image_id):
+@bp.route("/images/delete", methods=["DELETE"])
+def delete_images():
     global db_image
-    db_image = [image for image in db_image if image["id"] != image_id]
-    return jsonify({"message": "Image deleted successfully"})
+    image_ids = request.json.get("ids", [])
+    if not image_ids:
+        return jsonify({"error": "No image IDs provided"}), 400
+
+    db_image = [image for image in db_image if image["id"] not in image_ids]
+    return jsonify({"message": "Images deleted successfully"}), 200
 
 
-# Route to list MRD files
-@bp.route("/simulator", methods=["GET"])
-def show_simulator():
-    # Mock data (replace this with real database queries later)
-    return jsonify(db_simulator)
+# Route to retrieve specific image file details
+@bp.route("/image-details/<image_id>", methods=["GET"])
+def get_image(image_id):
+    try:
+        image_id = int(image_id)
+        image_data = next(
+            (image for image in db_image if image["id"] == image_id), None
+        )
+        if image_data:
+            return jsonify(image_data)
+        return jsonify({"error": "Image not found"}), 404
+    except ValueError:
+        return jsonify({"error": "Invalid image ID"}), 400
+
+
+# TODO: Route to get actual image associated with this image id from
+# the s3 bucket and return it to the frontend
+@bp.route("/image/<int:image_id>/", methods=["GET"])
+def get_image_details(image_id):
+    return jsonify({"message": "TODO: Display Image"})
 
 
 # Route to upload MRD file page
@@ -111,15 +142,49 @@ def upload_file():
     return jsonify({"message": "File upload endpoint is ready!"})
 
 
-@bp.route("/mrd-file/<int:file_id>", methods=["DELETE"])
-def delete_file(file_id):
+@bp.route("/mrd-file", methods=["DELETE"])
+def delete_files():
     global db_mrd
-    # Find the file by ID and delete it
-    db_mrd = [file for file in db_mrd if file["id"] != file_id]
-    return jsonify({"message": "File deleted successfully"}), 200
+    file_ids = request.json.get("ids", [])
+    if not file_ids:
+        return jsonify({"error": "No file IDs provided"}), 400
+
+    db_mrd = [file for file in db_mrd if file["id"] not in file_ids]
+    return jsonify({"message": "Files deleted successfully"}), 200
 
 
 @bp.route("/mrd-file/<int:file_id>/download")
 def download_file(file_id):
     # download file
     pass
+
+
+# Route to list Simulators
+@bp.route("/simulator", methods=["GET"])
+def show_simulator():
+    filtered_simulator = [
+        {
+            "id": simulator["id"],
+            "name": simulator["name"],
+            "date": simulator["date"],
+            "owner": simulator["owner"],
+            "sequence": simulator["sequence"],
+            "image": simulator["image"],
+            "isSelected": simulator["isSelected"],
+        }
+        for simulator in db_simulator
+    ]
+    return jsonify(filtered_simulator)
+
+
+@bp.route("/simluators", methods=["DELETE"])
+def delete_simulator():
+    global db_simulator
+    simulator_ids = request.json.get("ids", [])
+    if not simulator_ids:
+        return jsonify({"error": "No simulator IDs provided"}), 400
+
+    db_simulator = [
+        simulator for simulator in db_simulator if simulator["id"] not in simulator_ids
+    ]
+    return jsonify({"message": "Simulator deleted successfully"}), 200

@@ -37,8 +37,28 @@
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(5px);
-    /* Optional: Adds a blur effect to the background */
+    /* Adds a blur effect to the background */
     margin-top: 60px;
+}
+
+.retrieve-container-images {
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(5px);
+    margin-top: 120px;
+}
+
+.retrieve-container-simulator {
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(5px);
+    margin-top: 30px;
 }
 
 /* Top-right "Upload" button positioning */
@@ -108,7 +128,6 @@
     color: #333;
     background-color: #f8f8f8;
     align-items: center;
-    /* Ensure vertical alignment in the center */
 }
 
 .grid-header-simulator {
@@ -156,6 +175,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: background-color 0.2s;
+    border-bottom: 1px solid #ccc;
 }
 
 .grid-row-simulator {
@@ -168,6 +188,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: background-color 0.2s;
+    border-bottom: 1px solid #ccc;
 }
 
 .grid-row:hover {
@@ -175,6 +196,22 @@
 }
 
 .grid-row input[type="checkbox"] {
+    justify-self: center;
+}
+
+.grid-row-images:hover {
+    background-color: rgba(200, 200, 200, 0.1);
+}
+
+.grid-row-images input[type="checkbox"] {
+    justify-self: center;
+}
+
+.grid-row-simluator:hover {
+    background-color: rgba(200, 200, 200, 0.1);
+}
+
+.grid-row-simulator input[type="checkbox"] {
     justify-self: center;
 }
 
