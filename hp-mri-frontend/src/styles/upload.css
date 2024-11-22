@@ -1,5 +1,3 @@
-/* src/styles/upload.css */
-
 .upload-container {
     padding: 0px;
     background-color: #f8f9fa;
@@ -8,21 +6,16 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    position: relative;
-    flex-grow: 1;
     transition: margin-left 0.3s ease;
+    width: 100vw;
 }
 
-/* When sidebar is open */
 .upload-container.sidebar-open {
     margin-left: 250px;
-    /* Sidebar width when open */
 }
 
-/* When sidebar is closed */
 .upload-container.sidebar-closed {
     margin-left: 60px;
-    /* Sidebar width when closed */
 }
 
 .upload-container h1 {
@@ -31,41 +24,80 @@
     margin-bottom: 20px;
 }
 
-.file-select {
-    text-align: left;
-    font-size: 16px;
-    margin-bottom: 30px;
+.upload-description {
+    font-size: 18px;
+    color: #4a4a4a;
+    margin-bottom: 20px;
 }
 
-.file-select ul {
-    list-style-type: none;
-    padding: 0;
-    font-size: 16px;
+.upload-box {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 80%;
 }
 
-.file-select ul li {
-    margin-bottom: 10px;
-}
-
-.file-browser {
+.upload-section {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.file-browser input {
-    margin-bottom: 20px;
+.drag-drop-box {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 2px dashed #007bff;
+    padding: 20px;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-.button {
+.drag-drop-box:hover {
+    background-color: #e7f3ff;
+    border-color: #0056b3;
+}
+
+.drag-drop-box p {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #007bff;
+}
+
+.drag-drop-box span {
+    font-size: 14px;
+    color: #4a4a4a;
+}
+
+.drag-drop-box input {
+    display: none;
+}
+
+.upload-button {
     padding: 10px 20px;
-    background-color: #007bff;
+    background-color: #011F5B;
     color: white;
     border: none;
     border-radius: 5px;
+    font-size: 16px;
     cursor: pointer;
+    transition: background-color 0.3s ease, opacity 0.3s ease;
+    margin-top: 20px;
 }
 
-.button:hover {
+.upload-button:hover {
+    background-color: #0056b3;
     opacity: 0.9;
+}
+
+.top-right-upload {
+    position: absolute;
+    top: 60px;
+    right: 20px;
 }
