@@ -3,22 +3,36 @@ import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/upload.css';
+import axios from 'axios';
 
 const UploadPage: React.FC = () => {
-  const [mriFile, setMriFile] = useState<File | null>(null);
-  const [auxFile, setAuxFile] = useState<File | null>(null);
+  const [mriFile, setMriFile] = useState<FileList | null>(null);
+  const [auxFile, setAuxFile] = useState<FileList | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
     if (event.target.files) {
-      type === 'MRI' ? setMriFile(event.target.files[0]) : setAuxFile(event.target.files[0]);
+      type === 'MRI' ? setMriFile(event.target.files) : setAuxFile(event.target.files);
     }
   };
 
-  const handleUpload = () => {
-    console.log("MRI File:", mriFile);
-    console.log("Aux File:", auxFile);
-    // Add upload logic here
+  const handleUpload = async () => {
+    if (mriFile && mriFile.length > 0) { // Check if files are selected
+      const formData = new FormData();
+      [...mriFile].forEach(file => formData.append('files', file));  // send formdata as files
+      try{
+        axios
+          .post('http://127.0.0.1:5000/api/upload', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          .then(response => {
+            console.log('Upload successful:', response.data)});
+      } catch (error) {
+        console.error('Error uploading files:', error);
+      }
+    }
   };
 
   return (
@@ -38,7 +52,7 @@ const UploadPage: React.FC = () => {
             <label className="drag-drop-box">
               <p>Upload MRI raw data</p>
               <span>drag and drop</span>
-              <input type="file" onChange={(e) => handleFileChange(e, 'MRI')} />
+              <input type="file" accept='.bin, .dat' multiple onChange={(e) => handleFileChange(e, 'MRI')} />
             </label>
           </div>
           <div className="upload-section">
