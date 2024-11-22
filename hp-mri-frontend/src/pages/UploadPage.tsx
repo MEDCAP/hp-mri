@@ -4,21 +4,34 @@ import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
 import './../styles/upload.css';
+import axios from 'axios';
 
 const UploadPage: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      setFile(event.target.files[0]);
+      setFiles(Array.from(event.target.files));
     }
   };
 
-  const handleUpload = () => {
-    if (file) {
-      console.log(file);
-      // Add file upload logic here
+  const handleUpload = async () => {
+    if (files.length > 0) { // Check if files are selected
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));  // send formdata as files
+      try{
+        axios
+          .post('http://127.0.0.1:5000/upload', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          .then(response => {
+            console.log('Upload successful:', response.data)});
+      } catch (error) {
+        console.error('Error uploading files:', error);
+      }
     }
   };
 
@@ -36,10 +49,12 @@ const UploadPage: React.FC = () => {
           </ul>
         </div>
         <div className="file-browser">
-          <input type="file" onChange={handleFileChange} />
-          <button className="primary" onClick={handleUpload}>
-            Upload
-          </button>
+          <form action="http://127.0.0.1:5000/upload" method="post" encType="multipart/form-data">
+            <input type="file" accept=".bin, .dat" multiple onChange={handleFileChange} />
+            <button className="primary" onClick={handleUpload}>
+              Upload
+            </button>
+          </form>
         </div>
       </div>
     </div>
