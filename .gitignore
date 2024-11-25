@@ -49,3 +49,6 @@ Thumbs.db
 
 # ignore pycache files
 **/__pycache__/
+
+# ignore tmp folder to store files locally
+server/mrds/tmpdata/*

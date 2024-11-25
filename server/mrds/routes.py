@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_cors import CORS
+import os
+import boto3
 
 # Temporary mock data
 # TODO: Replace with RDS Database for quick querying on file details
@@ -9,10 +11,11 @@ from data import db_image
 from data import db_simulator
 
 bp = Blueprint("mrds", __name__)
-
 # Apply CORS to the blueprint
 CORS(bp, resources={r"/*": {"origins": "http://localhost:5173"}})
-
+# setup aws s3 client
+s3 = boto3.client('s3')
+BUCKET = 'mrissim-app-user-content'
 
 # Root route just to test the server is running
 @bp.route("/")
@@ -138,8 +141,25 @@ def get_image_details(image_id):
 # Route to upload MRD file page
 @bp.route("/upload", methods=["POST"])
 def upload_file():
-    # This is where you will implement the file upload logic
-    return jsonify({"message": "File upload endpoint is ready!"})
+    if "file" not in request.files:
+        print('error')
+        return jsonify({"error": "No files selected"}), 400
+    # tmpdata dir to store files locally before uploading to s3 at "./tmpdata"
+    upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'tmpdata')
+    if not os.path.exists(upload_path):
+        os.makedirs(upload_path)
+    for file in request.files.getlist("file"):
+        # save file locally in temporary storage
+        filepath = os.path.join(upload_path, file.filename)
+        file.save(filepath)
+        try:
+            # upload to s3 as original name 
+            s3.upload_file(filepath, BUCKET, file.filename)
+        except Exception as e:
+            return jsonify({"aws access error": e}), 400
+        # remove local file
+        os.remove(filepath)
+    return jsonify({"message": "files uploaded"}), 200
 
 
 @bp.route("/mrd-file", methods=["DELETE"])
