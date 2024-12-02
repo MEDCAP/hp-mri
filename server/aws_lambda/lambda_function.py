@@ -1,5 +1,4 @@
 # read mrd file to view or reconstruct
-
 import boto3
 import os
 from mapvbvd import mapVBVD
