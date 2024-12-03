@@ -49,3 +49,9 @@ Thumbs.db
 
 # ignore pycache files
 **/__pycache__/
+
+# ignore tmp folder to store files locally
+server/mrds/tmpdata/*
+server/mrds/aws_test.py
+# ignore aws lambda functions
+server/aws_lambda/*

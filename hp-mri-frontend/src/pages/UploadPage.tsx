@@ -6,20 +6,33 @@ import './../styles/upload.css';
 import axios from 'axios';
 
 const UploadPage: React.FC = () => {
-  const [mriFiles, setMriFiles] = useState<File | null>(null);
-  const [auxFile, setAuxFile] = useState<File | null>(null);
+  const [mriFile, setMriFile] = useState<FileList | null>(null);
+  const [auxFile, setAuxFile] = useState<FileList | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
     if (event.target.files) {
-      type === 'MRI' ? setMriFiles(event.target.files[0]) : setAuxFile(event.target.files[0]);
+      // pass MRI file with type=MRI or pass as Aux file
+      type === 'MRI' ? setMriFile(event.target.files) : setAuxFile(event.target.files);
     }
   };
 
   const handleUpload = () => {
-    console.log("MRI File:", mriFiles);
-    console.log("Aux File:", auxFile);
-    // Add upload logic here
+    if (mriFile) { // Check if files are selected
+      const formData = new FormData();
+      [...mriFile].forEach(file => {formData.append("file", file)});  // save as "file" formData
+      axios.post(
+        "http://127.0.0.1:5000/api/upload", formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }})
+          .then(response => {
+            console.log(response);
+            setSuccessMessage("Files uploaded successfully!");
+          })
+          .catch(errors => console.log(errors));
+    }// return error for non-file
   };
 
   return (
@@ -33,20 +46,23 @@ const UploadPage: React.FC = () => {
           </button>
         </div>
         <h1>Upload MRD Files</h1>
+        {successMessage && <p className="success-message">{successMessage}</p>}
         <p className="upload-description">Select from local file</p>
         <div className="upload-box">
           <div className="upload-section">
             <label className="drag-drop-box">
               <p>Upload MRI raw data</p>
               <span>drag and drop</span>
-              <input type="file" accept=".bin, .dat" multiple onChange={(e) => handleFileChange(e, 'MRI')} />
+              <form action="http://127.0.0.1:5000/api/upload" method="post" encType="multipart/form-data">
+                <input type="file" accept='.bin, .dat' multiple onChange={(e) => handleFileChange(e, "MRI")} />
+              </form>
             </label>
           </div>
           <div className="upload-section">
             <label className="drag-drop-box">
               <p>Upload aux raw data</p>
               <span>drag and drop</span>
-              <input type="file" onChange={(e) => handleFileChange(e, 'Aux')} />
+              {/* <input type="file" onChange={(e) => handleFileChange(e, 'Aux')} /> */}
             </label>
           </div>
         </div>
