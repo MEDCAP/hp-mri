@@ -1,31 +1,95 @@
-// src/pages/HomePage.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import './../styles/pages.css';
+import {
+  Container,
+  Typography,
+  Button,
+  Box,
+  Paper,
+  Grid,
+} from '@mui/material';
 import SImage from './../images/s_image.png';
 
 const HomePage: React.FC = () => {
   return (
-    <div className="home-container">
-      <h1 className="home-title">PIGI Lab MEDCAP</h1>
-      <h1 className="home-title">HP-MRI Web Application</h1>
-      <p className="home-subtitle">Format and Store, Simulate and Analyze MRI Instrument Data</p>
+    <Container
+      maxWidth="md"
+      sx={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap: 4,
+      }}
+    >
+      <Typography variant="h3" component="h1" gutterBottom>
+        PIGI Lab MEDCAP
+      </Typography>
+      <Typography variant="h4" component="h2" gutterBottom>
+        HP-MRI Web Application
+      </Typography>
+      <Typography variant="body1" color="textSecondary" paragraph>
+        Format and Store, Simulate and Analyze MRI Instrument Data
+      </Typography>
 
-      <div className="home-buttons">
-        <Link to="/">
-          <button className="primary">Tool Box</button>
-        </Link>
-        <button className="primary">GitHub</button>
-        <button className="primary">PIGLAB</button>
-      </div>
+      <Grid container spacing={2} justifyContent="center">
+        <Grid item>
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large">
+              Tool Box
+            </Button>
+          </Link>
+        </Grid>
+        <Grid item>
+          <Button
+            variant="outlined"
+            color="secondary"
+            size="large"
+            href="https://github.com"
+            target="_blank"
+          >
+            GitHub
+          </Button>
+        </Grid>
+        <Grid item>
+          <Button
+            variant="outlined"
+            color="secondary"
+            size="large"
+            href="https://pigilab.medcap.com"
+            target="_blank"
+          >
+            PIGLAB
+          </Button>
+        </Grid>
+      </Grid>
 
-      <img
+      <Box
+        component="img"
         src={SImage}
         alt="MRI Machine"
-        className="home-image"
+        sx={{
+          width: '100%',
+          maxWidth: '500px',
+          marginTop: 4,
+          borderRadius: 2,
+          boxShadow: 3,
+        }}
       />
-      <h2>Guides</h2>
-    </div>
+
+      <Paper
+        elevation={3}
+        sx={{
+          padding: 2,
+          marginTop: 4,
+          textAlign: 'center',
+        }}
+      >
+        <Typography variant="h5">Guides</Typography>
+      </Paper>
+    </Container>
   );
 };
 

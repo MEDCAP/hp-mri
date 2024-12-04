@@ -1,54 +1,67 @@
-// src/pages/MRDFileDetails.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
-import { FaSyncAlt } from 'react-icons/fa';
-import './../styles/mrdDetails.css';
-import axios from 'axios'
+import {
+    Box,
+    Button,
+    Checkbox,
+    Container,
+    Divider,
+    Grid,
+    Paper,
+    Tab,
+    Tabs,
+    TextField,
+    Typography,
+} from '@mui/material';
+import { Sync } from '@mui/icons-material';
+import axios from 'axios';
 
 const MRDFileDetails: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();
     const location = useLocation();
-    const [fileDetails, setFileDetails] = useState<any>(null);
-    const [activeTab, setActiveTab] = useState("Files");
-    const [activeSubTab, setActiveSubTab] = useState("MRD");
-    const [images, setImages] = useState<any[]>([]);
-    const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]); // Track multiple selected image IDs
-    const [isEditing, setIsEditing] = useState(false);
-    const [editedTags, setEditedTags] = useState<{ parameter: string; raw: string }>({ parameter: "", raw: "" });
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const navigate = useNavigate();
+    const [fileDetails, setFileDetails] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState('Files');
+    const [activeSubTab, setActiveSubTab] = useState('MRD');
+    const [images, setImages] = useState<any[]>([]);
+    const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedTags, setEditedTags] = useState<{ parameter: string; raw: string }>({
+        parameter: '',
+        raw: '',
+    });
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     useEffect(() => {
-        // Check if navigation state is provided (from ImagesPage)
         if (location.state) {
-            const { activeTab, selectedImageId } = location.state as { activeTab?: string; selectedImageId?: number };
+            const { activeTab, selectedImageId } = location.state as {
+                activeTab?: string;
+                selectedImageId?: number;
+            };
             if (activeTab) setActiveTab(activeTab);
             if (selectedImageId) setSelectedImageIds([selectedImageId]);
         }
 
-        // Fetch file details from the backend
-        axios.get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
-            .then(response => {
+        axios
+            .get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
+            .then((response) => {
                 setFileDetails(response.data);
                 setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
             })
-            .catch(error => console.error("Error fetching file details:", error));
+            .catch((error) => console.error('Error fetching file details:', error));
     }, [fileId, location.state]);
 
-    // Fetch images when the "Image" tab is selected
     const fetchImages = () => {
-        axios.get(`http://127.0.0.1:5000/api/images/${fileId}`)
-            .then(response => setImages(response.data))
-            .catch(error => console.error("Error fetching images:", error));
+        axios
+            .get(`http://127.0.0.1:5000/api/images/${fileId}`)
+            .then((response) => setImages(response.data))
+            .catch((error) => console.error('Error fetching images:', error));
     };
 
     useEffect(() => {
-        if (activeTab === "Image") {
-            fetchImages();
-        }
+        if (activeTab === 'Image') fetchImages();
     }, [activeTab, fileId]);
 
     const handleSaveTags = () => {
@@ -86,125 +99,133 @@ const MRDFileDetails: React.FC = () => {
         //   .catch(error => console.error("Error deleting images:", error));
     };
 
-    // Handle navigating to the details page with state
     const goToDetails = (image_id: number, file_id: number) => {
         navigate(`/images-details/${image_id}/${file_id}`);
     };
 
-    if (!fileDetails) return <div>Loading...</div>;
+    const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+        setActiveTab(newValue);
+    };
+
+    if (!fileDetails) return <Typography variant="h5">Loading...</Typography>;
 
     return (
-        <div className="page-container">
+        <Container
+            maxWidth="lg"
+            sx={{
+                marginLeft: isSidebarOpen ? '260px' : '80px',
+                transition: 'margin-left 0.3s',
+                paddingTop: 2,
+            }}
+        >
             <HeaderAccount />
             <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-
-            {activeTab === "Files" && (
-                <div className="top-right-details">
-                    <button className="button-retrieve-details">Download</button>
-                    <button className="button-retrieve-details" onClick={() => setIsEditing(!isEditing)}>Edit tags</button>
-                    <button className="button-retrieve-details">Recon</button>
-                </div>
-            )}
-
-            {activeTab === "Image" && (
-                <div className="top-right-details">
-                    <button className="button-retrieve-details" onClick={fetchImages}>
-                        <FaSyncAlt />
-                    </button>
-                    <button className="button-retrieve-details" disabled={selectedImageIds.length === 0}>Download Image file</button>
-                    <button className="button-retrieve-details" disabled={selectedImageIds.length === 0} onClick={handleDeleteImage}>Delete</button>
-                </div>
-            )}
-
-            <div className={`details-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-                <h1>MRD filename {fileDetails.name || "Loading..."}</h1>
-                <div className="details-tabs">
-                    <span className={`tab ${activeTab === "Files" ? "active" : ""}`} onClick={() => setActiveTab("Files")}>Files</span>
-                    <span className={`tab ${activeTab === "Image" ? "active" : ""}`} onClick={() => setActiveTab("Image")}>Image</span>
-                </div>
-
-                {activeTab === "Files" && (
-                    <div className="details-section">
-                        <h2>File Details</h2>
-                        <p><strong>Created Date:</strong> {fileDetails.date}</p>
-                        <p><strong>Owner:</strong> {fileDetails.owner}</p>
-                        {isEditing ? (
-                            <>
-                                <label>Parameter:</label>
-                                <input
-                                    type="text"
-                                    value={editedTags.parameter}
-                                    onChange={(e) => setEditedTags({ ...editedTags, parameter: e.target.value })}
-                                />
-                                <br />
-                                <label>Raw Data Info:</label>
-                                <input
-                                    type="text"
-                                    value={editedTags.raw}
-                                    onChange={(e) => setEditedTags({ ...editedTags, raw: e.target.value })}
-                                />
-                                <br />
-                                <button onClick={handleSaveTags}>Save</button>
-                            </>
-                        ) : (
-                            <>
-                                <p><strong>Parameter:</strong> {fileDetails.parameter}</p>
-                                <p><strong>Raw Data File Info:</strong> {fileDetails.raw?.description || "[Placeholder]"}</p>
-                            </>
-                        )}
-                    </div>
-                )}
-                {activeTab === "Files" && (
-                    <div className="details-content-section">
-                        <div className="file-tabs">
-                            <span className={`file-tab ${activeSubTab === "MRD" ? "active" : ""}`} onClick={() => setActiveSubTab("MRD")}>MRD file</span>
-                            {fileDetails.aux && <span className={`file-tab ${activeSubTab === "Aux" ? "active" : ""}`} onClick={() => setActiveSubTab("Aux")}>Aux data</span>}
-                            {fileDetails.raw && <span className={`file-tab ${activeSubTab === "Raw" ? "active" : ""}`} onClick={() => setActiveSubTab("Raw")}>Raw data</span>}
-                        </div>
-                        <div className="file-display">
-                            {activeSubTab === "MRD" && <p>[Display MRD file data here]</p>}
-                            {activeSubTab === "Aux" && <p>[Display Aux data here]</p>}
-                            {activeSubTab === "Raw" && (
-                                <div>
-                                    <h3>Raw data description</h3>
-                                    <ul>
-                                        <li><strong>Scanned time/date:</strong> {fileDetails.raw?.scanned_time || "[Placeholder]"}</li>
-                                        <li><strong>Institution:</strong> {fileDetails.raw?.institution || "[Placeholder]"}</li>
-                                        <li><strong>Machine vendor:</strong> {fileDetails.raw?.machine_vendor || "[Placeholder]"}</li>
-                                    </ul>
-                                </div>
+            <Typography variant="h4" gutterBottom>
+                MRD File Details
+            </Typography>
+            <Tabs value={activeTab} onChange={handleTabChange} centered>
+                <Tab label="Files" value="Files" />
+                <Tab label="Images" value="Image" />
+            </Tabs>
+            <Divider sx={{ marginY: 2 }} />
+            {activeTab === 'Files' && (
+                <Box>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            <Typography variant="h6">File Details</Typography>
+                            <Typography>
+                                <strong>Created Date:</strong> {fileDetails.date}
+                            </Typography>
+                            <Typography>
+                                <strong>Owner:</strong> {fileDetails.owner}
+                            </Typography>
+                            {isEditing ? (
+                                <Box>
+                                    <TextField
+                                        fullWidth
+                                        label="Parameter"
+                                        value={editedTags.parameter}
+                                        onChange={(e) => setEditedTags({ ...editedTags, parameter: e.target.value })}
+                                        sx={{ marginBottom: 2 }}
+                                    />
+                                    <TextField
+                                        fullWidth
+                                        label="Raw Data Info"
+                                        value={editedTags.raw}
+                                        onChange={(e) => setEditedTags({ ...editedTags, raw: e.target.value })}
+                                        sx={{ marginBottom: 2 }}
+                                    />
+                                    <Button variant="contained" onClick={handleSaveTags}>
+                                        Save
+                                    </Button>
+                                </Box>
+                            ) : (
+                                <Box>
+                                    <Typography>
+                                        <strong>Parameter:</strong> {fileDetails.parameter}
+                                    </Typography>
+                                    <Typography>
+                                        <strong>Raw Data Info:</strong> {fileDetails.raw?.description || '[Placeholder]'}
+                                    </Typography>
+                                </Box>
                             )}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === "Image" && (
-                    <div className="details-section">
-                        <h2>Images details</h2>
-                        <div className="grid-container">
-                            {images.map((image, index) => (
-                                <div key={index} className="grid-row">
-                                    <input
-                                        type="checkbox"
+                        </Grid>
+                    </Grid>
+                </Box>
+            )}
+            {activeTab === 'Image' && (
+                <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <Button
+                            variant="outlined"
+                            startIcon={<Sync />}
+                            onClick={fetchImages}
+                            sx={{ marginRight: 2 }}
+                        >
+                            Refresh
+                        </Button>
+                        <Button variant="contained" disabled={selectedImageIds.length === 0}>
+                            Download Image File
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            disabled={selectedImageIds.length === 0}
+                            onClick={handleDeleteImage}
+                        >
+                            Delete
+                        </Button>
+                    </Box>
+                    <Grid container spacing={2}>
+                        {images.map((image, index) => (
+                            <Grid item xs={12} sm={6} md={4} key={index}>
+                                <Paper
+                                    elevation={2}
+                                    sx={{
+                                        padding: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                    }}
+                                >
+                                    <Checkbox
                                         checked={selectedImageIds.includes(image.id)}
                                         onChange={() => handleImageSelection(image.id)}
                                     />
-                                    <span
-                                        className="image-link"
+                                    <Typography
+                                        variant="body1"
+                                        sx={{ cursor: 'pointer', textDecoration: 'underline', color: 'blue' }}
                                         onClick={() => goToDetails(image.id, image.sequence_id)}
-                                        style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
-                                        onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
-                                        onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
                                     >
                                         {image.name}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+                                    </Typography>
+                                </Paper>
+                            </Grid>
+                        ))}
+                    </Grid>
+                </Box>
+            )}
+        </Container>
     );
 };
 

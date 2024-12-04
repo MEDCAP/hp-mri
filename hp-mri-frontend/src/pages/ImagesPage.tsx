@@ -1,13 +1,24 @@
-// src/pages/ImagesPage.tsx
-
-// Import necessary libraries
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
-import './../styles/pages.css';
-import './../styles/retrieve.css';
+import {
+  Button,
+  Checkbox,
+  Container,
+  Grid,
+  Paper,
+  TextField,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableContainer,
+  IconButton,
+} from '@mui/material';
+import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import axios from 'axios';
 
 interface Image {
@@ -24,26 +35,31 @@ const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [images, setImages] = useState<Image[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Image; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Image; direction: 'asc' | 'desc' }>({
+    key: 'date',
+    direction: 'desc',
+  });
   const navigate = useNavigate();
 
   // Fetch data from backend on component mount
   useEffect(() => {
-    axios.get('http://127.0.0.1:5000/api/images')
-      .then(response => {
+    axios
+      .get('http://127.0.0.1:5000/api/images')
+      .then((response) => {
         setImages(response.data);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Error fetching Images:', error);
       });
   }, []);
 
   // Filter the files based on search input
-  const filteredFiles = images.filter(file =>
-    file.name.toLowerCase().includes(search.toLowerCase()) ||
-    file.date.toLowerCase().includes(search.toLowerCase()) ||
-    file.owner.toLowerCase().includes(search.toLowerCase()) ||
-    file.sequence.toLowerCase().includes(search.toLowerCase())
+  const filteredFiles = images.filter(
+    (file) =>
+      file.name.toLowerCase().includes(search.toLowerCase()) ||
+      file.date.toLowerCase().includes(search.toLowerCase()) ||
+      file.owner.toLowerCase().includes(search.toLowerCase()) ||
+      file.sequence.toLowerCase().includes(search.toLowerCase())
   );
 
   // Sort the filtered files based on sortConfig
@@ -60,13 +76,13 @@ const ImagesPage: React.FC = () => {
 
   // Handle column sorting
   const handleSort = (key: keyof Image) => {
-    setSortConfig(prevState => ({
+    setSortConfig((prevState) => ({
       key,
       direction: prevState.key === key && prevState.direction === 'asc' ? 'desc' : 'asc',
     }));
   };
 
-  const isAnyFileSelected = images.some(image => image.isSelected);
+  const isAnyFileSelected = images.some((image) => image.isSelected);
 
   const handleDelete = () => {
     // // API Call for delete, commented so that we don't accidentally delete during dev
@@ -83,8 +99,8 @@ const ImagesPage: React.FC = () => {
   };
 
   const handleSelection = (imageId: number) => {
-    setImages(prevImages =>
-      prevImages.map(image =>
+    setImages((prevImages) =>
+      prevImages.map((image) =>
         image.id === imageId ? { ...image, isSelected: !image.isSelected } : image
       )
     );
@@ -93,83 +109,99 @@ const ImagesPage: React.FC = () => {
   // Navigate to MRDFileDetails with activeTab and selectedImageId state
   const goToDetails = (file: Image) => {
     navigate(`/file-details/${file.sequence_id}`, {
-      state: { activeTab: "Image", selectedImageId: file.id }
+      state: { activeTab: 'Image', selectedImageId: file.id },
     });
   };
 
   return (
-    <div className="page-container">
+    <Container maxWidth="lg" sx={{ marginLeft: isSidebarOpen ? '260px' : '80px', transition: 'margin-left 0.3s' }}>
       <HeaderAccount />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-        {/* Upload button on the top right */}
-        <div className="top-right">
-          <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
-          <button
-            className="button-retrieve"
+      <Typography variant="h4" gutterBottom>
+        Images
+      </Typography>
+      <Grid container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
+        <Grid item xs={8}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            label="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </Grid>
+        <Grid item xs={4} textAlign="right">
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ marginRight: 1 }}
+            disabled={!isAnyFileSelected}
+            onClick={() => alert('Download functionality not implemented')}
+          >
+            Download
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
             disabled={!isAnyFileSelected}
             onClick={handleDelete}
           >
             Delete
-          </button>
-          <Link to="/upload">
-            <button className="button-retrieve">Upload</button>
+          </Button>
+          <Link to="/upload" style={{ textDecoration: 'none' }}>
+            <Button variant="outlined">Upload</Button>
           </Link>
-        </div>
-        <div className="retrieve-container-images">
-          <h1>Images</h1>
-          <input
-            type="text"
-            className="search-bar"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          {/* Table Headers */}
-          <div className="grid-header-images">
-            <span></span>
-            <span onClick={() => handleSort('name')}>
-              Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-            <span onClick={() => handleSort('date')}>
-              Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-            <span onClick={() => handleSort('owner')}>
-              Owner {sortConfig.key === 'owner' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-            <span onClick={() => handleSort('sequence')}>
-              Sequence {sortConfig.key === 'sequence' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-          </div>
-
-          {/* List of Files */}
-          <div className="grid-container">
-            {sortedFiles.map((file, index) => (
-              <div key={index} className="grid-row-images">
-                <input
-                  type="checkbox"
-                  checked={file.isSelected}
-                  onChange={() => handleSelection(file.id)}
-                />
-                <span
-                  className="file-link"
-                  onClick={() => goToDetails(file)}
-                  style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
-                  onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
-                  onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
-                >
-                  {file.name}
-                </span>
-                <span>{file.date}</span>
-                <span>{file.owner}</span>
-                <span>{file.sequence}</span>
-              </div>
+        </Grid>
+      </Grid>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell />
+              <TableCell onClick={() => handleSort('name')}>
+                Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
+              </TableCell>
+              <TableCell onClick={() => handleSort('date')}>
+                Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
+              </TableCell>
+              <TableCell onClick={() => handleSort('owner')}>
+                Owner {sortConfig.key === 'owner' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
+              </TableCell>
+              <TableCell onClick={() => handleSort('sequence')}>
+                Sequence{' '}
+                {sortConfig.key === 'sequence' &&
+                  (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {sortedFiles.map((file) => (
+              <TableRow key={file.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={file.isSelected}
+                    onChange={() => handleSelection(file.id)}
+                    color="primary"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Typography
+                    variant="body1"
+                    sx={{ cursor: 'pointer', textDecoration: 'underline', color: 'blue' }}
+                    onClick={() => goToDetails(file)}
+                  >
+                    {file.name}
+                  </Typography>
+                </TableCell>
+                <TableCell>{file.date}</TableCell>
+                <TableCell>{file.owner}</TableCell>
+                <TableCell>{file.sequence}</TableCell>
+              </TableRow>
             ))}
-          </div>
-        </div>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Container>
   );
 };
 
