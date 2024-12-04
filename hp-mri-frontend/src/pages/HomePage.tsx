@@ -22,6 +22,7 @@ const HomePage: React.FC = () => {
         justifyContent: 'center',
         textAlign: 'center',
         gap: 4,
+        paddingTop: 14,
       }}
     >
       <Typography variant="h3" component="h1" gutterBottom>

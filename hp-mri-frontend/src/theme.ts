@@ -6,7 +6,7 @@ const theme: ThemeOptions = createTheme({
       main: '#4a4a4a', // Neutral gray for primary elements
     },
     secondary: {
-      main: '#007bff', // Blue accent color
+      main: '#011F5B', // Blue accent color
     },
     background: {
       default: '#f8f9fa', // Light gray background
@@ -38,7 +38,7 @@ const theme: ThemeOptions = createTheme({
         root: {
           borderRadius: 8, // Rounded button edges
           padding: '10px 20px', // Consistent padding
-          backgroundColor: '#007bff', // Matches secondary color
+          backgroundColor: '#011F5B', // Matches secondary color
           color: '#fff', // Ensures high contrast
           '&:hover': {
             backgroundColor: '#0056b3', // Darker blue for hover state
@@ -56,7 +56,7 @@ const theme: ThemeOptions = createTheme({
           },
           '& .MuiOutlinedInput-root': {
             '& fieldset': {
-              borderColor: '#007bff', // Accent color for inputs
+              borderColor: '#011F5B', // Accent color for inputs
             },
             '&:hover fieldset': {
               borderColor: '#0056b3', // Darker border on hover

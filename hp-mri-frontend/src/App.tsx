@@ -27,18 +27,18 @@ const AppContent: React.FC = () => {
     <div>
       {shouldShowHeader && <HeaderAccount />}
       <div style={{ display: 'flex', marginTop: 74 }}>
-        <Routes>
-          <Route path="/about" element={<HomePage />} />
-          <Route path="/" element={<RetrievePage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
-          <Route path="/images" element={<ImagesPage />} />
-          <Route path="/simulator" element={<SimulatorPage />} />
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
-        </Routes>
+          <Routes>
+            <Route path="/about" element={<HomePage />} />
+            <Route path="/" element={<RetrievePage />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
+            <Route path="/images" element={<ImagesPage />} />
+            <Route path="/simulator" element={<SimulatorPage />} />
+            <Route path="/account" element={<AccountPage />} />
+            <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
+          </Routes>
+        </div>
       </div>
-    </div>
   );
 };
 
