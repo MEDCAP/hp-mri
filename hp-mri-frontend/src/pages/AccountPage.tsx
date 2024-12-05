@@ -1,9 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container, Box, Typography, TextField, Button, Paper } from '@mui/material';
 
 const AccountPage: React.FC = () => {
+  const navigate = useNavigate();
+
   const handleSignIn = () => {
-    // Logic for signing in
+    // TODO - Logic for signing in
+    // For the meantime navigate to tools
+    navigate(`/`);
   };
 
   return (

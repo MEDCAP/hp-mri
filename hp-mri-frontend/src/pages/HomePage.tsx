@@ -5,44 +5,62 @@ import {
   Typography,
   Button,
   Box,
-  Paper,
   Grid,
+  Card,
+  CardContent,
+  CardMedia,
 } from '@mui/material';
-import SImage from './../images/s_image.png';
+import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
+import ConceptImage from './../images/concept_image.png';
+import ConvertStoreImage from './../images/convert_store_image.png';
+import SimulateImage from './../images/simulate_image.png';
+import AnalyzeV from './../images/analyze_image.png';
 
 const HomePage: React.FC = () => {
+  const sections = [
+    {
+      heading: 'Concept',
+      description: 'A scalable web application for HP-MRI data standardization, visualization, and sharing.',
+      image: ConceptImage,
+      link: '/concept',
+    },
+    {
+      heading: 'Convert and Store Data',
+      description: 'A tool to convert data to the standard ISMRMRD data format and store data.',
+      image: ConvertStoreImage,
+      link: '/convert-store',
+    },
+    {
+      heading: 'Visualize and Analyze Data',
+      description: 'A tool to enable real-time data visualization and analysis.',
+      image: AnalyzeV,
+      link: '/visualize-analyze',
+    },
+    {
+      heading: 'Simulate Data',
+      description: 'A tool to simulate data with sequence design programming.',
+      image: SimulateImage,
+      link: '/simulate',
+    },
+  ];
+
   return (
     <Container
-      maxWidth="md"
+      maxWidth="lg"
       sx={{
-        height: '100vh',
+        minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         textAlign: 'center',
-        gap: 4,
-        paddingTop: 14,
+        paddingY: 4,
+        paddingTop: 0, // Remove unnecessary padding
+        marginTop: '-60px',
       }}
     >
-      <Typography variant="h3" component="h1" gutterBottom>
-        PIGI Lab MEDCAP
-      </Typography>
-      <Typography variant="h4" component="h2" gutterBottom>
-        HP-MRI Web Application
-      </Typography>
-      <Typography variant="body1" color="textSecondary" paragraph>
-        Format and Store, Simulate and Analyze MRI Instrument Data
-      </Typography>
-
-      <Grid container spacing={2} justifyContent="center">
-        <Grid item>
-          <Link to="/" style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" size="large">
-              Tool Box
-            </Button>
-          </Link>
-        </Grid>
+      {/* Top Buttons */}
+      <Grid container spacing={2} justifyContent="space-between" sx={{ width: '100%' }}>
         <Grid item>
           <Button
             variant="outlined"
@@ -53,43 +71,116 @@ const HomePage: React.FC = () => {
           >
             GitHub
           </Button>
+          <Link to="/about-devs" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
+              About Devs
+            </Button>
+          </Link>
         </Grid>
         <Grid item>
-          <Button
-            variant="outlined"
-            color="secondary"
-            size="large"
-            href="https://www.pigilab.com/"
-            target="_blank"
-          >
-            PIGLAB
-          </Button>
+          <Link to="/account" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large">
+              Sign in
+            </Button>
+          </Link>
         </Grid>
       </Grid>
 
+      {/* Logo Section */}
       <Box
-        component="img"
-        src={SImage}
-        alt="MRI Machine"
+        component="a"
+        href="https://www.pigilab.com/"
+        target="_blank"
+        rel="noopener noreferrer"
         sx={{
-          width: '100%',
-          maxWidth: '500px',
-          marginTop: 4,
-          borderRadius: 2,
-          boxShadow: 3,
-        }}
-      />
-
-      <Paper
-        elevation={3}
-        sx={{
-          padding: 2,
-          marginTop: 4,
+          marginTop: 8,
+          display: 'block',
           textAlign: 'center',
         }}
       >
-        <Typography variant="h5">Guides</Typography>
-      </Paper>
+        <Box
+          component="img"
+          src={PigiLogo}
+          alt="PIGI Lab Logo"
+          sx={{
+            width: '100%',
+            maxWidth: '400px', // Dominant size for the logo
+            height: 'auto',
+            marginX: 'auto',
+            boxShadow: 4,
+            borderRadius: 2,
+          }}
+        />
+      </Box>
+
+      {/* Heading and Description */}
+      <Typography
+        variant="h3"
+        component="h1"
+        sx={{
+          marginTop: 4,
+          fontWeight: 600,
+          color: 'primary.main',
+        }}
+      >
+        HP-MRI Web Application
+      </Typography>
+      <Typography variant="body1" color="textSecondary" paragraph>
+        Format and Store, Simulate and Analyze MRI Instrument Data
+      </Typography>
+
+      {/* Sections */}
+      <Box
+        sx={{
+          marginTop: 6,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          width: '100%',
+        }}
+      >
+        {sections.map((section, index) => (
+          <Card
+            key={index}
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: 'center',
+              padding: 2,
+              boxShadow: 3,
+              cursor: 'pointer',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'scale(1.02)',
+                boxShadow: 6,
+              },
+            }}
+            component={Link}
+            to={section.link}
+          >
+            <CardMedia
+              component="img"
+              sx={{
+                width: { xs: '100%', md: '40%' },
+                height: 'auto',
+                borderRadius: 2,
+                boxShadow: 1,
+                maxWidth: '250px',
+              }}
+              image={section.image}
+              alt={section.heading}
+            />
+            <CardContent sx={{ textAlign: 'left', paddingLeft: { md: 3 } }}>
+              <Typography variant="h5" gutterBottom>
+                {section.heading}
+              </Typography>
+              <Typography variant="body1" color="textSecondary">
+                {section.description}
+              </Typography>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
     </Container>
   );
 };
