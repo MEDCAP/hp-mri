@@ -16,6 +16,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Sync } from '@mui/icons-material';
+import { Download, Edit, Build } from '@mui/icons-material';
 import axios from 'axios';
 
 const MRDFileDetails: React.FC = () => {
@@ -75,12 +76,9 @@ const MRDFileDetails: React.FC = () => {
         //     .catch(error => console.error("Error saving tags:", error));
     };
 
-    // Handle image selection to allow multiple selections
     const handleImageSelection = (imageId: number) => {
-        setSelectedImageIds(prevIds =>
-            prevIds.includes(imageId)
-                ? prevIds.filter(id => id !== imageId) // Deselect if already selected
-                : [...prevIds, imageId] // Select if not already selected
+        setSelectedImageIds((prevIds) =>
+            prevIds.includes(imageId) ? prevIds.filter((id) => id !== imageId) : [...prevIds, imageId]
         );
     };
 
@@ -107,6 +105,10 @@ const MRDFileDetails: React.FC = () => {
         setActiveTab(newValue);
     };
 
+    const handleSubTabChange = (event: React.SyntheticEvent, newValue: string) => {
+        setActiveSubTab(newValue);
+    };
+
     if (!fileDetails) return <Typography variant="h5">Loading...</Typography>;
 
     return (
@@ -123,6 +125,17 @@ const MRDFileDetails: React.FC = () => {
             <Typography variant="h4" gutterBottom>
                 MRD File Details
             </Typography>
+            <Box sx={{ display: 'felx', gap: 2, marginBotton: 2 }}>
+                <Button variant="contained" startIcon={<Download />}>
+                    Download
+                </Button>
+                <Button variant="contained" startIcon={<Edit />} onClick={() => setIsEditing(!isEditing)}>
+                    Edit Tags
+                </Button>
+                <Button variant="contained" startIcon={<Build />} color="secondary">
+                    Recon
+                </Button>
+            </Box>
             <Tabs value={activeTab} onChange={handleTabChange} centered>
                 <Tab label="Files" value="Files" />
                 <Tab label="Images" value="Image" />
@@ -130,47 +143,83 @@ const MRDFileDetails: React.FC = () => {
             <Divider sx={{ marginY: 2 }} />
             {activeTab === 'Files' && (
                 <Box>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                            <Typography variant="h6">File Details</Typography>
+                    <Typography variant="h6">File Details</Typography>
+                    <Typography>
+                        <strong>Created Date:</strong> {fileDetails.date}
+                    </Typography>
+                    <Typography>
+                        <strong>Owner:</strong> {fileDetails.owner}
+                    </Typography>
+                    <Typography>
+                        <strong>Reconstructed:</strong> {fileDetails.reconstructed ? 'Yes' : 'No'}
+                    </Typography>
+                    <Typography>
+                        <strong>Aux Data Exists:</strong> {fileDetails.aux ? 'Yes' : 'No'}
+                    </Typography>
+                    {isEditing ? (
+                        <Box>
+                            <TextField
+                                fullWidth
+                                label="Parameter"
+                                value={editedTags.parameter}
+                                onChange={(e) => setEditedTags({ ...editedTags, parameter: e.target.value })}
+                                sx={{ marginBottom: 2 }}
+                            />
+                            <TextField
+                                fullWidth
+                                label="Raw Data Info"
+                                value={editedTags.raw}
+                                onChange={(e) => setEditedTags({ ...editedTags, raw: e.target.value })}
+                                sx={{ marginBottom: 2 }}
+                            />
+                            <Button variant="contained" onClick={handleSaveTags}>
+                                Save
+                            </Button>
+                        </Box>
+                    ) : (
+                        <Box>
                             <Typography>
-                                <strong>Created Date:</strong> {fileDetails.date}
+                                <strong>Parameter:</strong> {fileDetails.parameter}
                             </Typography>
                             <Typography>
-                                <strong>Owner:</strong> {fileDetails.owner}
+                                <strong>Raw Data Info:</strong> {fileDetails.raw?.description || '[Placeholder]'}
                             </Typography>
-                            {isEditing ? (
-                                <Box>
-                                    <TextField
-                                        fullWidth
-                                        label="Parameter"
-                                        value={editedTags.parameter}
-                                        onChange={(e) => setEditedTags({ ...editedTags, parameter: e.target.value })}
-                                        sx={{ marginBottom: 2 }}
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        label="Raw Data Info"
-                                        value={editedTags.raw}
-                                        onChange={(e) => setEditedTags({ ...editedTags, raw: e.target.value })}
-                                        sx={{ marginBottom: 2 }}
-                                    />
-                                    <Button variant="contained" onClick={handleSaveTags}>
-                                        Save
-                                    </Button>
-                                </Box>
-                            ) : (
-                                <Box>
-                                    <Typography>
-                                        <strong>Parameter:</strong> {fileDetails.parameter}
-                                    </Typography>
-                                    <Typography>
-                                        <strong>Raw Data Info:</strong> {fileDetails.raw?.description || '[Placeholder]'}
-                                    </Typography>
-                                </Box>
-                            )}
-                        </Grid>
-                    </Grid>
+                        </Box>
+                    )}
+                    <Tabs
+                        value={activeSubTab}
+                        onChange={handleSubTabChange}
+                        variant="fullWidth"
+                        sx={{ marginTop: 2 }}
+                    >
+                        <Tab label="MRD File" value="MRD" />
+                        {fileDetails.aux && <Tab label="Aux Data" value="Aux" />}
+                        <Tab label="Raw Data" value="Raw" />
+                    </Tabs>
+                    <Divider sx={{ marginY: 2 }} />
+                    {activeSubTab === 'MRD' && <Typography>[Display MRD file data here]</Typography>}
+                    {activeSubTab === 'Aux' && fileDetails.aux && (
+                        <Typography>[Display Aux data here]</Typography>
+                    )}
+                    {activeSubTab === 'Raw' && fileDetails.raw && (
+                        <Box sx={{ marginTop: 2 }}>
+                            <Typography variant="h6" gutterBottom>
+                                Raw Data Details
+                            </Typography>
+                            <Typography>
+                                <strong>Description:</strong> {fileDetails.raw.description}
+                            </Typography>
+                            <Typography>
+                                <strong>Scanned Time/Date:</strong> {new Date(fileDetails.raw.scanned_time).toLocaleString()}
+                            </Typography>
+                            <Typography>
+                                <strong>Institution:</strong> {fileDetails.raw.institution}
+                            </Typography>
+                            <Typography>
+                                <strong>Machine Vendor:</strong> {fileDetails.raw.machine_vendor}
+                            </Typography>
+                        </Box>
+                    )}
                 </Box>
             )}
             {activeTab === 'Image' && (
