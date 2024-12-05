@@ -48,7 +48,7 @@ const HomePage: React.FC = () => {
             variant="outlined"
             color="secondary"
             size="large"
-            href="https://github.com"
+            href="https://github.com/MEDCAP"
             target="_blank"
           >
             GitHub
@@ -59,7 +59,7 @@ const HomePage: React.FC = () => {
             variant="outlined"
             color="secondary"
             size="large"
-            href="https://pigilab.medcap.com"
+            href="https://www.pigilab.com/"
             target="_blank"
           >
             PIGLAB
