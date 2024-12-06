@@ -75,13 +75,12 @@ const UploadPage: React.FC = () => {
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <Box
         sx={{
-          marginLeft: isSidebarOpen ? '260px' : '80px',
+          marginLeft: isSidebarOpen ? '520px' : '340px',
           transition: 'margin-left 0.3s',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           padding: 3,
-          paddingLeft: 43,
         }}
       >
         <Box
