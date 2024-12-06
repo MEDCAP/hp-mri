@@ -17,15 +17,15 @@ const AboutPage: React.FC = () => {
             image: '', // Replace with image
         },
         {
-            name: 'Zihao',
-            role: 'Backend Developer',
-            bio: 'Zihao focuses on API development and database management to ensure seamless data handling.',
+            name: 'Kento',
+            role: 'Project Manager - Developer',
+            bio: 'Kento oversees the development process, ensuring deadlines are met and goals are achieved. He also focuses on development',
             image: '', // Replace with image
         },
         {
-            name: 'Kento',
-            role: 'Project Manager',
-            bio: 'Kento oversees the development process, ensuring deadlines are met and goals are achieved.',
+            name: 'Zihao',
+            role: 'Backend Developer',
+            bio: 'Zihao focuses on API development and database management to ensure seamless data handling.',
             image: '', // Replace with image
         },
         {

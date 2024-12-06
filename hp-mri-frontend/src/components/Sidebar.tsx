@@ -69,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         <ListItem disablePadding>
           <ListItemButton
             component={Link}
-            to="/"
+            to="/tools"
             sx={{
               padding: '10px 16px',
               '&:hover': {

@@ -27,7 +27,7 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/about', '/account', '/concept', '/convert-store', '/visualize-analyze', '/simulate', '/about-devs'];
+  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate'];
 
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
 
@@ -37,17 +37,17 @@ const AppContent: React.FC = () => {
       <div style={{ display: 'flex', marginTop: 74 }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/mrd-files" element={<RetrievePage />} />
+          <Route path="/tools" element={<RetrievePage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
           <Route path="/about-devs" element={<AboutPage />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route path="/visualize-analyze" element={<VisualizeAnalyzePage />} />
           <Route path="/concept" element={<ConceptPage />} />
           <Route path="/convert-store" element={<ConvertStorePage />} />
-          <Route path="/visualize-analyze" element={<VisualizeAnalyzePage />} />
           <Route path="/simulate" element={<SimulatePage />} />
           <Route path="/images" element={<ImagesPage />} />
           <Route path="/simulator" element={<SimulatorPage />} />
-          <Route path="/account" element={<AccountPage />} />
           <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/solution" element={<SolutionPage />} />

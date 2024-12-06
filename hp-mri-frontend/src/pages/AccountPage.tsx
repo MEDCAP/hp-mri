@@ -8,7 +8,7 @@ const AccountPage: React.FC = () => {
   const handleSignIn = () => {
     // TODO - Logic for signing in
     // For the meantime navigate to tools
-    navigate(`/`);
+    navigate(`/tools`);
   };
 
   return (

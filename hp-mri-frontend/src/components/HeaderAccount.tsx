@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
 import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme } from '@mui/material';
 import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
-import TheMedcap from './../images/the-medcap.png';
+// import TheMedcap from './../images/the-medcap.png';
 import Medcap from './../images/medcap.png'
 
 const HeaderAccount: React.FC = () => {
@@ -29,14 +29,15 @@ const HeaderAccount: React.FC = () => {
       >
         {/* Left Section: Logos */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Link to="/">
+          <Link to="/tools">
             <img
               src={PigiLogo}
               alt="Pigi Logo"
               style={{ height: 40, cursor: 'pointer' }}
             />
           </Link>
-          <img src={TheMedcap} alt="The Medcap Logo" style={{ height: 40 }} />
+          {/* <img src={TheMedcap} alt="The Medcap Logo" style={{ height: 40 }} /> */}
+          <img src={Medcap} alt="The Medcap Logo" style={{ height: 40 }} />
         </Box>
 
         {/* Center Section: Title */}
