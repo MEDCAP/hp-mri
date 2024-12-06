@@ -4,6 +4,7 @@ import { FaUserCircle } from 'react-icons/fa';
 import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme } from '@mui/material';
 import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
 import TheMedcap from './../images/the-medcap.png';
+import Medcap from './../images/medcap.png'
 
 const HeaderAccount: React.FC = () => {
   const theme = useTheme();

@@ -46,6 +46,13 @@ const AboutPage: React.FC = () => {
                 alignItems: 'center',
             }}
         >
+            <Typography variant="h3" component="h1" gutterBottom>
+                The Metabolic Discovery Center at Penn
+            </Typography>
+            <Typography variant="body1" color="textSecondary" paragraph>
+                The MEDCAP is a research group at the University of Pennsylvania Department of Radiology.
+                We work at the interface between medical imaging technology and the biological features that lead to disease.
+            </Typography>
             {/* Page Title */}
             <Typography variant="h3" component="h1" gutterBottom>
                 About the Software Developer team

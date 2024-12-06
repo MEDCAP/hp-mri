@@ -1,0 +1,23 @@
+/* src/styles/homepage.css */
+
+/* General styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: white;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.homepage-top-image {
+    width: 80%;
+    height: auto;
+    display: block;
+    margin: 25px auto;
+}
+
+.top-title {
+    font-size: 80px;
+    font-weight: 100;
+    margin-top: 25px;
+}

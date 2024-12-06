@@ -19,6 +19,9 @@ import ImagesPage from './pages/ImagesPage';
 import SimulatorPage from './pages/SimulatorPage';
 import AccountPage from './pages/AccountPage';
 import ImagesDetails from './pages/ImagesDetails';
+import SolutionPage from './pages/SolutionPage';
+import PublicationPage from './pages/PublicationPage';
+import ResearchPage from './pages/ResearchPage';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -33,8 +36,8 @@ const AppContent: React.FC = () => {
       {shouldShowHeader && <HeaderAccount />}
       <div style={{ display: 'flex', marginTop: 74 }}>
         <Routes>
-          <Route path="/about" element={<HomePage />} />
-          <Route path="/" element={<RetrievePage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/mrd-files" element={<RetrievePage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
           <Route path="/about-devs" element={<AboutPage />} />
@@ -46,6 +49,9 @@ const AppContent: React.FC = () => {
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
+          <Route path="/research" element={<ResearchPage />} />
+          <Route path="/solution" element={<SolutionPage />} />
+          <Route path="/publication" element={<PublicationPage />} />
         </Routes>
       </div>
     </div>

@@ -1,0 +1,66 @@
+/* Styling for Homepage>Research page */
+
+.container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+    margin: 0 auto;
+    max-width: 1200px;
+    width: 90%;
+    margin-top: 100px;
+}
+
+.image-section {
+    flex: 0 0 30%;  /* Reduced from 45% to 30% */
+}
+
+.image-section img {
+    width: 100%;
+    height: auto;
+    max-width: 300px;  /* Limits maximum image size */
+    display: block;
+    margin: 0 auto;
+}
+
+.text-section {
+    flex: 0 0 60%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* Media query for narrow screens */
+@media screen and (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .image-section, 
+    .text-section {
+        flex: 0 0 100%;
+    }
+    
+    .image-section img {
+        max-width: 200px;  /* Even smaller on mobile */
+    }
+}
+
+.title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.content {
+    font-size: 16px;
+    line-height: 1.5;
+}

@@ -15,6 +15,7 @@ import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
 import AnalyzeV from './../images/analyze_image.png';
+import MedcapTop from './../images/medcap_top_image.png';
 
 const HomePage: React.FC = () => {
   const sections = [
@@ -113,6 +114,17 @@ const HomePage: React.FC = () => {
         />
       </Box>
 
+      <Typography
+        variant="h3"
+        component="h1"
+        sx={{
+          marginTop: 4,
+          fontWeight: 600,
+          color: 'primary.main',
+        }}
+      >
+        Welcome to the MEDCAP
+      </Typography>
       {/* Heading and Description */}
       <Typography
         variant="h3"

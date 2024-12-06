@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+// import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import {
@@ -40,6 +41,7 @@ const SimulatorPage: React.FC = () => {
     key: 'date',
     direction: 'desc',
   });
+  // const navigate = useNavigate();
 
   useEffect(() => {
     axios
@@ -83,6 +85,10 @@ const SimulatorPage: React.FC = () => {
         file.id === fileId ? { ...file, isSelected: !file.isSelected } : file
       )
     );
+  };
+
+  const goToDetails = (simulator: Simulator) => {
+    simulator.isSelected = true;
   };
 
   const handleDelete = () => {

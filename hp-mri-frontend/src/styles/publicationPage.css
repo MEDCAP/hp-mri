@@ -1,0 +1,23 @@
+/* src/styles/publicationPage.css */
+
+.publication-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding-top: 100px;
+}
+  
+.publication-title {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 80px;
+    text-align: center;
+}
+  
+.publication-description {
+    margin-top: 0;
+    font-size: 30px;
+    text-align: center;
+}
