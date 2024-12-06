@@ -48,76 +48,70 @@ const ImagesDetails: React.FC = () => {
         //     .catch(error => console.error("Error fetching image:", error));
     }, [imageId, fileId]);
 
-    if (!imageDetails || !fileDetails)
-        return <Typography variant="h5">Loading...</Typography>;
+    if (!imageDetails || !fileDetails) return <Typography variant="h5">Loading...</Typography>;
 
     return (
-        <Container
-            maxWidth="lg"
-            sx={{
+        <div
+            style={{
                 marginLeft: isSidebarOpen ? '260px' : '80px',
-                transition: 'margin-left 0.3s',
-                paddingTop: 2,
+                width: isSidebarOpen ? 'calc(100% - 260px)' : 'calc(100% - 80px)',
+                transition: 'margin-left 0.3s, width 0.3s',
             }}
         >
-            <HeaderAccount />
-            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h4" gutterBottom>
-                    MRD File: {fileDetails.name || 'Loading...'} {'>'} Image: {imageDetails.name || 'Loading...'}
-                </Typography>
-                <Button variant="contained" color="primary">
-                    Analyze
-                </Button>
-            </Box>
-            <Divider sx={{ marginY: 2 }} />
-            <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardMedia
-                            component="img"
-                            height="300"
-                            image={image || 'https://via.placeholder.com/600'} // Placeholder image until data loads
-                            alt={imageDetails.name || 'Image'}
-                        />
-                        <CardContent>
-                            <Typography variant="h6">Image Details</Typography>
-                            <Typography variant="body1">
-                                <strong>Name:</strong> {imageDetails.name || 'Loading...'}
-                            </Typography>
-                            <Typography variant="body1">
-                                <strong>Date:</strong> {imageDetails.date || 'Loading...'}
-                            </Typography>
-                            <Typography variant="body1">
-                                <strong>Owner:</strong> {imageDetails.owner || 'Loading...'}
-                            </Typography>
-                            <Typography variant="body1">
-                                <strong>Resolution:</strong> {imageDetails.resolution || 'Unknown'}
-                            </Typography>
-                        </CardContent>
-                    </Card>
+            <Container maxWidth="lg" sx={{ paddingTop: 2 }}>
+                <HeaderAccount />
+                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 3,
+                    }}
+                >
+                    <Typography variant="h4" fontWeight="bold">
+                        MRD File: {fileDetails.name} &gt; Image: {imageDetails.name}
+                    </Typography>
+                    <Button variant="contained" color="primary" size="large">
+                        Analyze
+                    </Button>
+                </Box>
+                <Divider sx={{ marginBottom: 3 }} />
+                <Grid container justifyContent="center">
+                    <Grid item xs={12} md={8}>
+                        <Card elevation={3} sx={{ borderRadius: 2 }}>
+                            <CardMedia
+                                component="img"
+                                image={image || 'https://via.placeholder.com/600'} // Placeholder image
+                                alt={imageDetails.name || 'Image'}
+                                sx={{
+                                    height: '400px',
+                                    objectFit: 'contain',
+                                    borderBottom: '1px solid #ddd',
+                                }}
+                            />
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Image Details
+                                </Typography>
+                                <Typography variant="body1">
+                                    <strong>Name:</strong> {imageDetails.name}
+                                </Typography>
+                                <Typography variant="body1">
+                                    <strong>Date:</strong> {imageDetails.date}
+                                </Typography>
+                                <Typography variant="body1">
+                                    <strong>Owner:</strong> {imageDetails.owner}
+                                </Typography>
+                                <Typography variant="body1">
+                                    <strong>Resolution:</strong> {imageDetails.resolution || 'Unknown'}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6">File Details</Typography>
-                            <Typography variant="body1">
-                                <strong>File Name:</strong> {fileDetails.name || 'Loading...'}
-                            </Typography>
-                            <Typography variant="body1">
-                                <strong>Owner:</strong> {fileDetails.owner || 'Loading...'}
-                            </Typography>
-                            <Typography variant="body1">
-                                <strong>Created Date:</strong> {fileDetails.date || 'Loading...'}
-                            </Typography>
-                            <Typography variant="body1">
-                                <strong>Tags:</strong> {fileDetails.tags || 'None'}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
-        </Container>
+            </Container>
+        </div>
     );
 };
 
