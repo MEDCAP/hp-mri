@@ -11,6 +11,7 @@ import {
   IconButton,
   Divider,
   Box,
+  Typography,
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 
@@ -39,18 +40,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         },
       }}
     >
-      {/* Sidebar Header with Hamburger Button */}
+      {/* Sidebar Header */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: isOpen ? 'space-between' : 'center',
-          padding: '8px 16px',
+          padding: '16px',
           paddingTop: '74px',
+          backgroundColor: 'primary.main',
+          color: 'white',
         }}
       >
-        {isOpen && <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>Menu</span>}
-        <IconButton onClick={toggleSidebar} sx={{ color: 'primary.main' }}>
+        {isOpen && (
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'white', marginTop: '5px' }}>
+            Menu
+          </Typography>
+        )}
+        <IconButton onClick={toggleSidebar} sx={{ color: 'white', top: '2.5px' }}>
           <MenuIcon />
         </IconButton>
       </Box>
@@ -60,31 +67,82 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       <List>
         {/* MRD Files Link */}
         <ListItem disablePadding>
-          <ListItemButton component={Link} to="/" sx={{ padding: '10px 16px' }}>
-            <ListItemIcon>
-              <FaFile color="#011F5B" />
+          <ListItemButton
+            component={Link}
+            to="/"
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: 'background.light',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaFile color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
-            {isOpen && <ListItemText primary="MRD Files" />}
+            {isOpen && (
+              <ListItemText
+                primary="MRD Files"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                }}
+              />
+            )}
           </ListItemButton>
         </ListItem>
 
         {/* Images Link */}
         <ListItem disablePadding>
-          <ListItemButton component={Link} to="/images" sx={{ padding: '10px 16px' }}>
-            <ListItemIcon>
-              <FaImages color="#011F5B" />
+          <ListItemButton
+            component={Link}
+            to="/images"
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: 'background.light',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaImages color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
-            {isOpen && <ListItemText primary="Images" />}
+            {isOpen && (
+              <ListItemText
+                primary="Images"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                }}
+              />
+            )}
           </ListItemButton>
         </ListItem>
 
         {/* Simulator Link */}
         <ListItem disablePadding>
-          <ListItemButton component={Link} to="/simulator" sx={{ padding: '10px 16px' }}>
-            <ListItemIcon>
-              <FaCube color="#011F5B" />
+          <ListItemButton
+            component={Link}
+            to="/simulator"
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: 'background.light',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaCube color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
-            {isOpen && <ListItemText primary="Simulator" />}
+            {isOpen && (
+              <ListItemText
+                primary="Simulator"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                }}
+              />
+            )}
           </ListItemButton>
         </ListItem>
       </List>
