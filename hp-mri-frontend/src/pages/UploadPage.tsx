@@ -7,21 +7,21 @@ import axios from 'axios';
 
 const UploadPage: React.FC = () => {
   const [mriFile, setMriFile] = useState<FileList | null>(null);
-  const [auxFile, setAuxFile] = useState<FileList | null>(null);
+  // const [auxFile, setAuxFile] = useState<FileList | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
     if (event.target.files) {
       // pass MRI file with type=MRI or pass as Aux file
-      type === 'MRI' ? setMriFile(event.target.files) : setAuxFile(event.target.files);
+      type === 'MRI' ? setMriFile(event.target.files) : {};
     }
   };
 
   const handleUpload = () => {
     if (mriFile) { // Check if files are selected
       const formData = new FormData();
-      [...mriFile].forEach(file => {formData.append("file", file)});  // save as "file" formData
+      Array.from(mriFile).forEach(file => {formData.append("file", file)});  // save as "file" formData
       axios.post(
         "http://127.0.0.1:5000/api/upload", formData, {
           headers: {

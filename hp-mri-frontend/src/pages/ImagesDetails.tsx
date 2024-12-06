@@ -11,7 +11,7 @@ const ImagesDetails: React.FC = () => {
     const { imageId, fileId } = useParams();
     const [imageDetails, setImageDetails] = useState<any>(null);
     const [fileDetails, setFileDetails] = useState<any>(null);
-    const [image, setImage] = useState<any>(null);
+    // const [image, setImage] = useState<any>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     useEffect(() => {
