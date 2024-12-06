@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
 import './../styles/headeraccount.css';
 import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
-import TheMedcap from './../images/the-medcap.png'
+import Medcap from './../images/medcap.png'
 
 const HeaderAccount: React.FC = () => {
   return (
@@ -14,7 +14,7 @@ const HeaderAccount: React.FC = () => {
         <Link to="/">
           <img src={PigiLogo} alt="App Logo" className="app-logo" />
         </Link>
-        <img src={TheMedcap} alt="App Logo 2" className="app-logo" />
+        <img src={Medcap} alt="App Logo 2" className="app-logo" />
       </div>
 
       {/* Title */}

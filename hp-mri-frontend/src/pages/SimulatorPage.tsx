@@ -1,7 +1,8 @@
 // src/pages/SimulatorPage.tsx
 
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+// import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import './../styles/pages.css';
@@ -24,7 +25,7 @@ const SimulatorPage: React.FC = () => {
   const [simulators, setSimulators] = useState<Simulator[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Simulator; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   // Fetch data from backend on component mount
   useEffect(() => {
@@ -73,6 +74,7 @@ const SimulatorPage: React.FC = () => {
   };
 
   const goToDetails = (simulator: Simulator) => {
+    simulator.isSelected = true;
   };
 
   const handleDelete = () => {

@@ -9,13 +9,21 @@ import ImagesPage from './pages/ImagesPage';
 import SimulatorPage from './pages/SimulatorPage';
 import AccountPage from './pages/AccountPage';
 import ImagesDetails from './pages/ImagesDetails';
+import AboutPage from './pages/AboutPage';
+import SolutionPage from './pages/SolutionPage';
+import PublicationPage from './pages/PublicationPage';
+import ResearchPage from './pages/ResearchPage';
 
 const App: React.FC = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/about" element={<HomePage />} />
-        <Route path="/" element={<RetrievePage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/research" element={<ResearchPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/solution" element={<SolutionPage />} />
+        <Route path="/publication" element={<PublicationPage />} />
+        <Route path="/mrd-files" element={<RetrievePage />} />
         <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/images" element={<ImagesPage />} />
