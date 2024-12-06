@@ -17,8 +17,9 @@ import {
   TextField,
   Typography,
   IconButton,
+  Tooltip,
 } from '@mui/material';
-import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
+import { ArrowUpward, ArrowDownward, CloudDownload, Delete, UploadFile } from '@mui/icons-material';
 import axios from 'axios';
 
 interface Simulator {
@@ -51,7 +52,8 @@ const SimulatorPage: React.FC = () => {
     (file) =>
       file.name.toLowerCase().includes(search.toLowerCase()) ||
       file.date.toLowerCase().includes(search.toLowerCase()) ||
-      file.owner.toLowerCase().includes(search.toLowerCase())
+      file.owner.toLowerCase().includes(search.toLowerCase()) ||
+      file.sequence.toLowerCase().includes(search.toLowerCase())
   );
 
   const sortedSimulators = filteredSimulators.sort((a, b) => {
@@ -59,9 +61,13 @@ const SimulatorPage: React.FC = () => {
     const aValue = key === 'date' ? new Date(a[key]) : a[key];
     const bValue = key === 'date' ? new Date(b[key]) : b[key];
 
-    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
+    return aValue < bValue
+      ? sortConfig.direction === 'asc'
+        ? -1
+        : 1
+      : sortConfig.direction === 'asc'
+        ? 1
+        : -1;
   });
 
   const handleSort = (key: keyof Simulator) => {
@@ -97,94 +103,108 @@ const SimulatorPage: React.FC = () => {
   const isAnyFileSelected = simulators.some((file) => file.isSelected);
 
   return (
-    <Container maxWidth="lg" sx={{ marginLeft: isSidebarOpen ? '260px' : '80px', transition: 'margin-left 0.3s' }}>
+    <div
+      style={{
+        marginLeft: isSidebarOpen ? '260px' : '80px',
+        width: isSidebarOpen ? 'calc(100% - 260px)' : 'calc(100% - 80px)',
+        transition: 'margin-left 0.3s, width 0.3s',
+      }}
+    >
       <HeaderAccount />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <Typography variant="h4" gutterBottom>
-        Simulator
-      </Typography>
-      <Grid container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
-        <Grid item xs={8}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            label="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+
+      <Container maxWidth="lg" sx={{ paddingTop: 2 }}>
+        <Typography variant="h4" gutterBottom>
+          Simulator
+        </Typography>
+
+        <Grid container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
+          <Grid item xs={8}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={4} textAlign="right">
+            <Tooltip title="Delete selected simulators">
+              <Button
+                variant="contained"
+                color="error"
+                sx={{ marginTop: '-8px' }}
+                startIcon={<Delete />}
+                disabled={!isAnyFileSelected}
+                onClick={handleDelete}
+              >
+                Delete
+              </Button>
+            </Tooltip>
+          </Grid>
         </Grid>
-        <Grid item xs={4} textAlign="right">
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ marginRight: 1 }}
-            disabled={!isAnyFileSelected}
-            onClick={() => alert('Download functionality not implemented')}
-          >
-            Download
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            disabled={!isAnyFileSelected}
-            onClick={handleDelete}
-          >
-            Delete
-          </Button>
-          <Link to="/upload" style={{ textDecoration: 'none' }}>
-            <Button variant="outlined">Upload</Button>
-          </Link>
-        </Grid>
-      </Grid>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell />
-              <TableCell onClick={() => handleSort('name')}>
-                Name{' '}
-                {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
-              </TableCell>
-              <TableCell onClick={() => handleSort('date')}>
-                Date{' '}
-                {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
-              </TableCell>
-              <TableCell onClick={() => handleSort('owner')}>
-                Owner{' '}
-                {sortConfig.key === 'owner' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
-              </TableCell>
-              <TableCell onClick={() => handleSort('sequence')}>
-                Sequence{' '}
-                {sortConfig.key === 'sequence' &&
-                  (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
-              </TableCell>
-              <TableCell onClick={() => handleSort('image')}>
-                Image{' '}
-                {sortConfig.key === 'image' && (sortConfig.direction === 'asc' ? <ArrowUpward /> : <ArrowDownward />)}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sortedSimulators.map((file) => (
-              <TableRow key={file.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={file.isSelected}
-                    onChange={() => handleSelection(file.id)}
-                    color="primary"
-                  />
-                </TableCell>
-                <TableCell>{file.name}</TableCell>
-                <TableCell>{file.date}</TableCell>
-                <TableCell>{file.owner}</TableCell>
-                <TableCell>{file.sequence}</TableCell>
-                <TableCell>{file.image}</TableCell>
+
+        <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                {['name', 'date', 'owner', 'sequence', 'image'].map((key) => (
+                  <TableCell key={key} onClick={() => handleSort(key as keyof Simulator)} sx={{ cursor: 'pointer' }}>
+                    <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}{' '}
+                      {sortConfig.key === key && (
+                        <IconButton
+                          size="small"
+                          sx={{
+                            padding: 0,
+                            marginLeft: 0.5,
+                            verticalAlign: 'middle',
+                            transform: 'translateY(0px)',
+                          }}
+                        >
+                          {sortConfig.direction === 'asc' ? (
+                            <ArrowUpward fontSize="small" />
+                          ) : (
+                            <ArrowDownward fontSize="small" />
+                          )}
+                        </IconButton>
+                      )}
+                    </Typography>
+                  </TableCell>
+                ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Container>
+            </TableHead>
+            <TableBody>
+              {sortedSimulators.map((file) => (
+                <TableRow
+                  key={file.id}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: '#f1f1f1',
+                      cursor: 'pointer',
+                    },
+                  }}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={file.isSelected}
+                      onChange={() => handleSelection(file.id)}
+                      color="primary"
+                    />
+                  </TableCell>
+                  <TableCell>{file.name}</TableCell>
+                  <TableCell>{file.date}</TableCell>
+                  <TableCell>{file.owner}</TableCell>
+                  <TableCell>{file.sequence}</TableCell>
+                  <TableCell>{file.image}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Container>
+    </div>
   );
 };
 
