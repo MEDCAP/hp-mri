@@ -3,7 +3,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
 import './../styles/headeraccount.css';
-import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
 import Medcap from './../images/medcap.png'
 
 const HeaderAccount: React.FC = () => {
@@ -12,9 +11,10 @@ const HeaderAccount: React.FC = () => {
       {/* App Logo as an image that links to the root page */}
       <div className="header-left">
         <Link to="/">
-          <img src={PigiLogo} alt="App Logo" className="app-logo" />
+          <img src={Medcap} alt="App Logo" className="app-logo" />
+          <h1 className="home-title">MEDCAP</h1>
         </Link>
-        <img src={Medcap} alt="App Logo 2" className="app-logo" />
+
       </div>
 
       {/* Title */}

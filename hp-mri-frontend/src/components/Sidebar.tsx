@@ -25,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
       {/* Sidebar links with icons */}
       <div className="sidebar-links">
-        <Link to="/" className="sidebar-link">
+        <Link to="/mrd-files" className="sidebar-link">
           <FaFile style={{ color: '#011F5B' }} className="sidebar-icon" />
           {isOpen && <span className="link-text">MRD Files</span>}
         </Link>
