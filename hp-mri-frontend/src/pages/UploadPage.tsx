@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
-import { Box, Button, Typography, TextField, Snackbar, Alert } from '@mui/material';
+import {
+  Box,
+  Button,
+  Typography,
+  Snackbar,
+  Alert,
+  TextField,
+} from '@mui/material';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
 
@@ -15,9 +22,10 @@ const DragDropBox = styled(Box)(({ theme }) => ({
   padding: '30px',
   textAlign: 'center',
   cursor: 'pointer',
+  backgroundColor: theme.palette.background.default,
   transition: 'background-color 0.3s ease, border-color 0.3s ease',
   '&:hover': {
-    backgroundColor: theme.palette.background.default,
+    backgroundColor: theme.palette.action.hover,
     borderColor: theme.palette.secondary.main,
   },
 }));
@@ -29,33 +37,36 @@ const UploadPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleFileChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    event: React.ChangeEvent<HTMLInputElement>,
     type: string
   ) => {
-    const inputElement = event.target as HTMLInputElement;
-    if (inputElement.files) {
-      type === 'MRI' ? setMriFile(inputElement.files) : setAuxFile(inputElement.files);
+    if (event.target.files) {
+      type === 'MRI' ? setMriFile(event.target.files) : setAuxFile(event.target.files);
     }
   };
 
   const handleUpload = () => {
+    const formData = new FormData();
     if (mriFile) {
-      const formData = new FormData();
-      Array.from(mriFile).forEach(file => formData.append('file', file));
-      axios
-        .post('http://127.0.0.1:5000/api/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        })
-        .then(() => {
-          setSuccessMessage('Files uploaded successfully!');
-        })
-        .catch(err => {
-          console.error(err);
-          setSuccessMessage(null);
-        });
+      Array.from(mriFile).forEach((file) => formData.append('mriFiles', file));
     }
+    if (auxFile) {
+      Array.from(auxFile).forEach((file) => formData.append('auxFiles', file));
+    }
+
+    axios
+      .post('http://127.0.0.1:5000/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      .then(() => {
+        setSuccessMessage('Files uploaded successfully!');
+      })
+      .catch((err) => {
+        console.error(err);
+        setSuccessMessage(null);
+      });
   };
 
   return (
@@ -63,62 +74,112 @@ const UploadPage: React.FC = () => {
       <HeaderAccount />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <Box
-        className={`upload-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        padding={3}
+        sx={{
+          marginLeft: isSidebarOpen ? '260px' : '80px',
+          transition: 'margin-left 0.3s',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 3,
+          paddingLeft: 43,
+        }}
       >
-        <Box display="flex" justifyContent="flex-end" width="100%" maxWidth="1200px">
-          <Button variant="contained" color="primary" onClick={handleUpload}>
-            Upload
-          </Button>
-        </Box>
-        <Typography variant="h1" gutterBottom>
-          Upload MRD Files
-        </Typography>
-        {successMessage && (
-          <Snackbar open autoHideDuration={6000} onClose={() => setSuccessMessage(null)}>
-            <Alert onClose={() => setSuccessMessage(null)} severity="success">
-              {successMessage}
-            </Alert>
-          </Snackbar>
-        )}
-        <Typography variant="body1" gutterBottom>
-          Select from local file
-        </Typography>
-        <Box display="flex" flexDirection="column" gap={3} width="100%" maxWidth="600px">
-          <DragDropBox>
-            <Typography variant="body1" fontWeight="bold">
-              Upload MRI raw data
+        <Box
+          sx={{
+            width: '100%',
+            maxWidth: '800px',
+            padding: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            width="100%"
+            marginBottom={4}
+          >
+            <Typography variant="h4" fontWeight="bold">
+              Upload MRD Files
             </Typography>
-            <Typography variant="body2">drag and drop</Typography>
-            <TextField
-              type="file"
-              inputProps={{
-                accept: '.bin, .dat',
-                multiple: true,
-              }}
-              onChange={(e) => handleFileChange(e, 'MRI')}
-              sx={{ display: 'none' }}
-            />
-          </DragDropBox>
-          <DragDropBox>
-            <Typography variant="body1" fontWeight="bold">
-              Upload aux raw data
-            </Typography>
-            <Typography variant="body2">drag and drop</Typography>
-            <TextField
-              type="file"
-              inputProps={{
-                accept: '.txt, .json',
-                multiple: true,
-              }}
-              onChange={(e) => handleFileChange(e, 'Aux')}
-              sx={{ display: 'none' }}
-            />
-          </DragDropBox>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleUpload}
+              sx={{ padding: '10px 20px' }}
+            >
+              Upload
+            </Button>
+          </Box>
+
+          {successMessage && (
+            <Snackbar
+              open
+              autoHideDuration={6000}
+              onClose={() => setSuccessMessage(null)}
+              anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+              <Alert
+                onClose={() => setSuccessMessage(null)}
+                severity="success"
+                sx={{ width: '100%' }}
+              >
+                {successMessage}
+              </Alert>
+            </Snackbar>
+          )}
+
+          <Typography variant="body1" color="textSecondary" sx={{ marginBottom: 2 }}>
+            Select and upload your files below:
+          </Typography>
+
+          <Box
+            display="flex"
+            flexDirection={{ xs: 'column', md: 'row' }}
+            gap={4}
+            justifyContent="center"
+            alignItems="center"
+            width="100%"
+          >
+            <DragDropBox>
+              <label style={{ cursor: 'pointer', textAlign: 'center', width: '100%' }}>
+                <Typography variant="h6" fontWeight="bold">
+                  Upload MRI Raw Data
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Drag and drop or select files
+                </Typography>
+                <input
+                  type="file"
+                  accept=".bin, .dat"
+                  multiple
+                  onChange={(e) => handleFileChange(e, 'MRI')}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </DragDropBox>
+
+            <DragDropBox>
+              <label style={{ cursor: 'pointer', textAlign: 'center', width: '100%' }}>
+                <Typography variant="h6" fontWeight="bold">
+                  Upload Aux Raw Data
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Drag and drop or select files
+                </Typography>
+                <input
+                  type="file"
+                  accept=".txt, .json"
+                  multiple
+                  onChange={(e) => handleFileChange(e, 'Aux')}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </DragDropBox>
+          </Box>
         </Box>
       </Box>
     </Box>

@@ -14,8 +14,9 @@ bp = Blueprint("mrds", __name__)
 # Apply CORS to the blueprint
 CORS(bp, resources={r"/*": {"origins": "http://localhost:5173"}})
 # setup aws s3 client
-s3 = boto3.client('s3')
-BUCKET = 'mrissim-app-user-content'
+s3 = boto3.client("s3")
+BUCKET = "mrissim-app-user-content"
+
 
 # Root route just to test the server is running
 @bp.route("/")
@@ -142,10 +143,9 @@ def get_image_details(image_id):
 @bp.route("/upload", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
-        print('error')
         return jsonify({"error": "No files selected"}), 400
     # tmpdata dir to store files locally before uploading to s3 at "./tmpdata"
-    upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'tmpdata')
+    upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmpdata")
     if not os.path.exists(upload_path):
         os.makedirs(upload_path)
     for file in request.files.getlist("file"):
@@ -153,7 +153,7 @@ def upload_file():
         filepath = os.path.join(upload_path, file.filename)
         file.save(filepath)
         try:
-            # upload to s3 as original name 
+            # upload to s3 as original name
             s3.upload_file(filepath, BUCKET, file.filename)
         except Exception as e:
             return jsonify({"aws access error": e}), 400
