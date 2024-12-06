@@ -21,6 +21,7 @@ db_mrd = [
         },
         "image": True,
         "aux": True,
+        "reconstructed": False,
     },
     {
         "id": 2,
@@ -38,6 +39,7 @@ db_mrd = [
         },
         "image": True,
         "aux": True,
+        "reconstructed": False,
     },
     {
         "id": 3,
@@ -55,6 +57,7 @@ db_mrd = [
         },
         "image": False,
         "aux": False,
+        "reconstructed": True,
     },
     {
         "id": 4,
@@ -72,6 +75,7 @@ db_mrd = [
         },
         "image": True,
         "aux": False,
+        "reconstructed": False,
     },
     {
         "id": 5,
@@ -89,6 +93,7 @@ db_mrd = [
         },
         "image": False,
         "aux": True,
+        "reconstructed": False,
     },
     {
         "id": 6,
@@ -106,6 +111,7 @@ db_mrd = [
         },
         "image": True,
         "aux": True,
+        "reconstructed": True,
     },
 ]
 

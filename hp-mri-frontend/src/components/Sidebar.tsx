@@ -1,8 +1,19 @@
-// src/components/Sidebar.tsx
 import React from 'react';
-import { FaBars, FaCube, FaFile, FaImages } from 'react-icons/fa';
+import { FaCube, FaFile, FaImages } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import './../styles/sidebar.css';
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
+  Divider,
+  Box,
+  Typography,
+} from '@mui/material';
+import { Menu as MenuIcon } from '@mui/icons-material';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,31 +26,128 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   };
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
-      {/* Hamburger button for expanding/retracting */}
-      <div className="toggle-btn-wrapper">
-        <button className="toggle-btn" onClick={toggleSidebar}>
-          <FaBars style={{ color: '#011F5B' }}/> {/* Hamburger Icon */}
-        </button>
-      </div>
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: isOpen ? '240px' : '80px',
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: isOpen ? '240px' : '80px',
+          transition: 'width 0.3s ease',
+          overflowX: 'hidden',
+          boxShadow: 3,
+          backgroundColor: 'background.default',
+        },
+      }}
+    >
+      {/* Sidebar Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isOpen ? 'space-between' : 'center',
+          padding: '16px',
+          paddingTop: '74px',
+          backgroundColor: 'primary.main',
+          color: 'white',
+        }}
+      >
+        {isOpen && (
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'white', marginTop: '5px' }}>
+            Menu
+          </Typography>
+        )}
+        <IconButton onClick={toggleSidebar} sx={{ color: 'white', top: '2.5px' }}>
+          <MenuIcon />
+        </IconButton>
+      </Box>
+      <Divider />
 
-      {/* Sidebar links with icons */}
-      <div className="sidebar-links">
-        <Link to="/mrd-files" className="sidebar-link">
-          <FaFile style={{ color: '#011F5B' }} className="sidebar-icon" />
-          {isOpen && <span className="link-text">MRD Files</span>}
-        </Link>
-        <Link to="/images" className="sidebar-link">
-          <FaImages style={{ color: '#011F5B' }} className="sidebar-icon" />
-          {isOpen && <span className="link-text">Images</span>}
-        </Link>
-        <Link to="/simulator" className="sidebar-link">
-          <FaCube style={{ color: '#011F5B' }} className="sidebar-icon" />
-          {isOpen && <span className="link-text">Simulator</span>}
-        </Link>
-        {/* Add more links as needed */}
-      </div>
-    </div>
+      {/* Sidebar Links */}
+      <List>
+        {/* MRD Files Link */}
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/tools"
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: 'background.light',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaFile color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+            </ListItemIcon>
+            {isOpen && (
+              <ListItemText
+                primary="MRD Files"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                }}
+              />
+            )}
+          </ListItemButton>
+        </ListItem>
+
+        {/* Images Link */}
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/images"
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: 'background.light',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaImages color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+            </ListItemIcon>
+            {isOpen && (
+              <ListItemText
+                primary="Images"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                }}
+              />
+            )}
+          </ListItemButton>
+        </ListItem>
+
+        {/* Simulator Link */}
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/simulator"
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: 'background.light',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaCube color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+            </ListItemIcon>
+            {isOpen && (
+              <ListItemText
+                primary="Simulator"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                }}
+              />
+            )}
+          </ListItemButton>
+        </ListItem>
+      </List>
+      <Divider />
+    </Drawer>
   );
 };
 

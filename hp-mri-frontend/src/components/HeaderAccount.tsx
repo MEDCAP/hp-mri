@@ -1,39 +1,91 @@
-// src/components/HeaderAccount.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
-import './../styles/headeraccount.css';
+import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme } from '@mui/material';
+import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
+// import TheMedcap from './../images/the-medcap.png';
 import Medcap from './../images/medcap.png'
 
 const HeaderAccount: React.FC = () => {
+  const theme = useTheme();
+
   return (
-    <header className="header-account">
-      {/* App Logo as an image that links to the root page */}
-      <div className="header-left">
-        <Link to="/">
-          <img src={Medcap} alt="App Logo" className="app-logo" />
-          <h1 className="home-title">MEDCAP</h1>
-        </Link>
+    <AppBar
+      position="fixed"
+      sx={{
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+        boxShadow: 3,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <Toolbar
+        sx={{
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingX: { xs: 2, sm: 4 },
+        }}
+      >
+        {/* Left Section: Logos */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Link to="/tools">
+            <img
+              src={PigiLogo}
+              alt="Pigi Logo"
+              style={{ height: 40, cursor: 'pointer' }}
+            />
+          </Link>
+          {/* <img src={TheMedcap} alt="The Medcap Logo" style={{ height: 40 }} /> */}
+          <img src={Medcap} alt="The Medcap Logo" style={{ height: 40 }} />
+        </Box>
 
-      </div>
+        {/* Center Section: Title */}
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 600,
+            color: theme.palette.primary.main,
+            textAlign: 'center',
+            flexGrow: 1,
+            letterSpacing: 1.2,
+          }}
+        >
+          HP-MRI
+        </Typography>
 
-      {/* Title */}
-      <div className="header-title">
-        <span className="title-input">HP-MRI</span>
-      </div>
-
-      {/* Right section with Account and icons */}
-      <div className="header-right">
-        {/* <FaBell className="header-icon" />
-        <FaCog className="header-icon" /> */}
-
-        {/* Account section */}
-        <Link to="/account" className="account-box">
-          <FaUserCircle className="header-icon profile-icon" />
-          <span className="account-text">Account</span>
-        </Link>
-      </div>
-    </header>
+        {/* Right Section: Account */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title="Go to Account">
+            <Link to="/account" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <IconButton
+                sx={{
+                  transition: 'background-color 0.3s',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <Avatar
+                  sx={{
+                    bgcolor: theme.palette.primary.main,
+                    color: theme.palette.getContrastText(theme.palette.primary.main),
+                  }}
+                >
+                  <FaUserCircle size={20} />
+                </Avatar>
+              </IconButton>
+            </Link>
+          </Tooltip>
+          <Typography
+            variant="body1"
+            sx={{ fontWeight: 500, display: { xs: 'none', sm: 'block' } }}
+          >
+            Account
+          </Typography>
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 };
 

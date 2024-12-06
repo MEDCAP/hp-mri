@@ -1,13 +1,26 @@
-// src/pages/RetrievePage.tsx
-
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
-import './../styles/pages.css';
-import './../styles/retrieve.css';
+import {
+  Button,
+  Checkbox,
+  Container,
+  Grid,
+  Paper,
+  TextField,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableContainer,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import { ArrowUpward, ArrowDownward, CloudDownload, Delete, UploadFile, Refresh } from '@mui/icons-material';
 import axios from 'axios';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
 interface MRDFile {
   id: number;
@@ -22,60 +35,63 @@ const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({
+    key: 'date',
+    direction: 'desc',
+  });
   const navigate = useNavigate();
 
-  // Fetch data from backend on component mount
+  const fetchFiles = () => {
+    axios
+      .get('http://127.0.0.1:5000/api/mrd-files')
+      .then((response) => setFiles(response.data))
+      .catch((error) => console.error('Error fetching MRD files:', error));
+  };
+
   useEffect(() => {
-    axios.get('http://127.0.0.1:5000/api/mrd-files')
-      .then(response => {
-        setFiles(response.data);
-      })
-      .catch(error => {
-        console.error('Error fetching MRD files:', error);
-      });
+    fetchFiles();
   }, []);
 
-  // Filter the files based on search input
-  const filteredFiles = files.filter(file =>
-    file.name.toLowerCase().includes(search.toLowerCase()) ||
-    file.date.toLowerCase().includes(search.toLowerCase()) ||
-    file.owner.toLowerCase().includes(search.toLowerCase())
+  const filteredFiles = files.filter(
+    (file) =>
+      file.name.toLowerCase().includes(search.toLowerCase()) ||
+      file.date.toLowerCase().includes(search.toLowerCase()) ||
+      file.owner.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Sort the filtered files based on sortConfig
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
-
-    // Check if the sorting key is 'date' and parse it as a Date object
     const aValue = key === 'date' ? new Date(a[key]) : a[key];
     const bValue = key === 'date' ? new Date(b[key]) : b[key];
-
-    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
+    return aValue < bValue
+      ? sortConfig.direction === 'asc'
+        ? -1
+        : 1
+      : sortConfig.direction === 'asc'
+        ? 1
+        : -1;
   });
 
-  // Handle column sorting
   const handleSort = (key: keyof MRDFile) => {
-    setSortConfig(prevState => ({
+    setSortConfig((prevState) => ({
       key,
       direction: prevState.key === key && prevState.direction === 'asc' ? 'desc' : 'asc',
     }));
   };
 
   const handleSelection = (fileId: number) => {
-    setFiles(prevFiles =>
-      prevFiles.map(file =>
+    setFiles((prevFiles) =>
+      prevFiles.map((file) =>
         file.id === fileId ? { ...file, isSelected: !file.isSelected } : file
       )
     );
   };
 
-  // Handle navigating to the details page with state
   const goToDetails = (file: MRDFile) => {
     navigate(`/file-details/${file.id}`);
   };
+
+  const isAnyFileSelected = files.some((file) => file.isSelected);
 
   const handleDelete = () => {
     // // API Call for delete, commented so that we don't accidentally delete during dev
@@ -92,80 +108,165 @@ const RetrievePage: React.FC = () => {
     //   .catch(error => console.error("Error deleting files:", error));
   };
 
-  const isAnyFileSelected = files.some(file => file.isSelected);
-
   return (
-    <div className="page-container">
+    <div
+      style={{
+        marginLeft: isSidebarOpen ? '260px' : '80px',
+        width: isSidebarOpen ? 'calc(100% - 260px)' : 'calc(100% - 80px)',
+        transition: 'margin-left 0.3s, width 0.3s',
+      }}
+    >
       <HeaderAccount />
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} /> {/* Pass state to sidebar */}
-      <div className={`retrieve-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-        {/* Upload button on the top right */}
-        <div className="top-right">
-          <button className="button-retrieve" disabled={!isAnyFileSelected}>Download</button>
-          <button
-            className="button-retrieve"
-            disabled={!isAnyFileSelected}
-            onClick={handleDelete} // Call the delete function
-          >
-            Delete
-          </button>
-          <Link to="/upload">
-            <button className="button-retrieve">Upload</button>
-          </Link>
-        </div>
-        <div className="retrieve-container">
-          <h1>MRD Files</h1>
-          <input
-            type="text"
-            className="search-bar"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-          {/* Table Headers */}
-          <div className="grid-header">
-            <span></span> {/* For the checkbox column */}
-            <span onClick={() => handleSort('name')}>
-              Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-            <span onClick={() => handleSort('date')}>
-              Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-            <span onClick={() => handleSort('owner')}>
-              Owner {sortConfig.key === 'owner' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-            <span onClick={() => handleSort('reconImagesCount')}>
-              # of Recon Images {sortConfig.key === 'reconImagesCount' && (sortConfig.direction === 'asc' ? <FaArrowUp /> : <FaArrowDown />)}
-            </span>
-          </div>
+      <Container maxWidth="lg" sx={{ paddingTop: 2 }}>
+        <Typography variant="h4" gutterBottom>
+          Retrieve MRD Files
+        </Typography>
 
-          {/* List of Files */}
-          <div className="grid-container">
-            {sortedFiles.map((file, index) => (
-              <div key={index} className="grid-row">
-                <input
-                  type="checkbox"
-                  checked={file.isSelected}
-                  onChange={() => handleSelection(file.id)}
-                />
-                <span
-                  className="file-link"
-                  onClick={() => goToDetails(file)}
-                  style={{ textDecoration: 'underline', color: 'gray', cursor: 'pointer' }}
-                  onMouseOver={(e) => (e.currentTarget.style.color = 'blue')}
-                  onMouseOut={(e) => (e.currentTarget.style.color = 'gray')}
+        <Grid container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={6} textAlign="right">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <Tooltip title="Upload new file">
+                <Link to="/upload" style={{ textDecoration: 'none' }}>
+                  <Button variant="outlined" startIcon={<UploadFile />} sx={{ flex: '1 1 24%', marginTop: '-8px' }} >
+                    Upload
+                  </Button>
+                </Link>
+              </Tooltip>
+              <Tooltip title="Refresh MRD files">
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={fetchFiles}
+                  sx={{
+                    flex: '1 1 24%',
+                    marginTop: '-8px'
+                  }}
                 >
-                  {file.name}
-                </span>
-                <span>{file.date}</span>
-                <span>{file.owner}</span>
-                <span>{file.reconImagesCount}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+                  Refresh
+                </Button>
+              </Tooltip>
+              <Tooltip title="Delete selected files">
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<Delete />}
+                  disabled={!isAnyFileSelected}
+                  onClick={handleDelete}
+                  sx={{
+                    flex: '1 1 24%',
+                    marginTop: '-8px'
+                  }}
+                >
+                  Delete
+                </Button>
+              </Tooltip>
+              <Tooltip title="Download selected files">
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<CloudDownload />}
+                  disabled={!isAnyFileSelected}
+                  sx={{
+                    flex: '1 1 24%',
+                    marginTop: '-8px'
+                  }}
+                >
+                  Download
+                </Button>
+              </Tooltip>
+            </div>
+          </Grid>
+        </Grid>
+
+        <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                {['name', 'date', 'owner', 'reconImagesCount'].map((key) => (
+                  <TableCell key={key} onClick={() => handleSort(key as keyof MRDFile)} sx={{ cursor: 'pointer' }}>
+                    <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}{' '}
+                      {sortConfig.key === key && (
+                        <IconButton
+                          size="small"
+                          sx={{
+                            padding: 0,
+                            marginLeft: 0.5,
+                            verticalAlign: 'middle',
+                            transform: 'translateY(0px)',
+                          }}
+                        >
+                          {sortConfig.direction === 'asc' ? (
+                            <ArrowUpward fontSize="small" />
+                          ) : (
+                            <ArrowDownward fontSize="small" />
+                          )}
+                        </IconButton>
+                      )}
+                    </Typography>
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedFiles.map((file) => (
+                <TableRow
+                  key={file.id}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: '#f1f1f1',
+                    },
+                  }}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={file.isSelected}
+                      onChange={() => handleSelection(file.id)}
+                      color="primary"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        cursor: 'pointer',
+                        color: '#011F5B',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                      onClick={() => goToDetails(file)}
+                    >
+                      {file.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{file.date}</TableCell>
+                  <TableCell>{file.owner}</TableCell>
+                  <TableCell>{file.reconImagesCount}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Container>
     </div>
   );
 };
