@@ -37,7 +37,7 @@ const AppContent: React.FC = () => {
       <div style={{ display: 'flex', marginTop: 74 }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/tools" element={<RetrievePage />} />
+          <Route path="/mrd-files" element={<RetrievePage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
           <Route path="/about-devs" element={<AboutPage />} />

@@ -29,7 +29,7 @@ const HeaderAccount: React.FC = () => {
       >
         {/* Left Section: Logos */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: '5px', marginLeft: '-15px' }}>
-          <Link to="/tools">
+          <Link to="/mrd-files">
             <img
               src={PigiLogo}
               alt="Pigi Logo"
