@@ -10,7 +10,7 @@ import {
   CardContent,
   CardMedia,
 } from '@mui/material';
-import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
+import PigiLogo from './../images/themedcap_image.png'; // Tmp logo
 import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
@@ -89,10 +89,10 @@ const HomePage: React.FC = () => {
 
       {/* Logo Section */}
       <Box
-        component="a"
-        href="https://www.pigilab.com/"
-        target="_blank"
-        rel="noopener noreferrer"
+        // component="a"
+        // href="https://www.pigilab.com/"
+        // target="_blank"
+        // rel="noopener noreferrer"
         sx={{
           marginTop: 8,
           display: 'block',
@@ -114,17 +114,6 @@ const HomePage: React.FC = () => {
         />
       </Box>
 
-      <Typography
-        variant="h3"
-        component="h1"
-        sx={{
-          marginTop: 4,
-          fontWeight: 600,
-          color: 'primary.main',
-        }}
-      >
-        Welcome to the MEDCAP
-      </Typography>
       {/* Heading and Description */}
       <Typography
         variant="h3"
@@ -140,6 +129,38 @@ const HomePage: React.FC = () => {
       <Typography variant="body1" color="textSecondary" paragraph>
         Format and Store, Simulate and Analyze MRI Instrument Data
       </Typography>
+      <Typography
+        marginTop="208px"
+        variant="h4"
+        component="h1"
+        sx={{
+          fontWeight: 500,
+          color: 'primary.main',
+        }}
+      >
+        Welcome to the MEDCAP
+      </Typography>
+      <Box
+        sx={{
+          marginTop: 2,
+          display: 'block',
+          textAlign: 'center',
+        }}
+      >
+        <Box
+          component="img"
+          src={MedcapTop}
+          alt="PIGI Lab Logo"
+          sx={{
+            width: '100%',
+            maxWidth: '800px',
+            height: 'auto',
+            marginX: 'auto',
+            boxShadow: 4,
+            borderRadius: 2,
+          }}
+        />
+      </Box>
 
       {/* Sections */}
       <Box
