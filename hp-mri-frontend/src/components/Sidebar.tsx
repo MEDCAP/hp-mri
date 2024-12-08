@@ -78,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaFile color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-10px' }} />
+              <FaFile color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -105,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaImages color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-10px' }} />
+              <FaImages color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -132,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaCube color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-10px' }} />
+              <FaCube color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText

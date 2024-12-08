@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
 import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme } from '@mui/material';
-import PigiLogo from './../images/penn_image.png';
+import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
 // import TheMedcap from './../images/the-medcap.png';
 import Medcap from './../images/medcap.png'
 
@@ -33,12 +33,11 @@ const HeaderAccount: React.FC = () => {
             <img
               src={PigiLogo}
               alt="Pigi Logo"
-              style={{ height: 45, cursor: 'pointer' }}
+              style={{ height: 40, cursor: 'pointer' }}
             />
-            <img src={Medcap} alt="The Medcap Logo" style={{ height: 50 }} />
           </Link>
           {/* <img src={TheMedcap} alt="The Medcap Logo" style={{ height: 40 }} /> */}
-
+          <img src={Medcap} alt="The Medcap Logo" style={{ height: 40 }} />
         </Box>
 
         {/* Center Section: Title */}
@@ -56,7 +55,7 @@ const HeaderAccount: React.FC = () => {
         </Typography>
 
         {/* Right Section: Account */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, marginRight: '-5px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tooltip title="Go to Account">
             <Link to="/account" style={{ textDecoration: 'none', color: 'inherit' }}>
               <IconButton
