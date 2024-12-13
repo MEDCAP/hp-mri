@@ -7,3 +7,6 @@ itsdangerous==2.2.0
 Jinja2==3.1.4
 MarkupSafe==2.1.5
 Werkzeug==3.0.4
+mrd-python==2.0.1
+boto3==1.35.65
+pyMapVBVD==0.6.1
