@@ -1,6 +1,6 @@
 /**
- * @fileoverview HomePage.tsx serves as the central interface for the HP MRI Web Application Visualization,
- * providing functionalities such as displaying proton images, adjusting HP MRI plots,
+ * @fileoverview HomePage.tsx serves as the central interface for the HP-MRI Web Application Visualization,
+ * providing functionalities such as displaying proton images, adjusting HP-MRI plots,
  * and offering navigation to the About page.
  *
  * @version 1.2.2
@@ -14,6 +14,13 @@ import ControlPanel from '../../components/visualization/ControlPanel';
 import ButtonPanel from '../../components/visualization/ButtonPanel';
 import PlotComponent from '../../components/visualization/PlotComponent';
 import { Link } from 'react-router-dom';
+
+interface Voxel {
+  x: number;
+  y: number;
+  column: number;
+  row: number;
+}
 
 const VisualizationPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
@@ -31,9 +38,12 @@ const VisualizationPage: React.FC = () => {
   const [datasetIndex, setDatasetIndex] = useState(1);
   const [selecting, setSelecting] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState('A');
-  const [groupA, setGroupA] = useState([]);
-  const [groupB, setGroupB] = useState([]);
-  const plotContainerRef = useRef(null);
+  // const [groupA, setGroupA] = useState([]);
+  // const [groupB, setGroupB] = useState([]);
+  // const plotContainerRef = useRef(null);
+  const [groupA, setGroupA] = useState<Voxel[]>([]);
+  const [groupB, setGroupB] = useState<Voxel[]>([]);
+  const plotContainerRef = useRef<HTMLDivElement | null>(null);
   const [offsetSelectX, setOffsetSelectX] = useState(-263); // X offset for voxel selection
   const [offsetSelectY, setOffsetSelectY] = useState(-98); // Y offset for voxel selection
   const [scaleOffsetX, setScaleOffsetX] = useState(1.335); // Scale factor for columns during selection
@@ -53,9 +63,9 @@ const VisualizationPage: React.FC = () => {
   }, [magnetType]);
 
   // Event handlers for UI control components.
-  const handleSliderChange = (newValue, contrastValue) => sendSliderValueToBackend(newValue, contrastValue);
-  const handleContrastChange = (sliderValue, newContrastValue) => sendSliderValueToBackend(sliderValue, newContrastValue);
-  const handleDatasetChange = (newDatasetIndex) => {
+  const handleSliderChange = (newValue: any, contrastValue: any) => sendSliderValueToBackend(newValue, contrastValue);
+  const handleContrastChange = (sliderValue: any, newContrastValue: any) => sendSliderValueToBackend(sliderValue, newContrastValue);
+  const handleDatasetChange = (newDatasetIndex: React.SetStateAction<number>) => {
     setDatasetIndex(newDatasetIndex);
     sendDatasetToBackend(newDatasetIndex);
   };
@@ -75,36 +85,38 @@ const VisualizationPage: React.FC = () => {
   };
 
   // File upload handler.
-  const handleFileUpload = (files) => {
-    const fileList = Array.from(files);
-    const formData = new FormData(fileList.map(file => formData.append('files', file)));
-    const uploadEndpoint = 'http://127.0.0.1:5000/api/upload';
-    fetch(uploadEndpoint, { method: 'POST', body: formData })
-      .then(response => response.json())
-      .catch(error => console.error('Error uploading files:', error));
+  const handleFileUpload = (files: FileList) => {
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append("files", file));
+
+    fetch("http://127.0.0.1:5000/api/upload", {
+      method: "POST",
+      body: formData,
+    })
+      .then((response) => response.json())
+      .catch((error) => console.error("Error uploading files:", error));
   };
 
-  const handleVoxelSelect = (event) => {
+  const handleVoxelSelect = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!selecting || !plotContainerRef.current) return;
+
     const plotRect = plotContainerRef.current.getBoundingClientRect();
-    const xInsidePlot = event.clientX - plotRect.left - offsetSelectX;
-    const yInsidePlot = event.clientY - plotRect.top - offsetSelectY;
-    if (xInsidePlot >= 0 && xInsidePlot <= plotRect.width - offsetSelectX - 450 && yInsidePlot >= 0 && yInsidePlot <= plotRect.height - offsetSelectY - 370) {
-      const scaleX = (hpMriData.columns / plotRect.width) * scaleOffsetX;
-      const scaleY = (hpMriData.rows / plotRect.height) * scaleOffsetY;
+    const xInsidePlot = event.clientX - plotRect.left;
+    const yInsidePlot = event.clientY - plotRect.top;
+
+    if (xInsidePlot >= 0 && yInsidePlot >= 0) {
+      const scaleX = hpMriData.columns / plotRect.width;
+      const scaleY = hpMriData.rows / plotRect.height;
       const column = Math.floor(xInsidePlot * scaleX);
       const row = Math.floor(yInsidePlot * scaleY);
-      const voxel = { x: xInsidePlot, y: yInsidePlot, column, row };
-      if (selectedGroup === 'A') {
-        setGroupA([...groupA, voxel]);
-      } else {
-        setGroupB([...groupB, voxel]);
-      }
+
+      const voxel: Voxel = { x: xInsidePlot, y: yInsidePlot, column, row };
+      selectedGroup === "A" ? setGroupA([...groupA, voxel]) : setGroupB([...groupB, voxel]);
     }
   };
 
   // Handler for changing the threshold
-  const handleThresholdChange = (event) => setThreshold(event.target.value);
+  const handleThresholdChange = (event: { target: { value: React.SetStateAction<number>; }; }) => setThreshold(event.target.value);
 
   // Data fetch functions for proton image and HP MRI data.
   const fetchInitialData = () => {
@@ -114,7 +126,7 @@ const VisualizationPage: React.FC = () => {
 
   const toggleSelecting = () => setSelecting(!selecting);
 
-  const displayVoxels = (group) => group.map((voxel, index) => (
+  const displayVoxels = (group: any[]) => group.map((voxel, index) => (
     <div key={index}>{`(X: ${voxel.x.toFixed(2)}, Y: ${voxel.y.toFixed(2)}) (Column: ${voxel.column}, Row: ${voxel.row})`}</div>
   ));
 
@@ -124,7 +136,7 @@ const VisualizationPage: React.FC = () => {
   };
 
   // Function to change the magnet type
-  const handleMagnetTypeChange = (newType) => {
+  const handleMagnetTypeChange = (newType: React.SetStateAction<string>) => {
     setMagnetType(newType);
   };
 
@@ -147,7 +159,7 @@ const VisualizationPage: React.FC = () => {
   };
 
   // Fetches and updates the proton image based on slider input.
-  const sendSliderValueToBackend = (newValue, newContrastValue) => {
+  const sendSliderValueToBackend = (newValue: number, newContrastValue: number) => {
     fetch(`http://127.0.0.1:5000/api/get_proton_picture/${newValue}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contrast: newContrastValue, magnetType })
@@ -156,7 +168,7 @@ const VisualizationPage: React.FC = () => {
   };
 
   // Fetches and updates the HP MRI data plot based on slider input.
-  const sendDatasetToBackend = (newDatasetIndex) => {
+  const sendDatasetToBackend = (newDatasetIndex: React.SetStateAction<number>) => {
     const url = `http://127.0.0.1:5000/api/get_hp_mri_data/${newDatasetIndex}?threshold=${threshold}&magnetType=${magnetType}`;
     fetch(url, {
       method: 'POST',
