@@ -41,34 +41,23 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     selectedGroup, onResetVoxels, threshold, onMagnetTypeChange
 }) => {
     const [isHpMriDataOn, setIsHpMriDataOn] = useState(false);
-    const fileInputRef = useRef();
+    // const fileInputRef = useRef();
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    /**
-     * Toggles the visibility of the HP MRI plot.
-     * @param {string} newStatus - 'on' to show the HP MRI plot, 'off' to hide it.
-     */
-    const handleToggleHpMriData = (newStatus) => {
+    const handleToggleHpMriData = (newStatus: string) => {
         setIsHpMriDataOn(newStatus === 'on');
         toggleHpMriData(newStatus === 'on');
     };
 
-    /**
-     * Handles directional movement of the HP MRI plot.
-     * @param {string} direction - The direction to move the plot ('up', 'down', 'left', 'right').
-     */
-    const handleMove = (direction) => {
+    const handleMove = (direction: "up" | "down" | "left" | "right") => {
         const movementActions = {
-            'up': onMoveUp,
-            'down': onMoveDown,
-            'left': onMoveLeft,
-            'right': onMoveRight
+            up: onMoveUp,
+            down: onMoveDown,
+            left: onMoveLeft,
+            right: onMoveRight,
         };
-        const action = movementActions[direction];
-        if (action) {
-            action();
-        } else {
-            console.error("Invalid direction");
-        }
+
+        movementActions[direction]?.();
     };
 
     /**
@@ -89,14 +78,10 @@ const ButtonPanel: React.FC<ButtonProps> = ({
      * Opens file upload dialog.
      */
     const handleFileSelect = () => {
-        fileInputRef.current.click();
+        fileInputRef.current?.click();
     };
 
-    /**
-     * Handles file selection for upload.
-     * @param {Event} event - The file selection event.
-     */
-    const handleFileChange = (event) => {
+    const handleFileChange = (event: { target: { files: any; }; }) => {
         const files = event.target.files;
         if (files) {
             onFileUpload(files);
@@ -104,7 +89,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     };
 
     // Handles changing the magnet type
-    const handleMagnetTypeChange = (event) => {
+    const handleMagnetTypeChange = (event: { target: { value: any; }; }) => {
         onMagnetTypeChange(event.target.value);
     };
 
