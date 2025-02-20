@@ -23,6 +23,7 @@ import SolutionPage from './pages/SolutionPage';
 import PublicationPage from './pages/PublicationPage';
 import ResearchPage from './pages/ResearchPage';
 import NewSimulatorPage from './pages/NewSimulatorPage';
+import VisualizationPage from './pages/visualization/VisualizationPage'
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -54,6 +55,7 @@ const AppContent: React.FC = () => {
           <Route path="/solution" element={<SolutionPage />} />
           <Route path="/publication" element={<PublicationPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
+          <Route path="/visualize" element={<HomePage />} />
         </Routes>
       </div>
     </div>
