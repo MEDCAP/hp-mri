@@ -29,7 +29,7 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate'];
+  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize'];
 
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
 
