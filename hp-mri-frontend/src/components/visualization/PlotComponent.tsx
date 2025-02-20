@@ -1,13 +1,13 @@
 /**
- * @fileoverview PlotComponent.tsx manages the rendering of HP MRI Visualization data plots using Plotly.js.
+ * @fileoverview PlotComponent.tsx manages the rendering of HP MRI Visualization data plots using React-Plotly.js.
  *
  * @version 1.2.2
  * @author Benjamin Yoon
  * @date 2024-04-30
  */
 
-import React, { useEffect, useRef } from "react";
-import Plotly from "plotly.js";
+import React from "react";
+import Plot from "react-plotly.js";
 
 interface PlotProps {
     xValues: number[];
@@ -40,62 +40,32 @@ const PlotComponent: React.FC<PlotProps> = ({
     showHpMriData,
     magnetType,
 }) => {
-    const plotContainerRef = useRef<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        updatePlot();
-    }, [
-        windowSize,
-        showHpMriData,
-        xValues,
-        data,
-        columns,
-        rows,
+    // Compute domain and process data
+    const domain = calculateDomain(
         longitudinalScale,
-        perpendicularScale,
         longitudinalMeasurement,
+        plotShift[0],
+        columns,
+        perpendicularScale,
         perpendicularMeasurement,
-        plotShift,
-    ]);
+        plotShift[1],
+        rows
+    );
 
-    const updatePlot = () => {
-        try {
-            if (!plotContainerRef.current) return; // Ensure ref is not null
+    const processedData = data.map((value: number) => (value < 0.01 || value > 9.99 ? null : value));
 
-            const domain = calculateDomain(
-                longitudinalScale,
-                longitudinalMeasurement,
-                plotShift[0],
-                columns,
-                perpendicularScale,
-                perpendicularMeasurement,
-                plotShift[1],
-                rows
-            );
+    const gridData = prepareGridData(domain, columns, rows);
+    const plotData = showHpMriData ? [...gridData, createLineData(xValues, processedData)] : gridData;
 
-            const processedData = data.map((value: number) =>
-                value < 0.01 || value > 9.99 ? null : value
-            );
-            const gridData = prepareGridData(domain, columns, rows);
-            const plotData = showHpMriData
-                ? [...gridData, createLineData(xValues, processedData)]
-                : gridData;
-
-            const layout = configureLayout(domain, columns, spectralData, rows, plotContainerRef, gridData);
-
-            Plotly.react(plotContainerRef.current, plotData, layout, { staticPlot: true });
-        } catch (error) {
-            console.error("Error updating plot:", error);
-        }
-    };
+    const layout = configureLayout(domain, columns, spectralData, rows, windowSize, gridData);
 
     return (
-        <div
-            className={`plot-container-${magnetType.toLowerCase().replace(" ", "-")}`}
+        <Plot
+            data={plotData}
+            layout={layout}
+            config={{ staticPlot: true }}
             style={{ width: "100%", height: "100%" }}
-        >
-            <div ref={plotContainerRef} style={{ width: "100%", height: "100%" }}></div>
-        </div>
+        />
     );
 };
 
@@ -178,14 +148,14 @@ function configureLayout(
     columns: number,
     spectralData: (string | any[])[][],
     rows: number,
-    plotContainerRef: React.MutableRefObject<HTMLDivElement | null>,
+    windowSize: { width: number; height: number },
     gridData: any[]
 ) {
     return {
         showlegend: false,
         xaxis: {
             domain: domain.x,
-            range: [0, columns * spectralData[0][0].length],
+            range: [0, spectralData.length > 0 ? columns * spectralData[0][0].length : 10],
             showgrid: false,
             zeroline: false,
             showline: false,
@@ -204,8 +174,8 @@ function configureLayout(
         paper_bgcolor: "rgba(0,0,0,0)",
         plot_bgcolor: "rgba(0,0,0,0)",
         margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 },
-        width: plotContainerRef.current?.offsetWidth || 600, // Default width if ref is null
-        height: plotContainerRef.current?.offsetHeight || 400, // Default height if ref is null
+        width: windowSize.width,
+        height: windowSize.height,
         shapes: gridData.map((line) => ({
             ...line,
             line: { ...line.line, color: "rgba(255, 255, 255, 0.5)" },

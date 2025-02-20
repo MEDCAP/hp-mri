@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import './App.css';
+import './Visualization.css';
 import ControlPanel from '../../components/visualization/ControlPanel';
 import ButtonPanel from '../../components/visualization/ButtonPanel';
 import PlotComponent from '../../components/visualization/PlotComponent';
