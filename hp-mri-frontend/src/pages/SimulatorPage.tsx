@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-// import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import {
@@ -20,14 +19,12 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { ArrowUpward, ArrowDownward, CloudDownload, Delete, UploadFile } from '@mui/icons-material';
+import { ArrowUpward, ArrowDownward, Refresh, Add, Delete } from '@mui/icons-material';
 import axios from 'axios';
 
 interface Simulator {
   id: number;
   name: string;
-  date: string;
-  owner: string;
   sequence: string;
   image: string;
   isSelected: boolean;
@@ -38,31 +35,34 @@ const SimulatorPage: React.FC = () => {
   const [simulators, setSimulators] = useState<Simulator[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Simulator; direction: 'asc' | 'desc' }>({
-    key: 'date',
+    key: 'sequence',
     direction: 'desc',
   });
-  // const navigate = useNavigate();
 
-  useEffect(() => {
+  const navigate = useNavigate();
+
+  const fetchSimulators = () => {
     axios
       .get('http://127.0.0.1:5000/api/simulator')
       .then((response) => setSimulators(response.data))
-      .catch((error) => console.error('Error fetching Simulator:', error));
+      .catch((error) => console.error('Error fetching simulators:', error));
+  };
+
+  useEffect(() => {
+    fetchSimulators();
   }, []);
 
   const filteredSimulators = simulators.filter(
-    (file) =>
-      file.name.toLowerCase().includes(search.toLowerCase()) ||
-      file.date.toLowerCase().includes(search.toLowerCase()) ||
-      file.owner.toLowerCase().includes(search.toLowerCase()) ||
-      file.sequence.toLowerCase().includes(search.toLowerCase())
+    (sim) =>
+      sim.name.toLowerCase().includes(search.toLowerCase()) ||
+      sim.sequence.toLowerCase().includes(search.toLowerCase()) ||
+      sim.image.toLowerCase().includes(search.toLowerCase())
   );
 
   const sortedSimulators = filteredSimulators.sort((a, b) => {
     const key = sortConfig.key;
-    const aValue = key === 'date' ? new Date(a[key]) : a[key];
-    const bValue = key === 'date' ? new Date(b[key]) : b[key];
-
+    const aValue = a[key].toString().toLowerCase();
+    const bValue = b[key].toString().toLowerCase();
     return aValue < bValue
       ? sortConfig.direction === 'asc'
         ? -1
@@ -79,34 +79,23 @@ const SimulatorPage: React.FC = () => {
     }));
   };
 
-  const handleSelection = (fileId: number) => {
+  const handleSelection = (simId: number) => {
     setSimulators((prevSimulators) =>
-      prevSimulators.map((file) =>
-        file.id === fileId ? { ...file, isSelected: !file.isSelected } : file
+      prevSimulators.map((sim) =>
+        sim.id === simId ? { ...sim, isSelected: !sim.isSelected } : sim
       )
     );
   };
 
-  const goToDetails = (simulator: Simulator) => {
-    simulator.isSelected = true;
-  };
-
   const handleDelete = () => {
-    // // API Call for delete, commented so that we don't accidentally delete during dev
-    // // TODO: Uncomment, eventually
-    // const selectedSimulatorIds = simulators.filter(simulator => simulator.isSelected).map(simulator => simulator.id);
-    // if (selectedSimulatorIds.length === 0) return;
-
-    // axios
-    //   .delete(`http://127.0.0.1:5000/api/simulators/`, { data: { ids: selectedSimulatorIds } })
-    //   .then(() => {
-    //     // Remove the deleted simulator from the local state
-    //     setSimulators(simulators.filter(file => !file.isSelected));
-    //   })
-    //   .catch(error => console.error("Error deleting simulator:", error));
+    // Uncomment and implement the delete functionality when backend is ready
+    // const selectedSimIds = simulators.filter(sim => sim.isSelected).map(sim => sim.id);
+    // axios.delete('http://127.0.0.1:5000/api/simulator', { data: { ids: selectedSimIds } })
+    //   .then(() => setSimulators(simulators.filter(sim => !sim.isSelected)))
+    //   .catch(error => console.error('Error deleting simulators:', error));
   };
 
-  const isAnyFileSelected = simulators.some((file) => file.isSelected);
+  const isAnySimSelected = simulators.some((sim) => sim.isSelected);
 
   return (
     <div
@@ -125,24 +114,56 @@ const SimulatorPage: React.FC = () => {
         </Typography>
 
         <Grid container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
+          {/* Search Field */}
           <Grid item xs={8}>
             <TextField
               fullWidth
               variant="outlined"
-              label="Search..."
+              label="Search Simulators..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </Grid>
+
+          {/* Buttons */}
           <Grid item xs={4} textAlign="right">
+            <Tooltip title="Create new simulator">
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => navigate('/new-simulator')}
+                sx={{
+                  marginLeft: 1,
+                  marginTop: '-8px',
+                }}
+              >
+                Create
+              </Button>
+            </Tooltip>
+            <Tooltip title="Refresh simulators">
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={fetchSimulators}
+                sx={{
+                  marginLeft: 1,
+                  marginTop: '-8px',
+                }}
+              >
+                Refresh
+              </Button>
+            </Tooltip>
             <Tooltip title="Delete selected simulators">
               <Button
                 variant="contained"
                 color="error"
-                sx={{ marginTop: '-8px' }}
                 startIcon={<Delete />}
-                disabled={!isAnyFileSelected}
+                disabled={!isAnySimSelected}
                 onClick={handleDelete}
+                sx={{
+                  marginLeft: 1,
+                  marginTop: '-8px',
+                }}
               >
                 Delete
               </Button>
@@ -150,24 +171,20 @@ const SimulatorPage: React.FC = () => {
           </Grid>
         </Grid>
 
+        {/* Table */}
         <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell />
-                {['name', 'date', 'owner', 'sequence', 'image'].map((key) => (
+                {['name', 'sequence', 'image'].map((key) => (
                   <TableCell key={key} onClick={() => handleSort(key as keyof Simulator)} sx={{ cursor: 'pointer' }}>
                     <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       {key.charAt(0).toUpperCase() + key.slice(1)}{' '}
                       {sortConfig.key === key && (
                         <IconButton
                           size="small"
-                          sx={{
-                            padding: 0,
-                            marginLeft: 0.5,
-                            verticalAlign: 'middle',
-                            transform: 'translateY(0px)',
-                          }}
+                          sx={{ padding: 0, marginLeft: 0.5 }}
                         >
                           {sortConfig.direction === 'asc' ? (
                             <ArrowUpward fontSize="small" />
@@ -182,9 +199,9 @@ const SimulatorPage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedSimulators.map((file) => (
+              {sortedSimulators.map((sim) => (
                 <TableRow
-                  key={file.id}
+                  key={sim.id}
                   sx={{
                     '&:hover': {
                       backgroundColor: '#f1f1f1',
@@ -194,16 +211,14 @@ const SimulatorPage: React.FC = () => {
                 >
                   <TableCell>
                     <Checkbox
-                      checked={file.isSelected}
-                      onChange={() => handleSelection(file.id)}
+                      checked={sim.isSelected}
+                      onChange={() => handleSelection(sim.id)}
                       color="primary"
                     />
                   </TableCell>
-                  <TableCell>{file.name}</TableCell>
-                  <TableCell>{file.date}</TableCell>
-                  <TableCell>{file.owner}</TableCell>
-                  <TableCell>{file.sequence}</TableCell>
-                  <TableCell>{file.image}</TableCell>
+                  <TableCell>{sim.name}</TableCell>
+                  <TableCell>{sim.sequence}</TableCell>
+                  <TableCell>{sim.image}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

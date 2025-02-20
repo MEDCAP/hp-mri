@@ -22,6 +22,7 @@ import ImagesDetails from './pages/ImagesDetails';
 import SolutionPage from './pages/SolutionPage';
 import PublicationPage from './pages/PublicationPage';
 import ResearchPage from './pages/ResearchPage';
+import NewSimulatorPage from './pages/NewSimulatorPage';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -37,7 +38,7 @@ const AppContent: React.FC = () => {
       <div style={{ display: 'flex', marginTop: 74 }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/tools" element={<RetrievePage />} />
+          <Route path="/mrd-files" element={<RetrievePage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
           <Route path="/about-devs" element={<AboutPage />} />
@@ -52,6 +53,7 @@ const AppContent: React.FC = () => {
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/solution" element={<SolutionPage />} />
           <Route path="/publication" element={<PublicationPage />} />
+          <Route path="/new-simulator" element={<NewSimulatorPage />} />
         </Routes>
       </div>
     </div>
