@@ -39,7 +39,7 @@ const PlotComponent: React.FC<PlotProps> = ({ xValues, data, columns, spectralDa
     const updatePlot = () => {
         try {
             const domain = calculateDomain(longitudinalScale, longitudinalMeasurement, plotShift[0], columns, perpendicularScale, perpendicularMeasurement, plotShift[1], rows);
-            const processedData = data.map(value => (value < 0.01 || value > 9.99) ? null : value);
+            const processedData = data.map((value: number) => (value < 0.01 || value > 9.99) ? null : value);
             const gridData = prepareGridData(domain, columns, rows);
             const plotData = showHpMriData ? [...gridData, createLineData(xValues, processedData)] : gridData;
 
@@ -69,7 +69,7 @@ const PlotComponent: React.FC<PlotProps> = ({ xValues, data, columns, spectralDa
  * @param {number} rows Number of grid rows.
  * @returns {Object} Domain object with x and y arrays.
  */
-function calculateDomain(longitudinalScale, longitudinalMeasurement, plotShiftX, columns, perpendicularScale, perpendicularMeasurement, plotShiftY, rows) {
+function calculateDomain(longitudinalScale: number, longitudinalMeasurement: number, plotShiftX: number, columns: number, perpendicularScale: number, perpendicularMeasurement: number, plotShiftY: number, rows: number) {
     return {
         x: [
             ((longitudinalScale - longitudinalMeasurement) / 2 + plotShiftX * longitudinalMeasurement / columns) / longitudinalScale,
@@ -89,7 +89,7 @@ function calculateDomain(longitudinalScale, longitudinalMeasurement, plotShiftX,
  * @param {number} rows Grid rows.
  * @returns {Array} Array of grid data for plotting.
  */
-function prepareGridData(domain, columns, rows) {
+function prepareGridData(domain: { x: any; y: any; }, columns: number, rows: number) {
     const gridData = [];
     for (let i = 0; i <= columns; i++) {
         gridData.push({
@@ -122,7 +122,7 @@ function prepareGridData(domain, columns, rows) {
  * @param {Array} processedData Processed Y data for the plot.
  * @returns {Object} Line data object for plotting.
  */
-function createLineData(xValues, processedData) {
+function createLineData(xValues: any, processedData: any) {
     return {
         x: xValues,
         y: processedData,
@@ -135,17 +135,7 @@ function createLineData(xValues, processedData) {
     };
 }
 
-/**
- * Configures the layout of the plot based on domain and container dimensions.
- * @param {Object} domain Plot domain.
- * @param {number} columns Number of columns in the grid.
- * @param {Array} spectralData Spectral data for width calculation.
- * @param {number} rows Number of rows in the grid.
- * @param {Object} plotContainerRef Reference to the plot container.
- * @param {Array} gridData Grid data for plotting.
- * @returns {Object} Layout configuration for the plot.
- */
-function configureLayout(domain, columns, spectralData, rows, plotContainerRef, gridData) {
+function configureLayout(domain: { x: any; y: any; }, columns: number, spectralData: (string | any[])[][], rows: any, plotContainerRef: React.MutableRefObject<null>, gridData: any[]) {
     return {
         showlegend: false,
         xaxis: {

@@ -22,42 +22,49 @@ const ControlPanel: React.FC<ControlProps> = ({ onSliderChange, numSliderValues,
     const [contrastValue, setContrastValue] = useState(1);
 
     useEffect(() => {
-        const slider = document.getElementById('imageSliceSlider');
-        const sliderValueDisplay = document.getElementById('sliderValueDisplay');
+        const slider = document.getElementById("imageSliceSlider") as HTMLInputElement | null;
+        const sliderValueDisplay = document.getElementById("sliderValueDisplay") as HTMLDivElement | null;
 
         function updateSliderValueDisplay() {
-            const percentage = (slider.value - slider.min) / (slider.max - slider.min);
+            if (!slider || !sliderValueDisplay) return;
+
+            const percentage =
+                (parseFloat(slider.value) - parseFloat(slider.min)) /
+                (parseFloat(slider.max) - parseFloat(slider.min));
+
             const sliderWidth = slider.getBoundingClientRect().width;
             const valueDisplayWidth = sliderValueDisplay.offsetWidth;
-            const leftPosition = percentage * sliderWidth - (valueDisplayWidth / 2) + 22 - slider.value;
+            const leftPosition = percentage * sliderWidth - valueDisplayWidth / 2 + 22 - parseFloat(slider.value);
 
             sliderValueDisplay.style.left = `${leftPosition}px`;
             sliderValueDisplay.textContent = slider.value;
         }
 
-        updateSliderValueDisplay();
-        slider.addEventListener('input', updateSliderValueDisplay);
-        window.addEventListener('resize', updateSliderValueDisplay);
+        if (slider) {
+            updateSliderValueDisplay();
+            slider.addEventListener("input", updateSliderValueDisplay);
+            window.addEventListener("resize", updateSliderValueDisplay);
+        }
 
         return () => {
-            slider.removeEventListener('input', updateSliderValueDisplay);
-            window.removeEventListener('resize', updateSliderValueDisplay);
+            slider?.removeEventListener("input", updateSliderValueDisplay);
+            window.removeEventListener("resize", updateSliderValueDisplay);
         };
     }, []);
 
-    const handleImageSliceChange = (event) => {
+    const handleImageSliceChange = (event: { target: { value: string; }; }) => {
         const newValue = parseInt(event.target.value);
         setSliderValue(newValue);
         onSliderChange(newValue, contrastValue);
     };
 
-    const handleContrastAdjustment = (event) => {
+    const handleContrastAdjustment = (event: { target: { value: string; }; }) => {
         const newContrastValue = parseFloat(event.target.value);
         setContrastValue(newContrastValue);
         onContrastChange(sliderValue, newContrastValue);
     };
 
-    const handleDatasetSelection = (event) => {
+    const handleDatasetSelection = (event: { target: { value: string; }; }) => {
         const newDatasetIndex = parseInt(event.target.value);
         onDatasetChange(newDatasetIndex);
     };
