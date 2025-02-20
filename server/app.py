@@ -2,6 +2,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from mrds.routes import bp as mrds_bp  # Import the blueprint from routes.py
+from visualize.visualization import bp as visualization_bp
 
 app = Flask(__name__)
 
@@ -10,6 +11,8 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # Register the mrds blueprint
 app.register_blueprint(mrds_bp, url_prefix="/api")
+
+app.register_blueprint(visualization_bp, url_prefix="/visualize-api")
 
 # Start the server
 if __name__ == "__main__":

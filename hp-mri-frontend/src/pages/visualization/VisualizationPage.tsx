@@ -10,9 +10,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import './Visualization.css';
-import ControlPanel from '../../components/visualization/ControlPanel';
-import ButtonPanel from '../../components/visualization/ButtonPanel';
-import PlotComponent from '../../components/visualization/PlotComponent';
+import ControlPanel from '../../components/visualize/ControlPanel';
+import ButtonPanel from '../../components/visualize/ButtonPanel';
+import PlotComponent from '../../components/visualize/PlotComponent';
 import { Link } from 'react-router-dom';
 
 interface Voxel {
@@ -89,7 +89,7 @@ const VisualizationPage: React.FC = () => {
     const formData = new FormData();
     Array.from(files).forEach((file) => formData.append("files", file));
 
-    fetch("http://127.0.0.1:5000/api/upload", {
+    fetch("http://127.0.0.1:5000/visualize-api/upload", {
       method: "POST",
       body: formData,
     })
@@ -141,7 +141,7 @@ const VisualizationPage: React.FC = () => {
   };
 
   const fetchNumSliderValues = () => {
-    fetch(`http://127.0.0.1:5000/api/get_num_slider_values/${magnetType}`)
+    fetch(`http://127.0.0.1:5000/visualize-api/get_num_slider_values/${magnetType}`)
       .then(response => response.json())
       .then(data => {
         setNumSliderValues(data.numSliderValues);
@@ -150,7 +150,7 @@ const VisualizationPage: React.FC = () => {
   };
 
   const fetchCountDatasets = () => {
-    fetch(`http://127.0.0.1:5000/api/get_count_datasets/${magnetType}`)
+    fetch(`http://127.0.0.1:5000/visualize-api/get_count_datasets/${magnetType}`)
       .then(response => response.json())
       .then(data => {
         setNumDatasets(data.numDatasets);
@@ -160,7 +160,7 @@ const VisualizationPage: React.FC = () => {
 
   // Fetches and updates the proton image based on slider input.
   const sendSliderValueToBackend = (newValue: number, newContrastValue: number) => {
-    fetch(`http://127.0.0.1:5000/api/get_proton_picture/${newValue}`, {
+    fetch(`http://127.0.0.1:5000/visualize-api/get_proton_picture/${newValue}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contrast: newContrastValue, magnetType })
     }).then(response => response.blob()).then(imageBlob => setImageUrl(URL.createObjectURL(imageBlob)))
@@ -169,7 +169,7 @@ const VisualizationPage: React.FC = () => {
 
   // Fetches and updates the HP MRI data plot based on slider input.
   const sendDatasetToBackend = (newDatasetIndex: React.SetStateAction<number>) => {
-    const url = `http://127.0.0.1:5000/api/get_hp_mri_data/${newDatasetIndex}?threshold=${threshold}&magnetType=${magnetType}`;
+    const url = `http://127.0.0.1:5000/visualize-api/get_hp_mri_data/${newDatasetIndex}?threshold=${threshold}&magnetType=${magnetType}`;
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
