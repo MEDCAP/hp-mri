@@ -1,7 +1,14 @@
-from flask import Blueprint, jsonify, request
-from flask_cors import CORS
+from flask import Flask, jsonify, request, send_file, Blueprint
+from matplotlib import pyplot as plt
+from scipy.io import loadmat
 import os
+import io
+import matplotlib
+from flask_cors import CORS
 import boto3
+
+# Set the non-GUI backend before importing pyplot
+matplotlib.use("Agg")
 
 # Temporary mock data
 # TODO: Replace with RDS Database for quick querying on file details
@@ -22,6 +29,43 @@ BUCKET = "mrissim-app-user-content"
 @bp.route("/")
 def index():
     return jsonify({"message": "Flask backend is running!"})
+
+
+@bp.route("/plot-image", methods=["GET"])
+def plot_image():
+    try:
+        # Load the proton image
+        proton_matfile = "./mrds/test_image_matfiles/1115_first_measurement_dcm.mat"
+        if not os.path.exists(proton_matfile):
+            raise FileNotFoundError(f"File '{proton_matfile}' does not exist.")
+        proton_image = loadmat(proton_matfile)["data"]
+
+        # Load the carbon image
+        carbon_matfile = "./mrds/test_image_matfiles/meas_MID01696_FID08543_c13_spspsp_BPAL_inj2_reconimage.mat"
+        if not os.path.exists(carbon_matfile):
+            raise FileNotFoundError(f"File '{carbon_matfile}' does not exist.")
+        carbon_image = loadmat(carbon_matfile)["data"]
+        carbon_image = carbon_image[1, :, :, 3, 1]  # show a specific slice
+
+        # Plot the images using the Agg backend
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        ax[0].imshow(proton_image, cmap="gray")
+        ax[0].set_title("Proton Image of liver slice")
+        ax[1].imshow(carbon_image, cmap="gray")
+        ax[1].set_title("Carbon Image of heart slice")
+        plt.tight_layout()
+
+        # Save the plot to a BytesIO stream
+        img_io = io.BytesIO()
+        plt.savefig(img_io, format="png", bbox_inches="tight")
+        img_io.seek(0)
+        plt.close(fig)  # Ensure the figure is closed
+
+        # Return the image as a response
+        return send_file(img_io, mimetype="image/png")
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # Route to list MRD files
