@@ -55,7 +55,7 @@ const AppContent: React.FC = () => {
           <Route path="/solution" element={<SolutionPage />} />
           <Route path="/publication" element={<PublicationPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
-          <Route path="/visualize" element={<HomePage />} />
+          <Route path="/visualize" element={<VisualizationPage />} />
         </Routes>
       </div>
     </div>

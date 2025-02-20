@@ -19,7 +19,7 @@ interface PlotProps {
     perpendicularScale: number;
     longitudinalMeasurement: number;
     perpendicularMeasurement: number;
-    plotShift: [number, number];
+    plotShift: number[];
     windowSize: { width: number; height: number };
     showHpMriData: boolean;
     magnetType: string;
