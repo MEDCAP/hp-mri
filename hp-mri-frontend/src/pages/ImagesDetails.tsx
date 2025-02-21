@@ -11,7 +11,7 @@ import {
     Container,
     Divider,
     Grid,
-    Typography,
+    Typography, 
 } from '@mui/material';
 import axios from 'axios';
 
@@ -21,6 +21,7 @@ const ImagesDetails: React.FC = () => {
     const [fileDetails, setFileDetails] = useState<any>(null);
     const [image, setImage] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
 
     useEffect(() => {
         axios
@@ -46,6 +47,14 @@ const ImagesDetails: React.FC = () => {
         //         setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
         //     })
         //     .catch(error => console.error("Error fetching image:", error));
+        // Fetch the generated image from the backend
+        axios
+            .get(`http://127.0.0.1:5000/api/plot-image`, { responseType: 'blob' })
+            .then((response) => {
+                const imageUrl = URL.createObjectURL(response.data);
+                setImageUrl(imageUrl);
+            })
+            .catch((error) => console.error('Error fetching plot image:', error));
     }, [imageId, fileId]);
 
     if (!imageDetails || !fileDetails) return <Typography variant="h5">Loading...</Typography>;
@@ -82,7 +91,8 @@ const ImagesDetails: React.FC = () => {
                         <Card elevation={3} sx={{ borderRadius: 2 }}>
                             <CardMedia
                                 component="img"
-                                image={image || 'https://via.placeholder.com/600'} // Placeholder image
+                                // image={image || 'https://via.placeholder.com/600'} // Placeholder image
+                                image={imageUrl || 'https://via.placeholder.com/600'} // Show fetched plot or placeholder
                                 alt={imageDetails.name || 'Image'}
                                 sx={{
                                     height: '400px',
