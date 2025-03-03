@@ -24,6 +24,8 @@ interface PlotProps {
     windowSize: { width: number; height: number };
     showHpMriData: boolean;
     magnetType: string;
+    offsetX: number; // New prop
+    offsetY: number; // New prop
 }
 
 const PlotComponent: React.FC<PlotProps> = ({
@@ -40,6 +42,8 @@ const PlotComponent: React.FC<PlotProps> = ({
     windowSize,
     showHpMriData,
     magnetType,
+    offsetX,
+    offsetY,
 }) => {
     const domain = calculateDomain(
         longitudinalScale,
@@ -66,8 +70,8 @@ const PlotComponent: React.FC<PlotProps> = ({
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)", // Center alignment
-                width: "63vw", // Same as image width
-                height: "49vw", // Maintain aspect ratio
+                width: `${63 + -offsetX}vw`,
+                height: `${49 + -offsetY}vw`,
             }}
         >
             <Plot

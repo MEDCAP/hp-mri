@@ -24,6 +24,7 @@ import PublicationPage from './pages/PublicationPage';
 import ResearchPage from './pages/ResearchPage';
 import NewSimulatorPage from './pages/NewSimulatorPage';
 import VisualizationPage from './pages/visualization/VisualizationPage'
+import VisualizationAbout from './pages/visualization/VisualizationAbout';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -56,12 +57,12 @@ const AppContent: React.FC = () => {
           <Route path="/publication" element={<PublicationPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/visualize" element={<VisualizationPage />} />
+          <Route path="/visualize-about" element={<VisualizationAbout />} />
         </Routes>
       </div>
     </div>
   );
 };
-
 
 const App: React.FC = () => (
   <ThemeProvider theme={theme}>

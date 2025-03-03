@@ -31,9 +31,9 @@ const VisualizationPage: React.FC = () => {
     xValues: [], data: [], columns: 0, spectralData: [], rows: 0,
     longitudinalScale: 0, perpendicularScale: 0, longitudinalMeasurement: 0, perpendicularMeasurement: 0, plotShift: [0, 0]
   });
-  const [showHpMriData, setShowHpMriData] = useState(false);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
+  const [showHpMriData, setShowHpMriData] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [datasetIndex, setDatasetIndex] = useState(1);
   const [selecting, setSelecting] = useState(false);
@@ -62,6 +62,16 @@ const VisualizationPage: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [magnetType]);
 
+  // Movement Functions
+  const moveUp = () => setOffsetY((prev) => prev - 1);
+  const moveDown = () => setOffsetY((prev) => prev + 1);
+  const moveLeft = () => setOffsetX((prev) => prev - 1);
+  const moveRight = () => setOffsetX((prev) => prev + 1);
+  const resetPlotShift = () => {
+    setOffsetX(0);
+    setOffsetY(0);
+  };
+
   // Event handlers for UI control components.
   const handleSliderChange = (newValue: any, contrastValue: any) => sendSliderValueToBackend(newValue, contrastValue);
   const handleContrastChange = (sliderValue: any, newContrastValue: any) => sendSliderValueToBackend(sliderValue, newContrastValue);
@@ -72,16 +82,6 @@ const VisualizationPage: React.FC = () => {
   const toggleHpMriData = () => {
     setShowHpMriData(!showHpMriData);
     sendDatasetToBackend(datasetIndex);
-  };
-
-  // Event handlers for plot position adjustment.
-  const moveLeft = () => setOffsetX(offsetX - 1);
-  const moveRight = () => setOffsetX(offsetX + 1);
-  const moveUp = () => setOffsetY(offsetY - 1);
-  const moveDown = () => setOffsetY(offsetY + 1);
-  const resetPlotShift = () => {
-    setOffsetX(0);
-    setOffsetY(0);
   };
 
   // File upload handler.
@@ -199,16 +199,13 @@ const VisualizationPage: React.FC = () => {
       />
 
       <div className="visualization-container">
-        {/* Image & Grid Centered */}
         <div className="image-and-plot-container">
-          {/* Proton Image */}
           <img
             src={imageUrl}
             alt="Proton"
             className={`proton-image-${magnetType.toLowerCase().replace(" ", "-")}`}
           />
 
-          {/* Plot Overlaid on Image */}
           <div className="plot-container" ref={plotContainerRef}>
             <PlotComponent
               xValues={hpMriData.xValues}
@@ -224,6 +221,8 @@ const VisualizationPage: React.FC = () => {
               windowSize={windowSize}
               showHpMriData={showHpMriData}
               magnetType={magnetType}
+              offsetX={offsetX}
+              offsetY={offsetY}
             />
           </div>
         </div>
@@ -240,7 +239,7 @@ const VisualizationPage: React.FC = () => {
       </div>
 
       <footer>
-        <Link to="/about">About</Link> • 2024 University of Pennsylvania Perelman School of Medicine
+        <Link to="/visualize-about">About</Link> • 2024 University of Pennsylvania The MEDCAP
       </footer>
     </div>
   );
