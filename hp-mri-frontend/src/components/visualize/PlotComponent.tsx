@@ -67,7 +67,7 @@ const PlotComponent: React.FC<PlotProps> = ({
                 left: "50%",
                 transform: "translate(-50%, -50%)", // Center alignment
                 width: "63vw", // Same as image width
-                height: "53vw", // Maintain aspect ratio
+                height: "49vw", // Maintain aspect ratio
             }}
         >
             <Plot

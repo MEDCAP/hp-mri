@@ -54,7 +54,7 @@ const ControlPanel: React.FC<ControlProps> = ({
                 <Slider
                     className="control-slider"
                     value={datasetIndex}
-                    min={0}
+                    min={1}
                     max={numDatasets}
                     step={1}
                     onChange={handleDatasetChange}
