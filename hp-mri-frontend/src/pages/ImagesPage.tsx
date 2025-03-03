@@ -51,6 +51,7 @@ const ImagesPage: React.FC = () => {
 
   useEffect(() => {
     fetchImages();
+    document.title = "Images - HP-MRI";
   }, []);
 
   const filteredImages = images.filter(

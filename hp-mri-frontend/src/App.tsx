@@ -39,7 +39,7 @@ const AppContent: React.FC = () => {
       {shouldShowHeader && <HeaderAccount />}
       <div style={{ display: 'flex', marginTop: location.pathname !== '/visualize' ? 74 : 0 }}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<HomePage />} /> 
           <Route path="/mrd-files" element={<RetrievePage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/file-details/:fileId" element={<MRDFileDetails />} />

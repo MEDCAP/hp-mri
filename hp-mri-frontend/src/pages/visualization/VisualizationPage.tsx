@@ -52,6 +52,7 @@ const VisualizationPage: React.FC = () => {
 
   // Effect hook for initial data fetch and window resize event listener.
   useEffect(() => {
+    document.title = "Visualize - HP-MRI";
     fetchNumSliderValues();
     fetchCountDatasets();
     fetchInitialData();

@@ -23,6 +23,7 @@ const NewSimulatorPage: React.FC = () => {
 
     useEffect(() => {
         fetchNewSimulator();
+        document.title = "New Simulator - HP";
     }, []);
 
     return (

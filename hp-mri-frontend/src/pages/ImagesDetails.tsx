@@ -56,6 +56,7 @@ const ImagesDetails: React.FC = () => {
                 setImageUrl(imageUrl);
             })
             .catch((error) => console.error('Error fetching plot image:', error));
+        document.title = "Images Details - HP";
     }, [imageId, fileId]);
 
     if (!imageDetails || !fileDetails) return <Typography variant="h5">Loading...</Typography>;

@@ -11,8 +11,13 @@
 import React from 'react';
 import { Box, Typography, Link as MuiLink, Paper, Divider, Button } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const VisualizationAbout: React.FC = () => {
+    useEffect(() => {
+        document.title = "HP-MRI Web App"; // Dynamically updates the tab title
+    }, []);
+
     return (
         <Box
             sx={{

@@ -1,8 +1,13 @@
+import { useEffect } from 'react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Box, Typography, TextField, Button, Paper } from '@mui/material';
 
 const AccountPage: React.FC = () => {
+  useEffect(() => {
+    document.title = "HP-MRI Web App"; // Dynamically updates the tab title
+  }, []);
+
   const navigate = useNavigate();
 
   const handleSignIn = () => {
