@@ -1,13 +1,14 @@
 /**
- * @fileoverview PlotComponent.tsx manages the rendering of HP MRI Visualization data plots using React-Plotly.js.
+ * @fileoverview PlotComponent.tsx: Enhanced layout and centering with Material UI.
  *
- * @version 1.2.2
+ * @version 2.0
  * @author Benjamin Yoon
- * @date 2024-04-30
+ * @date 2025-03-02
  */
 
 import React from "react";
 import Plot from "react-plotly.js";
+import { Box } from "@mui/material";
 
 interface PlotProps {
     xValues: number[];
@@ -40,7 +41,6 @@ const PlotComponent: React.FC<PlotProps> = ({
     showHpMriData,
     magnetType,
 }) => {
-    // Compute domain and process data
     const domain = calculateDomain(
         longitudinalScale,
         longitudinalMeasurement,
@@ -52,7 +52,7 @@ const PlotComponent: React.FC<PlotProps> = ({
         rows
     );
 
-    const processedData = data.map((value: number) => (value < 0.01 || value > 9.99 ? null : value));
+    const processedData = data.map((value) => (value < 0.01 || value > 9.99 ? null : value));
 
     const gridData = prepareGridData(domain, columns, rows);
     const plotData = showHpMriData ? [...gridData, createLineData(xValues, processedData)] : gridData;
@@ -60,15 +60,28 @@ const PlotComponent: React.FC<PlotProps> = ({
     const layout = configureLayout(domain, columns, spectralData, rows, windowSize, gridData);
 
     return (
-        <Plot
-            data={plotData}
-            layout={layout}
-            config={{ staticPlot: true }}
-            style={{ width: "100%", height: "100%" }}
-        />
+        <Box
+            sx={{
+                position: "absolute", // Overlay on image
+                top: "50%", 
+                left: "50%",
+                transform: "translate(-50%, -50%)", // Center alignment
+                width: "63vw", // Same as image width
+                height: "53vw", // Maintain aspect ratio
+            }}
+        >
+            <Plot
+                data={plotData}
+                layout={layout}
+                config={{ staticPlot: true }}
+                style={{ width: "100%", height: "100%" }} // Ensures matching size
+            />
+        </Box>
     );
+    
 };
 
+// Helper Functions (Same logic, just optimized)
 function calculateDomain(
     longitudinalScale: number,
     longitudinalMeasurement: number,
@@ -151,6 +164,9 @@ function configureLayout(
     windowSize: { width: number; height: number },
     gridData: any[]
 ) {
+    // Determine the aspect ratio based on rows and columns
+    const aspectRatio = columns / rows; // Ensures square cells
+
     return {
         showlegend: false,
         xaxis: {
@@ -161,6 +177,7 @@ function configureLayout(
             showline: false,
             showticklabels: false,
             fixedrange: true,
+            // scaleanchor: "y", // Makes x-axis scale dependent on y-axis
         },
         yaxis: {
             domain: domain.y,
@@ -170,12 +187,14 @@ function configureLayout(
             showline: false,
             showticklabels: false,
             fixedrange: true,
+            // scaleanchor: "x", // Ensures square aspect ratio
         },
         paper_bgcolor: "rgba(0,0,0,0)",
         plot_bgcolor: "rgba(0,0,0,0)",
         margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 },
-        width: windowSize.width,
-        height: windowSize.height,
+        width: windowSize.width * 0.65,
+        // height: windowSize.height * 0.8,
+        height: windowSize.width * 0.65 / aspectRatio, // Ensures square subplots
         shapes: gridData.map((line) => ({
             ...line,
             line: { ...line.line, color: "rgba(255, 255, 255, 0.5)" },

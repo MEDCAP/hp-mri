@@ -49,8 +49,13 @@ html, body {
 }
 
 /* Ensure the root div takes up full height */
-#root {
+/* #root {
     min-height: 100%;
     position: relative;
-    padding-bottom: 200px; /* Match the footer height */
+    padding-bottom: 200px; 
+} */
+
+/* Ensure the root div takes up full height */
+#root {
+    min-height: 100%;
 }

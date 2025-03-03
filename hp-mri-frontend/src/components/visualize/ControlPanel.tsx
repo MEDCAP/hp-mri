@@ -1,134 +1,96 @@
 /**
- * @fileoverview ControlPanel.tsx manages the interactive UI elements for the HP MRI App Visualization.
+ * @fileoverview ControlPanel.tsx: Improved Material UI layout for HP-MRI sliders.
  *
- * @version 1.2.2
+ * @version 2.1
  * @author Benjamin Yoon
- * @date 2024-04-30
+ * @date 2025-03-02
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Box, Slider, Typography } from '@mui/material';
 
 interface ControlProps {
-    onSliderChange: any;
-    numSliderValues: any;
-    onContrastChange: any;
-    onDatasetChange: any;
-    datasetIndex: any;
-    numDatasets: any;
+    onSliderChange: (value: number, contrast: number) => void;
+    numSliderValues: number;
+    onContrastChange: (value: number, contrast: number) => void;
+    onDatasetChange: (value: number) => void;
+    datasetIndex: number;
+    numDatasets: number;
 }
 
-const ControlPanel: React.FC<ControlProps> = ({ onSliderChange, numSliderValues, onContrastChange, onDatasetChange, datasetIndex, numDatasets }) => {
-    const [sliderValue, setSliderValue] = useState(1);
-    const [contrastValue, setContrastValue] = useState(1);
+const ControlPanel: React.FC<ControlProps> = ({
+    onSliderChange,
+    numSliderValues,
+    onContrastChange,
+    onDatasetChange,
+    datasetIndex,
+    numDatasets,
+}) => {
+    const [imageSlice, setImageSlice] = useState(1);
+    const [contrast, setContrast] = useState(1);
 
-    useEffect(() => {
-        const slider = document.getElementById("imageSliceSlider") as HTMLInputElement | null;
-        const sliderValueDisplay = document.getElementById("sliderValueDisplay") as HTMLDivElement | null;
-
-        function updateSliderValueDisplay() {
-            if (!slider || !sliderValueDisplay) return;
-
-            const percentage =
-                (parseFloat(slider.value) - parseFloat(slider.min)) /
-                (parseFloat(slider.max) - parseFloat(slider.min));
-
-            const sliderWidth = slider.getBoundingClientRect().width;
-            const valueDisplayWidth = sliderValueDisplay.offsetWidth;
-            const leftPosition = percentage * sliderWidth - valueDisplayWidth / 2 + 22 - parseFloat(slider.value);
-
-            sliderValueDisplay.style.left = `${leftPosition}px`;
-            sliderValueDisplay.textContent = slider.value;
-        }
-
-        if (slider) {
-            updateSliderValueDisplay();
-            slider.addEventListener("input", updateSliderValueDisplay);
-            window.addEventListener("resize", updateSliderValueDisplay);
-        }
-
-        return () => {
-            slider?.removeEventListener("input", updateSliderValueDisplay);
-            window.removeEventListener("resize", updateSliderValueDisplay);
-        };
-    }, []);
-
-    const handleImageSliceChange = (event: { target: { value: string; }; }) => {
-        const newValue = parseInt(event.target.value);
-        setSliderValue(newValue);
-        onSliderChange(newValue, contrastValue);
+    const handleImageSliceChange = (_event: Event, newValue: number | number[]) => {
+        const value = Array.isArray(newValue) ? newValue[0] : newValue;
+        setImageSlice(value);
+        onSliderChange(value, contrast);
     };
 
-    const handleContrastAdjustment = (event: { target: { value: string; }; }) => {
-        const newContrastValue = parseFloat(event.target.value);
-        setContrastValue(newContrastValue);
-        onContrastChange(sliderValue, newContrastValue);
+    const handleContrastChange = (_event: Event, newValue: number | number[]) => {
+        const value = Array.isArray(newValue) ? newValue[0] : newValue;
+        setContrast(value);
+        onContrastChange(imageSlice, value);
     };
 
-    const handleDatasetSelection = (event: { target: { value: string; }; }) => {
-        const newDatasetIndex = parseInt(event.target.value);
-        onDatasetChange(newDatasetIndex);
+    const handleDatasetChange = (_event: Event, newValue: number | number[]) => {
+        const value = Array.isArray(newValue) ? newValue[0] : newValue;
+        onDatasetChange(value);
     };
 
     return (
-        <div>
-            <div className="slider-under-top-panel">
-                <input
-                    type="range"
-                    min="1"
-                    max={numSliderValues}
-                    value={sliderValue}
-                    onChange={handleImageSliceChange}
-                    className="image-slice-slider"
-                    id="imageSliceSlider"
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {/* Dataset Slider (Near Top) */}
+            <Box className="dataset-slider-container">
+                <Typography align="center">Dataset: {datasetIndex}</Typography>
+                <Slider
+                    className="control-slider"
+                    value={datasetIndex}
+                    min={0}
+                    max={numDatasets}
+                    step={1}
+                    onChange={handleDatasetChange}
+                    aria-labelledby="dataset-slider"
                 />
-                <div
-                    id="sliderValueDisplay"
-                    className="slider-value-display"
-                    style={{
-                        position: 'absolute',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginTop: '-2.5em',
-                        color: '#6c6c70',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        fontSize: '1em',
-                        padding: '2px 5px',
-                    }}
-                >
-                    {sliderValue}
-                </div>
-            </div>
-            <div className="slider-container">
-                <div className="vertical-slider-container">
-                    <h2><label htmlFor="contrastSlider">Contrast: {contrastValue}</label></h2>
-                    <input
-                        type="range"
-                        min="0.1"
-                        max="3.0"
-                        step="0.1"
-                        value={contrastValue}
-                        onChange={handleContrastAdjustment}
-                        className="vertical-slider"
-                        id="contrastSlider"
-                    />
-                </div>
+            </Box>
 
-                <div className="vertical-slider-container">
-                    <h2><label htmlFor="datasetSlider">Dataset: {datasetIndex}</label></h2>
-                    <input
-                        type="range"
-                        min="0"
-                        max={numDatasets}
-                        value={datasetIndex}
-                        onChange={handleDatasetSelection}
-                        className="vertical-slider"
-                        id="datasetSlider"
+            {/* Image Slice + Contrast Sliders (Near Bottom) */}
+            <Box className="slice-contrast-container">
+                <Box>
+                    <Typography align="center">Image Slice: {imageSlice}</Typography>
+                    <Slider
+                        className="control-slider"
+                        value={imageSlice}
+                        min={1}
+                        max={numSliderValues}
+                        onChange={handleImageSliceChange}
+                        aria-labelledby="image-slice-slider"
                     />
-                </div>
-            </div>
-        </div>
+                </Box>
+
+                <Box>
+                    <Typography align="center">Contrast: {contrast.toFixed(1)}</Typography>
+                    <Slider
+                        className="control-slider"
+                        value={contrast}
+                        min={0.1}
+                        max={3.0}
+                        step={0.1}
+                        onChange={handleContrastChange}
+                        aria-labelledby="contrast-slider"
+                    />
+                </Box>
+            </Box>
+        </Box>
     );
-}
+};
 
-export default ControlPanel; 
+export default ControlPanel;

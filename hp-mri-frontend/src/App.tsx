@@ -36,7 +36,7 @@ const AppContent: React.FC = () => {
   return (
     <div>
       {shouldShowHeader && <HeaderAccount />}
-      <div style={{ display: 'flex', marginTop: 74 }}>
+      <div style={{ display: 'flex', marginTop: location.pathname !== '/visualize' ? 74 : 0 }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/mrd-files" element={<RetrievePage />} />
@@ -61,6 +61,7 @@ const AppContent: React.FC = () => {
     </div>
   );
 };
+
 
 const App: React.FC = () => (
   <ThemeProvider theme={theme}>

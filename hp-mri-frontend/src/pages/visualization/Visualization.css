@@ -6,6 +6,156 @@
  * @version 1.2.2
  */
 
+ /* Ensure the visualization container is centered */
+.visualization-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 20px);
+  position: relative;
+  width: calc(100vw);
+}
+
+/* Center the image and plot */
+.image-and-plot-container {
+  position: relative;
+  width: 100%; /* Ensures responsiveness */
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Style for the image */
+.proton-image-hupc {
+  width: 50vw;
+  height: auto;
+  /* display: block; */
+  position: absolute;
+  z-index: 0; /* Ensures image is below the grid */
+}
+
+/* Ensures the plot overlays the image */
+.plot-container {
+  width: 50vw;
+  height: auto;
+  position: absolute;
+  z-index: 1; /* Places plot grid above image */
+  pointer-events: none;
+  top: 50%;
+  left: 50%; /* Center horizontally */
+  transform: translate(-50%, -50%); /* Perfect centering */
+}
+
+
+
+/* Center the dataset slider at the top */
+.dataset-slider-container {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+}
+
+/* Container for Image Slice + Contrast Sliders at the bottom */
+.slice-contrast-container {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+
+}
+
+/* Ensure sliders are full width and stacked */
+.control-slider {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+
+ .button-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 60px;
+  height: 100vh; /* ✅ Ensure it takes full viewport height */
+  background-color: #1e1e1e; /* Dark grey */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  z-index: 10;
+}
+
+
+/* Fix top-panel width */
+.top-panel {
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  background-color: #aeaeb2;
+  color: white;
+  padding: 10px 0;
+  padding-bottom: 0px;
+  width: calc(100% - 60px); /* Reduce width to avoid overlap */
+  z-index: 5;
+  position: fixed;
+  top: 0;
+  left: 60px; /* Shift right so it doesn’t go under the button panel */
+}
+
+/* Fix ButtonPanel to be full height with dark background */
+.button-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 60px;
+  height: 100vh;
+  background-color: #1e1e1e; /* Dark grey */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  z-index: 10; /* Keep it above content but below top bar */
+}
+
+
+
+
+/* Adjust Image & Plot Centering */
+/* .proton-image-hupc, */
+.plot-container-hupc {
+  position: relative;
+  max-width: 80vw; /* Prevents overflow */
+  max-height: 80vh;
+}
+
+/* Ensure Sliders Are Positioned Correctly */
+.control-panel {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80vw;
+}
+
+/* EPSI slider (above image) */
+.epsi-slider {
+  position: absolute;
+  top: -50px; /* Move above image */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+}
+
+
+
 /* General layout and styling */
 .App {
   display: flex;
@@ -50,19 +200,10 @@
   width: 100%;
 }
 
-/* Container for image and plot elements */
-.image-and-plot-container {
-  position: relative;
-  width: 100vw;
-  height: 100vw;
-  justify-content: center;
-  align-items: center;
-}
-
 /* Positioning styles for image and plot within their container */
-.proton-image-hupc,
+/* .proton-image-hupc, */
 .proton-image-mr-solutions,
-.plot-container-hupc,
+/* .plot-container-hupc, */
 .plot-container-mr-solutions {
   position: absolute;
   top: 50%;
@@ -71,11 +212,10 @@
   z-index: 1;
 }
 
-.proton-image-hupc {
+/* .proton-image-hupc {
   width: 40vw;
   height: auto;
-  /* maintain aspect ratio */
-}
+} */
 
 .proton-image-mr-solutions {
   width: 40vw;
@@ -83,12 +223,12 @@
   /* maintain aspect ratio */
 }
 
-.plot-container-hupc {
+/* .plot-container-hupc {
   width: 53.5vw;
   height: 40.125vw;
   z-index: 2;
   transform: translate(-94.75%, -90%);
-}
+} */
 
 .plot-container-mr-solutions {
   width: 53.5vw;
@@ -348,23 +488,6 @@ footer a:hover {
   height: auto;
 }
 
-.top-panel {
-  display: flex;
-  justify-content: left;
-  align-items: center;
-  background-color: #aeaeb2;
-  /* iOS Gray, systemGray */
-  color: white;
-  padding: 10px 0;
-  padding-bottom: 0px;
-  width: 100%;
-  z-index: 10;
-  position: fixed;
-  top: 0;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5);
-  /* Shadow to create depth */
-}
-
 .slider-under-top-panel {
   display: flex;
   justify-content: center;
@@ -457,11 +580,6 @@ footer a:hover {
 .vertical-slider:active::-moz-range-progress {
   background: #00c7be;
   /* Change the color below the thumb when active */
-}
-
-/* Additional styles for buttons within the top-panel */
-.top-panel .button {
-  margin: 0 5px;
 }
 
 .button-icon {

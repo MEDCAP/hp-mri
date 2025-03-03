@@ -178,74 +178,86 @@ const VisualizationPage: React.FC = () => {
       .catch(error => console.error('Error fetching HP MRI data:', error));
   };
 
-  // Render the HomePage component.
   return (
     <div className="App">
-      <div className="top-panel">
-        <ButtonPanel
-          toggleHpMriData={toggleHpMriData}
-          onMoveUp={moveUp}
-          onMoveLeft={moveLeft}
-          onMoveDown={moveDown}
-          onMoveRight={moveRight}
-          onResetPlotShift={resetPlotShift}
-          onFileUpload={handleFileUpload}
-          onThresholdChange={handleThresholdChange}
-          onToggleSelecting={toggleSelecting}
-          onSelecting={selecting}
-          onSetSelectedGroup={setSelectedGroup}
-          selectedGroup={selectedGroup}
-          onResetVoxels={resetVoxels}
-          threshold={threshold}
-          onMagnetTypeChange={handleMagnetTypeChange}
-        />
-      </div>
-      <ControlPanel
+      <ButtonPanel
+        toggleHpMriData={toggleHpMriData}
+        onMoveUp={moveUp}
+        onMoveLeft={moveLeft}
+        onMoveDown={moveDown}
+        onMoveRight={moveRight}
+        onResetPlotShift={resetPlotShift}
+        onFileUpload={handleFileUpload}
+        onThresholdChange={handleThresholdChange}
+        onToggleSelecting={toggleSelecting}
+        onSelecting={selecting}
+        onSetSelectedGroup={setSelectedGroup}
+        selectedGroup={selectedGroup}
+        onResetVoxels={resetVoxels}
+        threshold={threshold}
+        onMagnetTypeChange={handleMagnetTypeChange}
+      />
+
+      {/* Dataset Slider (Near Top) */}
+      {/* <ControlPanel
         onSliderChange={handleSliderChange}
         numSliderValues={numSliderValues}
         onContrastChange={handleContrastChange}
         onDatasetChange={handleDatasetChange}
         datasetIndex={datasetIndex}
         numDatasets={numDatasets}
-      />
-      <div className="image-and-plot-container" onClick={handleVoxelSelect}>
-        <div className="app-content">
-        </div>
-        <img src={imageUrl}
-          alt="Proton"
-          className={`proton-image-${magnetType.toLowerCase().replace(" ", "-")}`}
-        />
-        <div className={`plot-container-${magnetType.toLowerCase().replace(" ", "-")}`} ref={plotContainerRef} style={{ transform: `translate(${offsetX}px, ${offsetY}px)` }}>
-          <PlotComponent
-            xValues={hpMriData.xValues}
-            data={hpMriData.data}
-            columns={hpMriData.columns}
-            spectralData={hpMriData.spectralData}
-            rows={hpMriData.rows}
-            longitudinalScale={hpMriData.longitudinalScale}
-            perpendicularScale={hpMriData.perpendicularScale}
-            longitudinalMeasurement={hpMriData.longitudinalMeasurement}
-            perpendicularMeasurement={hpMriData.perpendicularMeasurement}
-            plotShift={hpMriData.plotShift}
-            windowSize={windowSize}
-            showHpMriData={showHpMriData}
-            magnetType={magnetType}
+      /> */}
+
+      <div className="visualization-container">
+        {/* Image & Grid Centered */}
+        <div className="image-and-plot-container">
+          {/* Proton Image */}
+          <img
+            src={imageUrl}
+            alt="Proton"
+            className={`proton-image-${magnetType.toLowerCase().replace(" ", "-")}`}
           />
-        </div>
-        {selecting && (
-          <div className="voxel-display">
-            <h3>Group A</h3>
-            {displayVoxels(groupA)}
-            <h3>Group B</h3>
-            {displayVoxels(groupB)}
+
+          {/* Plot Overlaid on Image */}
+          <div className="plot-container" ref={plotContainerRef}>
+            <PlotComponent
+              xValues={hpMriData.xValues}
+              data={hpMriData.data}
+              columns={hpMriData.columns}
+              spectralData={hpMriData.spectralData}
+              rows={hpMriData.rows}
+              longitudinalScale={hpMriData.longitudinalScale}
+              perpendicularScale={hpMriData.perpendicularScale}
+              longitudinalMeasurement={hpMriData.longitudinalMeasurement}
+              perpendicularMeasurement={hpMriData.perpendicularMeasurement}
+              plotShift={hpMriData.plotShift}
+              windowSize={windowSize}
+              showHpMriData={showHpMriData}
+              magnetType={magnetType}
+            />
           </div>
-        )}
+        </div>
+
+
+        {/* Image Slice + Contrast Sliders (Near Bottom) */}
+        <ControlPanel
+          onSliderChange={handleSliderChange}
+          numSliderValues={numSliderValues}
+          onContrastChange={handleContrastChange}
+          onDatasetChange={handleDatasetChange}
+          datasetIndex={datasetIndex}
+          numDatasets={numDatasets}
+        />
       </div>
+
       <footer>
-        <Link to="/about">About</Link> • 2024 Universty of Pennsylvania Perelman School of Medicine
+        <Link to="/about">About</Link> • 2024 University of Pennsylvania Perelman School of Medicine
       </footer>
     </div>
   );
+
+
+
 }
 
 export default VisualizationPage;
