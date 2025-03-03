@@ -63,7 +63,7 @@ const PlotComponent: React.FC<PlotProps> = ({
         <Box
             sx={{
                 position: "absolute", // Overlay on image
-                top: "50%", 
+                top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)", // Center alignment
                 width: "63vw", // Same as image width
@@ -78,10 +78,10 @@ const PlotComponent: React.FC<PlotProps> = ({
             />
         </Box>
     );
-    
+
 };
 
-// Helper Functions (Same logic, just optimized)
+// Helper Functions
 function calculateDomain(
     longitudinalScale: number,
     longitudinalMeasurement: number,
@@ -177,7 +177,6 @@ function configureLayout(
             showline: false,
             showticklabels: false,
             fixedrange: true,
-            // scaleanchor: "y", // Makes x-axis scale dependent on y-axis
         },
         yaxis: {
             domain: domain.y,
@@ -187,13 +186,11 @@ function configureLayout(
             showline: false,
             showticklabels: false,
             fixedrange: true,
-            // scaleanchor: "x", // Ensures square aspect ratio
         },
         paper_bgcolor: "rgba(0,0,0,0)",
         plot_bgcolor: "rgba(0,0,0,0)",
         margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 },
         width: windowSize.width * 0.65,
-        // height: windowSize.height * 0.8,
         height: windowSize.width * 0.65 / aspectRatio, // Ensures square subplots
         shapes: gridData.map((line) => ({
             ...line,

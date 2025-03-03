@@ -198,16 +198,6 @@ const VisualizationPage: React.FC = () => {
         onMagnetTypeChange={handleMagnetTypeChange}
       />
 
-      {/* Dataset Slider (Near Top) */}
-      {/* <ControlPanel
-        onSliderChange={handleSliderChange}
-        numSliderValues={numSliderValues}
-        onContrastChange={handleContrastChange}
-        onDatasetChange={handleDatasetChange}
-        datasetIndex={datasetIndex}
-        numDatasets={numDatasets}
-      /> */}
-
       <div className="visualization-container">
         {/* Image & Grid Centered */}
         <div className="image-and-plot-container">
@@ -238,8 +228,7 @@ const VisualizationPage: React.FC = () => {
           </div>
         </div>
 
-
-        {/* Image Slice + Contrast Sliders (Near Bottom) */}
+        {/* Image Slice + Contrast Sliders */}
         <ControlPanel
           onSliderChange={handleSliderChange}
           numSliderValues={numSliderValues}
@@ -255,8 +244,6 @@ const VisualizationPage: React.FC = () => {
       </footer>
     </div>
   );
-
-
 
 }
 

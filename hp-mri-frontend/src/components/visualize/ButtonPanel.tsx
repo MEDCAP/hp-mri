@@ -1,5 +1,5 @@
 /**
- * @fileoverview ButtonPanel.tsx: Redesigned Photoshop-style UI for HP-MRI Visualization.
+ * @fileoverview ButtonPanel.tsx: Redesigned style UI for HP-MRI Visualization.
  *
  * @version 2.0
  * @author Benjamin Yoon
@@ -18,9 +18,10 @@ import {
     MenuItem,
 } from '@mui/material';
 import { CloudUpload, Save, Tune, GridOn, AspectRatio, RestartAlt } from '@mui/icons-material';
+import { Switch, FormControlLabel } from '@mui/material';
 
 interface ButtonProps {
-    className?: string; // ✅ Allow optional className
+    className?: string;
     toggleHpMriData: any;
     onMoveUp: any;
     onMoveLeft: any;
@@ -38,9 +39,8 @@ interface ButtonProps {
     onMagnetTypeChange: any;
 }
 
-
 const ButtonPanel: React.FC<ButtonProps> = ({
-    className,  // ✅ Add className here
+    className,
     toggleHpMriData,
     onMoveUp,
     onMoveLeft,
@@ -89,23 +89,21 @@ const ButtonPanel: React.FC<ButtonProps> = ({
 
     return (
         <Box
-    className={className} // ✅ Now `className` is correctly passed
-    sx={{
-        width: 60,
-        height: '100vh',
-        backgroundColor: '#1e1e1e',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: 2,
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        zIndex: 10,
-    }}
->
-
-
+            className={className}
+            sx={{
+                width: 60,
+                height: '100vh',
+                backgroundColor: '#1e1e1e',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingTop: 2,
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                zIndex: 10,
+            }}
+        >
 
             {/* Left Sidebar Toolbar */}
             <Box
@@ -144,7 +142,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 </IconButton>
             </Box>
 
-            {/* Right Panel (Settings Drawer) */}
+            {/* Right Panel */}
             <Drawer
                 anchor="right"
                 open={openDrawer}
@@ -189,6 +187,17 @@ const ButtonPanel: React.FC<ButtonProps> = ({
 
                 {selectedTool === 'settings' && (
                     <>
+                        <Typography variant="h6">Toggle HP-MRI Plot</Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    onChange={toggleHpMriData} // Calls function when toggled
+                                    color="primary"
+                                />
+                            }
+                            label="Show HP-MRI Data"
+                        />
+
                         <Typography variant="h6">Threshold</Typography>
                         <Slider
                             value={threshold}
