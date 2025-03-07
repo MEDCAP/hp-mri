@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -18,6 +19,10 @@ import AnalyzeV from './../images/analyze_image.png';
 import MedcapTop from './../images/medcap_top_image.png';
 
 const HomePage: React.FC = () => {
+  useEffect(() => {
+    document.title = "HP-MRI Web App"; // Dynamically updates the tab title
+  }, []);
+
   const sections = [
     {
       heading: 'Concept',

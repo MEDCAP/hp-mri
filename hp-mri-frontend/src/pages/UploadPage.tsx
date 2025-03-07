@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
@@ -30,6 +31,10 @@ const DragDropBox = styled(Box)(({ theme }) => ({
 }));
 
 const UploadPage: React.FC = () => {
+  useEffect(() => {
+    document.title = "HP-MRI Web App"; // Dynamically updates the tab title
+  }, []);
+
   const [mriFile, setMriFile] = useState<FileList | null>(null);
   const [auxFile, setAuxFile] = useState<FileList | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);

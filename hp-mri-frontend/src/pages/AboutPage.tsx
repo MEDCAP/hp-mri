@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import React from 'react';
 import {
     Container,
@@ -9,6 +10,10 @@ import {
 } from '@mui/material';
 
 const AboutPage: React.FC = () => {
+    useEffect(() => {
+        document.title = "HP-MRI Web App"; // Dynamically updates the tab title
+    }, []);
+
     const developers = [
         {
             name: 'Ben Yoon',

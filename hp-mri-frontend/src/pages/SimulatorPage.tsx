@@ -50,6 +50,7 @@ const SimulatorPage: React.FC = () => {
 
   useEffect(() => {
     fetchSimulators();
+    document.title = "Simulator - HP-MRI";
   }, []);
 
   const filteredSimulators = simulators.filter(

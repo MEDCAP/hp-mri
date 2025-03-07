@@ -51,6 +51,7 @@ const MRDFileDetails: React.FC = () => {
                 setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
             })
             .catch((error) => console.error('Error fetching file details:', error));
+        document.title = "File Details - HP"; 
     }, [fileId, location.state]);
 
     const fetchImages = () => {
