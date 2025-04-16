@@ -65,7 +65,7 @@ const ControlPanel: React.FC<ControlProps> = ({
             {/* Image Slice + Contrast Sliders (Near Bottom) */}
             <Box className="slice-contrast-container">
                 <Box>
-                    <Typography align="center">Image Slice: {imageSlice}</Typography>
+                    <Typography align="center">Proton Slice: {imageSlice}</Typography>
                     <Slider
                         className="control-slider"
                         value={imageSlice}
