@@ -14,6 +14,7 @@ import ControlPanel from '../../components/visualize/ControlPanel';
 import ButtonPanel from '../../components/visualize/ButtonPanel';
 import PlotComponent from '../../components/visualize/PlotComponent';
 import { Link } from 'react-router-dom';
+import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponent';
 
 interface Voxel {
   x: number;
@@ -49,6 +50,13 @@ const VisualizationPage: React.FC = () => {
   const [scaleOffsetX, setScaleOffsetX] = useState(1.335); // Scale factor for columns during selection
   const [scaleOffsetY, setScaleOffsetY] = useState(1.875); // Scale factor for rows during selection
   const [threshold, setThreshold] = useState(0.2); // Initial threshold value for HP MRI data filtering
+  const [mode, setMode] = useState<"spectral" | "imaging" | null>(null);
+  const [imagingData, setImagingData] = useState<number[][][][] | null>(null); // 4D: [rows][cols][metabolites][images]
+  const [selectedMetabolite, setSelectedMetabolite] = useState(0);
+  const [alpha, setAlpha] = useState(0.6);
+  const [numMetabolites, setNumMetabolites] = useState(0);
+  const [colorScale, setColorScale] = useState<'Hot' | 'Jet' | 'B&W'>('Hot');
+  const [scaleByIntensity, setScaleByIntensity] = useState(false);
 
   // Effect hook for initial data fetch and window resize event listener.
   useEffect(() => {
@@ -178,26 +186,67 @@ const VisualizationPage: React.FC = () => {
       .then(data => setHpMriData(data))
       .catch(error => console.error('Error fetching HP MRI data:', error));
   };
+  const fetchImagingMetadata = () => {
+    fetch("http://127.0.0.1:5000/visualize-api/get_imaging_metadata")
+      .then(res => res.json())
+      .then(data => {
+        setNumDatasets(data.numImages - 1);         // updates datasetIndex slider
+        setNumMetabolites(data.numMetabolites); // enables metabolite selection
+      });
+  };
+  const fetchImagingData = () => {
+    fetch("http://127.0.0.1:5000/visualize-api/get_imaging_matrix")
+      .then(res => res.json())
+      .then(data => {
+        setImagingData(data.matrix);
+      })
+      .catch(err => console.error("Failed to fetch imaging matrix:", err));
+  };
 
   return (
     <div className="App">
-      <ButtonPanel
-        toggleHpMriData={toggleHpMriData}
-        onMoveUp={moveUp}
-        onMoveLeft={moveLeft}
-        onMoveDown={moveDown}
-        onMoveRight={moveRight}
-        onResetPlotShift={resetPlotShift}
-        onFileUpload={handleFileUpload}
-        onThresholdChange={handleThresholdChange}
-        onToggleSelecting={toggleSelecting}
-        onSelecting={selecting}
-        onSetSelectedGroup={setSelectedGroup}
-        selectedGroup={selectedGroup}
-        onResetVoxels={resetVoxels}
-        threshold={threshold}
-        onMagnetTypeChange={handleMagnetTypeChange}
-      />
+      {mode === null && (
+        <div className="mode-modal">
+          <div className="modal-content">
+            <h2>Select Imaging Mode</h2>
+            <button onClick={() => setMode('spectral')}>Spectral Imaging</button>
+            <button onClick={() => {
+              setMode('imaging');
+              fetchImagingMetadata();
+              fetchImagingData();
+            }}>Imaging</button>
+
+          </div>
+        </div>
+      )}
+      {mode && (
+        <ButtonPanel
+          toggleHpMriData={toggleHpMriData}
+          onMoveUp={moveUp}
+          onMoveLeft={moveLeft}
+          onMoveDown={moveDown}
+          onMoveRight={moveRight}
+          onResetPlotShift={resetPlotShift}
+          onFileUpload={handleFileUpload}
+          onThresholdChange={handleThresholdChange}
+          onToggleSelecting={toggleSelecting}
+          onSelecting={selecting}
+          onSetSelectedGroup={setSelectedGroup}
+          selectedGroup={selectedGroup}
+          onResetVoxels={resetVoxels}
+          threshold={threshold}
+          onMagnetTypeChange={handleMagnetTypeChange}
+          mode={mode}
+          alpha={alpha}
+          onAlphaChange={setAlpha}
+          metabolite={selectedMetabolite}
+          onMetaboliteChange={setSelectedMetabolite}
+          colorScale={colorScale}
+          onColorScaleChange={setColorScale}
+          scaleByIntensity={scaleByIntensity}
+          onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
+        />
+      )}
 
       <div className="visualization-container">
         <div className="image-and-plot-container">
@@ -208,35 +257,65 @@ const VisualizationPage: React.FC = () => {
           />
 
           <div className="plot-container" ref={plotContainerRef}>
-            <PlotComponent
-              xValues={hpMriData.xValues}
-              data={hpMriData.data}
-              columns={hpMriData.columns}
-              spectralData={hpMriData.spectralData}
-              rows={hpMriData.rows}
-              longitudinalScale={hpMriData.longitudinalScale}
-              perpendicularScale={hpMriData.perpendicularScale}
-              longitudinalMeasurement={hpMriData.longitudinalMeasurement}
-              perpendicularMeasurement={hpMriData.perpendicularMeasurement}
-              plotShift={hpMriData.plotShift}
-              windowSize={windowSize}
-              showHpMriData={showHpMriData}
-              magnetType={magnetType}
-              offsetX={offsetX}
-              offsetY={offsetY}
-            />
+            {mode === 'spectral' && (
+              <PlotComponent
+                xValues={hpMriData.xValues}
+                data={hpMriData.data}
+                columns={hpMriData.columns}
+                spectralData={hpMriData.spectralData}
+                rows={hpMriData.rows}
+                longitudinalScale={hpMriData.longitudinalScale}
+                perpendicularScale={hpMriData.perpendicularScale}
+                longitudinalMeasurement={hpMriData.longitudinalMeasurement}
+                perpendicularMeasurement={hpMriData.perpendicularMeasurement}
+                plotShift={hpMriData.plotShift}
+                windowSize={windowSize}
+                showHpMriData={showHpMriData}
+                magnetType={magnetType}
+                offsetX={offsetX}
+                offsetY={offsetY}
+              />
+            )}
+
+            {mode === 'imaging' && imagingData && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: `calc(50% + ${offsetY + 10 * 10}px)`,  // Adjust vertical shift
+                  left: `calc(50% + ${offsetX - 25 * 10}px)`, // Adjust horizontal shift
+                  transform: 'translate(-50%, -50%)',
+                  width: '63vw',
+                  height: '49vw',
+                  pointerEvents: 'none',
+                }}
+              >
+                <ImagingPlotComponent
+                  data={imagingData}
+                  imageIndex={datasetIndex}
+                  metaboliteIndex={selectedMetabolite}
+                  alpha={showHpMriData ? alpha : 0}
+                  colorScale={colorScale}
+                  scaleByIntensity={scaleByIntensity}
+                />
+              </div>
+            )}
+
           </div>
         </div>
 
         {/* Image Slice + Contrast Sliders */}
-        <ControlPanel
-          onSliderChange={handleSliderChange}
-          numSliderValues={numSliderValues}
-          onContrastChange={handleContrastChange}
-          onDatasetChange={handleDatasetChange}
-          datasetIndex={datasetIndex}
-          numDatasets={numDatasets}
-        />
+        {mode && (
+          <ControlPanel
+            mode={mode}
+            onSliderChange={handleSliderChange}
+            onContrastChange={handleContrastChange}
+            onDatasetChange={handleDatasetChange}
+            datasetIndex={datasetIndex}
+            numDatasets={numDatasets}
+            numSliderValues={numSliderValues}
+          />
+        )}
+
       </div>
 
       <footer>

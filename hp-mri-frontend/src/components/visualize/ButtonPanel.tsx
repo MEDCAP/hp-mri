@@ -1,8 +1,8 @@
 /**
  * @fileoverview ButtonPanel.tsx: Improved Photoshop-style UI for HP-MRI Visualization.
  *
- * @version 2.1
- * @author Benjamin Yoon
+ * @version 2.0.1
+ * @author Ben Yoon
  * @date 2025-03-03
  */
 
@@ -34,13 +34,22 @@ interface ButtonProps {
     onResetPlotShift: any;
     onFileUpload: any;
     onThresholdChange: any;
+    onAlphaChange: any;
+    onMetaboliteChange: any;
     onToggleSelecting: any;
     onSelecting: any;
     onSetSelectedGroup: any;
     selectedGroup: any;
     onResetVoxels: any;
     threshold: any;
+    alpha: number;
+    metabolite: number;
     onMagnetTypeChange: any;
+    mode: 'spectral' | 'imaging';
+    colorScale: 'Hot' | 'Jet' | 'B&W';
+    onColorScaleChange: (value: 'Hot' | 'Jet' | 'B&W') => void;
+    scaleByIntensity: boolean;
+    onToggleScaleByIntensity: () => void;
 }
 
 const ButtonPanel: React.FC<ButtonProps> = ({
@@ -53,13 +62,22 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     onResetPlotShift,
     onFileUpload,
     onThresholdChange,
+    onAlphaChange,
+    onMetaboliteChange,
     onToggleSelecting,
     onSelecting,
     onSetSelectedGroup,
     selectedGroup,
     onResetVoxels,
     threshold,
-    onMagnetTypeChange
+    alpha,
+    metabolite,
+    onMagnetTypeChange,
+    mode,
+    colorScale,
+    onColorScaleChange,
+    scaleByIntensity,
+    onToggleScaleByIntensity,
 }) => {
     const [openDrawer, setOpenDrawer] = useState(false);
     const [selectedTool, setSelectedTool] = useState<string | null>(null);
@@ -104,7 +122,6 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 zIndex: 10,
             }}
         >
-            {/* Left Sidebar Toolbar with Tooltips */}
             <Box sx={{ width: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingY: 2 }}>
                 <Tooltip title="Upload File" placement="right">
                     <IconButton color="primary" onClick={handleFileSelect}>
@@ -144,7 +161,6 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 </Tooltip>
             </Box>
 
-            {/* Right Panel (Styled Drawer) */}
             <Drawer
                 anchor="right"
                 open={openDrawer}
@@ -153,7 +169,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                     '& .MuiDrawer-paper': {
                         width: 320,
                         padding: 3,
-                        background: '#2b2b2b', // Dark theme
+                        background: '#2b2b2b',
                         color: 'white',
                         borderRadius: '10px 0px 0px 10px',
                         boxShadow: '0px 4px 8px rgba(0,0,0,0.3)',
@@ -218,8 +234,57 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                             label="Show HP-MRI Data"
                         />
                         <Divider sx={{ my: 2, background: 'white' }} />
-                        <Typography variant="body1">Threshold</Typography>
-                        <Slider value={threshold} min={0} max={1} step={0.1} onChange={onThresholdChange} />
+                        {mode === 'spectral' ? (
+                            <>
+                                <Typography variant="body1">Threshold</Typography>
+                                <Slider value={threshold} min={0} max={1} step={0.1} onChange={onThresholdChange} />
+                            </>
+                        ) : (
+                            <>
+                                <Typography variant="body1">Alpha</Typography>
+                                <Typography variant="body1">Alpha: {alpha.toFixed(2)}</Typography>
+                                <Slider
+                                    value={alpha}
+                                    min={0.0}
+                                    max={1.0}
+                                    step={0.05}
+                                    onChange={(_e, newValue) => onAlphaChange(newValue as number)} // ensure numeric
+                                />
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={scaleByIntensity}
+                                            onChange={onToggleScaleByIntensity}
+                                            color="primary"
+                                        />
+                                    }
+                                    label="Scale by Intensity"
+                                />
+                                <Typography variant="body1">Metabolite</Typography>
+                                <Select
+                                    value={metabolite}
+                                    onChange={(e) => onMetaboliteChange(Number(e.target.value))} // cast string to number
+                                    fullWidth
+                                >
+                                    <MenuItem value={0}>Lactate</MenuItem>
+                                    <MenuItem value={1}>Pyruvate</MenuItem>
+                                    <MenuItem value={2}>Threonine</MenuItem>
+                                </Select>
+                                <Typography variant="body1">Heatmap Color Scale</Typography>
+                                <Select
+                                    value={colorScale}
+                                    onChange={(e) => onColorScaleChange(e.target.value as 'Hot' | 'Jet' | 'B&W')}
+                                    fullWidth
+                                >
+                                    <MenuItem value="Hot">Hot</MenuItem>
+                                    <MenuItem value="Jet">Jet</MenuItem>
+                                    <MenuItem value="B&W">Black & White</MenuItem>
+                                </Select>
+
+                            </>
+                        )}
+
+                        <Divider sx={{ my: 2, background: 'white' }} />
                         <Typography variant="h6">Magnet Type</Typography>
                         <Select defaultValue="HUPC" onChange={onMagnetTypeChange}>
                             <MenuItem value="HUPC">HUPC</MenuItem>

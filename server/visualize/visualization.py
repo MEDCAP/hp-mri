@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, Blueprint
 from flask_cors import CORS
+import numpy as np
 
 # from magnets import hupc_processing, clinical_processing, mr_solutions_processing
 from visualize.magnets import (
@@ -150,3 +151,74 @@ def file_upload():
         return jsonify({"status": "success"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/get_imaging_metadata", methods=["GET"])
+def get_imaging_metadata():
+    """
+    Retrieve metadata for imaging-mode MRI dataset.
+
+    Returns:
+        json: JSON containing the number of rows, columns, metabolites, and image slices.
+
+    Author: Ben Yoon
+    Date: 2025-03-04
+    Version: 2.0.1
+    """
+    try:
+        data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
+        data = np.load(
+            data_path
+        )  # Expected shape: [rows, columns, metabolites, images]
+
+        if data.ndim != 4:
+            return jsonify({"error": "Imaging data must be 4-dimensional"}), 400
+
+        rows, cols, num_metabolites, num_images = data.shape
+
+        return (
+            jsonify(
+                {
+                    "rows": rows,
+                    "columns": cols,
+                    "numMetabolites": num_metabolites,
+                    "numImages": num_images,
+                }
+            ),
+            200,
+        )
+
+    except FileNotFoundError:
+        return jsonify({"error": "Mock imaging data file not found."}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/get_imaging_matrix", methods=["GET"])
+def get_imaging_matrix():
+    """
+    Retrieve the full 4D mock MRI imaging matrix (rows x cols x metabolites x images).
+
+    Returns:
+        json: JSON containing a nested list representing the 4D matrix.
+
+    Author: Ben Yoon
+    Date: 2025-03-04
+    Version: 2.0.1
+    """
+    try:
+        data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
+        data = np.load(data_path)
+
+        if data.ndim != 4:
+            return jsonify({"error": "Imaging data must be 4-dimensional"}), 400
+
+        # Convert to list (costly for large data, but fine for dev)
+        matrix = data.tolist()
+
+        return jsonify({"matrix": matrix}), 200
+
+    except FileNotFoundError:
+        return jsonify({"error": "Mock imaging data file not found."}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
