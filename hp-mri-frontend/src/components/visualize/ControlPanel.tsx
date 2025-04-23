@@ -1,33 +1,40 @@
 /**
- * @fileoverview ControlPanel.tsx: Improved Material UI layout for HP-MRI sliders.
+ * @fileoverview ControlPanel.tsx: Dual-mode UI for HP-MRI Visualization (Spectral + Imaging).
  *
- * @version 2.1
- * @author Benjamin Yoon
- * @date 2025-03-02
+ * @version 2.0.1
+ * @author Ben Yoon
+ * @date 2025-03-04
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Slider, Typography } from '@mui/material';
 
 interface ControlProps {
+    mode: 'spectral' | 'imaging';
     onSliderChange: (value: number, contrast: number) => void;
-    numSliderValues: number;
     onContrastChange: (value: number, contrast: number) => void;
     onDatasetChange: (value: number) => void;
     datasetIndex: number;
     numDatasets: number;
+    numSliderValues?: number; // Only used in spectral mode
 }
 
 const ControlPanel: React.FC<ControlProps> = ({
+    mode,
     onSliderChange,
-    numSliderValues,
     onContrastChange,
     onDatasetChange,
     datasetIndex,
     numDatasets,
+    numSliderValues = 1,
 }) => {
     const [imageSlice, setImageSlice] = useState(1);
     const [contrast, setContrast] = useState(1);
+
+    useEffect(() => {
+        setImageSlice(1);
+        setContrast(1);
+    }, [mode]);
 
     const handleImageSliceChange = (_event: Event, newValue: number | number[]) => {
         const value = Array.isArray(newValue) ? newValue[0] : newValue;
@@ -48,7 +55,7 @@ const ControlPanel: React.FC<ControlProps> = ({
 
     return (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {/* Dataset Slider (Near Top) */}
+            {/* Dataset Slider */}
             <Box className="dataset-slider-container">
                 <Typography align="center">Dataset: {datasetIndex}</Typography>
                 <Slider
@@ -62,10 +69,9 @@ const ControlPanel: React.FC<ControlProps> = ({
                 />
             </Box>
 
-            {/* Image Slice + Contrast Sliders (Near Bottom) */}
             <Box className="slice-contrast-container">
                 <Box>
-                    <Typography align="center">Image Slice: {imageSlice}</Typography>
+                    <Typography align="center">Proton Slice: {imageSlice}</Typography>
                     <Slider
                         className="control-slider"
                         value={imageSlice}
