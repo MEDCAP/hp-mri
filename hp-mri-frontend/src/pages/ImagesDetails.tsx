@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import {
@@ -17,10 +17,12 @@ import axios from 'axios';
 
 const ImagesDetails: React.FC = () => {
     const { imageId, fileId } = useParams();
+    const navigate = useNavigate();
     const [imageDetails, setImageDetails] = useState<any>(null);
     const [fileDetails, setFileDetails] = useState<any>(null);
     const [image, setImage] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
 
     useEffect(() => {
         axios
@@ -46,6 +48,15 @@ const ImagesDetails: React.FC = () => {
         //         setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
         //     })
         //     .catch(error => console.error("Error fetching image:", error));
+        // Fetch the generated image from the backend
+        axios
+            .get(`http://127.0.0.1:5000/api/plot-image`, { responseType: 'blob' })
+            .then((response) => {
+                const imageUrl = URL.createObjectURL(response.data);
+                setImageUrl(imageUrl);
+            })
+            .catch((error) => console.error('Error fetching plot image:', error));
+        document.title = "Images Details - HP";
     }, [imageId, fileId]);
 
     if (!imageDetails || !fileDetails) return <Typography variant="h5">Loading...</Typography>;
@@ -72,8 +83,14 @@ const ImagesDetails: React.FC = () => {
                     <Typography variant="h4" fontWeight="bold">
                         MRD File: {fileDetails.name} &gt; Image: {imageDetails.name}
                     </Typography>
-                    <Button variant="contained" color="primary" size="large">
-                        Analyze
+                    {/* Redirect to the visualize page */}
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        size="large"
+                        onClick={() => navigate("/visualize")}
+                    >
+                        Visualize
                     </Button>
                 </Box>
                 <Divider sx={{ marginBottom: 3 }} />
@@ -82,7 +99,7 @@ const ImagesDetails: React.FC = () => {
                         <Card elevation={3} sx={{ borderRadius: 2 }}>
                             <CardMedia
                                 component="img"
-                                image={image || 'https://via.placeholder.com/600'} // Placeholder image
+                                image={imageUrl || 'https://via.placeholder.com/600'} // Show fetched plot or placeholder
                                 alt={imageDetails.name || 'Image'}
                                 sx={{
                                     height: '400px',

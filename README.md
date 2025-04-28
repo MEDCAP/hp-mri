@@ -1,131 +1,113 @@
-# MEDCAP HP-MRI Web Application
+# **HP-MRI Web App**  
 
-A full-stack web application designed to streamline the management, simulation, and analysis of MRI data. Built with **React** for the frontend and **Flask** for the backend, this application integrates user-friendly interfaces and powerful backend processing to enhance MRI workflows.
+**Author(s):** The MEDCAP computing (Ben Yoon, Yamada, Kadlecek, Zhou)  
+**Date:** Fri Feb 28, 2025  
+**Version:** 2.0.1
 
-## Table of Contents
+A **full-stack web application** designed to streamline the **visualization, simulation, shareability, and conversion** of **Hyperpolarized MRI (HP MRI) data**. Built with **React (Vite)** on the **frontend** and **Flask** on the **backend**, this application provides an intuitive UI for managing MRI workflows, sharing (storing and retrieving) data, and visualizing MRI images in an **interactive and scalable** way.
 
-- [Features](#features)
+---
+
+## **Table of Contents**
+- [Key Features](#key-features)
 - [Technologies Used](#technologies-used)
 - [Project Setup](#project-setup)
   - [Frontend Setup](#frontend-setup)
   - [Backend Setup](#backend-setup)
-- [Development Notes](#development-notes)
+- [Application Overview](#application-overview)
+- [Upcoming Enhancements](#upcoming-enhancements)
 
 ---
 
-## Features
+## **Key Features**
 
-### Core Functionality:
-- **Upload MRI Data**: Simplified file uploads with error handling and tagging.
-- **Retrieve Data**: Organized and sortable list view for managing MRI files.
-- **Simulate MRI Data**: Tools to create and simulate MRI file operations with custom parameters.
-- **Image Analysis**: Detailed image viewer with metadata display and analysis capabilities.
+### **🔬 MRI Data Management & Visualization**
+- **Upload MRI Data**: Drag-and-drop file uploads with real-time validation.
+- **Retrieve & Search**: View, filter, and sort MRI data with an interactive **data table**.
+- **Image Analysis & Visualization**: Overlay **HP-MRI spectral data** on MRI images with adjustable contrast, slice selection, and dataset switching.
+- **Grid-based Spectral Display**: Dynamic grid overlay ensuring spectral data is displayed properly aligned to MRI scans.
 
-### User Interface:
-- **Modern Design**: Fully styled with Material-UI (MUI) components for a sleek, responsive design.
-- **Interactive Tables**: Sortable, searchable, and actionable tables for data management.
-- **Sidebar Navigation**: Collapsible navigation with dynamic icons and tooltips.
-- **Header Account Management**: Integrated header with user account access and actions.
-
-## Technologies Used
-
-### Frontend:
-- **React** (via Vite) for a fast and modular UI.
-- **Material-UI (MUI)** for a polished and accessible component library.
-- **Axios** for seamless HTTP communication with the backend.
-- **React Router** for navigation and dynamic routing.
-
-### Backend:
-- **Flask** for API development and routing.
-- **CORS** for enabling secure communication between the frontend and backend.
-- **Flask-RESTful** for clean and structured API endpoints.
+### **🎛️ Advanced Simulation & Processing**
+- **Custom HP-MRI Simulations**: Adjust and simulate MRI parameters with real-time feedback.
+- **Spectral Data Adjustments**: Modify MRI visualization using **sliders** for contrast, dataset selection, and image slices.
+- **Plot Manipulation**: Shift and reset the HP-MRI plot with a built-in **plot shift UI**.
+- **Toggle HP-MRI Data**: Easily enable or disable HP-MRI plot overlays.
 
 ---
 
-## Project Setup
+## **Technologies Used**
 
-### Frontend Setup
+### **Frontend (React)**
+- **React (Vite)** – Fast, modular, and optimized UI.
+- **Material-UI (MUI)** – Sleek UI components styled for usability.
+- **React Router** – Efficient routing for multiple pages.
+- **HTML2Canvas** – Capture in-app screenshots.
 
-To set up and run the frontend (React/Vite):
+### **Backend (Flask)**
+- **Flask** – Python-based backend API for MRI data processing.
+- **Flask-RESTful** – Organized API architecture.
+- **CORS** – Secure communication between frontend and backend.
 
-1. Clone the repository and navigate to the frontend directory:
+---
+
+## **Project Setup**
+
+### **Frontend Setup**
+To set up and run the frontend (React + Vite):
+
+1. **Clone the repository and navigate to the frontend directory**:
    ```bash
    cd hp-mri-frontend
-   ```
-
-2. Install dependencies:
+2. **Install dependencies**:
    ```bash
    npm install
-   ```
-
-3. Start the development server:
+3. **Start the development server**:
    ```bash
    npm run dev
-   ```
+4. **Access the frontend at**:
+   👉 http://localhost:5173
 
-4. Access the frontend at `http://localhost:5173`.
-
-### Backend Setup
-
+### **Backend Setup**
 To set up and run the backend (Flask):
 
-1. Navigate to the backend directory:
-    ```bash
-    cd server
-    ```
+1. **Navigate to the backend directory**:
+   ```bash
+   cd server
+2. **Create a virtual environment**:
+   ```bash
+   python3 -m venv venv
+3. **Activate the virtual environment**:
+   - **Mac/Linux**:
+     ```bash 
+     source venv/bin/activate
+   - **Windows**:
+     ```bash
+     .\venv\Scripts\activate
+4. **Install backend dependencies**:
+   ```bash
+   pip install -r requirements.txt
+5. **Start the Flask server**:
+   ```bash
+   python app.py
+6. **Access the backend at**:
+   👉 http://localhost:5000
 
-2. Create a virtual environment:
-    ```bash
-    python3 -m venv venv
-    ```
+## **Application Overview**
 
-3. Activate the virtual environment:
-    - On macOS/Linux:
-        ```bash
-        source venv/bin/activate
-        ```
-    
-    - On Windows:
-        ```bash
-        .\venv\Scripts\activate
-        ```
+### **📌 Core Pages & Components**
+1. **MRI Visualization Page (`/visualize`)**
+- Displays **MRI images** with spectral data overlay.
+- **Three sliders** (Dataset, Image Slice, Contrast) for fine-tuning visualizations.
+- **Plot shift buttons** for precise MRI data adjustments.
+- **HP-MRI toggle switch** to enable/disable spectral overlays.
+2. **MRI Data Management (`/mrd-files`)**
+- Searchable, sortable MRI file list with **Upload, Refresh, Delete, Download** buttons.
+3. **Simulation Page (`/simulate`)**
+- Tools for MRI data reconstruction and parameter simulations.
 
-4. Install backend dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+For more details, bug reports, or feature requests, feel free to reach out! 🚀
 
-5. Start the Flask server:
-    ```bash
-    python app.py
-    ```
+📧 **Contact**: [yoonb@seas.upenn.edu](mailto:yoonb@seas.upenn.edu)  
+💻 **MEDCAP Project & GitHub Repository**: [github.com/MEDCAP/hpmri-app](https://github.com/MEDCAP)  
 
-6. Access the backend at `http://localhost:5000`.
-
-## Development Notes
-
-### Pages and Components
-- **Retrieve Page**:
-  - Search, sort, and filter MRI data with a dynamic table.
-  - Integrated buttons for upload, refresh, delete, and download actions.
-- **Simulator Page**:
-  - Built with a similar design to the Retrieve Page for consistency.
-  - Includes a `Create` button to navigate to the `new-simulator` page.
-  - Displays columns: `Name`, `Sequence`, and `Image`.
-- **Image Details Page**:
-  - Enhanced layout with Material-UI cards for image and metadata display.
-  - Integrated "Analyze" button for future expansion.
-- **Header**:
-  - Clean design with a logo, title, and account access.
-  - Styled with Material-UI AppBar and Avatar components.
-- **Sidebar**:
-  - Collapsible sidebar with animated transitions.
-  - Interactive icons and tooltips for better user experience.
- 
-### Upcoming Enhancements:
-- **File Reconstruction**: Add support for reconstructing MRI files.
-- **Data Analysis**: Expand image and file analysis features.
-- **User Authentication**: Secure access with login and session management.
-- **Cloud Storage Integration**: Seamless integration with AWS S3 for storing MRI files.
-  
-For more details or issues, feel free to reach out or open a GitHub issue.
+We appreciate your feedback and contributions! 🚀

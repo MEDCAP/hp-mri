@@ -50,6 +50,7 @@ const RetrievePage: React.FC = () => {
 
   useEffect(() => {
     fetchFiles();
+    document.title = "MRD Files - HP"; // Dynamically updates the tab title
   }, []);
 
   const filteredFiles = files.filter(
