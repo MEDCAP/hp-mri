@@ -119,8 +119,8 @@ const ImagingPlotComponent: React.FC<Props> = ({
     const rows = data.length;
     const cols = data[0].length;
 
-    const boxWidth = 45;
-    const boxHeight = 35;
+    const boxWidth = 55;
+    const boxHeight = 45;
 
     // Extract z matrix for the selected metabolite and image
     const zMatrix = data.map(row =>
