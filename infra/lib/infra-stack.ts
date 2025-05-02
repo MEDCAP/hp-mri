@@ -17,21 +17,24 @@ export class InfraStack extends cdk.Stack {
       code: lambda.DockerImageCode.fromImageAsset('../server'), // I think this is where dockerfile is
     });
 
+    // http access point to flask
     const httpApi = new apigwv2.HttpApi(this, 'HttpApi', {
       defaultIntegration: new HttpLambdaIntegration('FlaskIntegration', flaskFn),
     });
 
+    // the dynamoDB for keep track of the files
     const metadataTable = new dynamodb.Table(this, 'MetadataTable', {
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
 
+    // s3 bucket for all the files
     const bucket = new s3.Bucket(this, 'UploadBucket', {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
     
-
+    // grant flask function access to the bucket
     const uploadFn = new lambda.Function(this, 'UploadHandler', {
       runtime: lambda.Runtime.PYTHON_3_9,
       handler: 'upload_handler.lambda_handler',
