@@ -10,10 +10,10 @@ from scipy.fft import fftn
 import io
 
 # Constants
-DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03.dmc/"
-EPSI_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/epsi_16x12_13c_"
-DATASET_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/"
-FID_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03"
+DICOM_FOLDER = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/data/s_2023041103/fsems_rat_liver_03.dmc/"
+EPSI_FOLDER = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/data/s_2023041103/epsi_16x12_13c_"
+DATASET_FOLDER = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/data/s_2023041103/"
+FID_FOLDER = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/data/s_2023041103/fsems_rat_liver_03"
 EPSI_INFO = {"pictures_to_read_write": 1, "proton": 60, "centric": 1}
 PATH_EPSI = ""
 SCALE = True

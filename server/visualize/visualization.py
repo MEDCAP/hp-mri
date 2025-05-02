@@ -20,7 +20,7 @@ CORS(bp, resources={r"/*": {"origins": "http://localhost:5173"}})
 from flask import Flask, request, jsonify
 
 # Constants
-UPLOAD_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data"
+UPLOAD_FOLDER = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/data"
 app = Flask(__name__)
 CORS(app)
 
@@ -166,7 +166,7 @@ def get_imaging_metadata():
     Version: 2.0.1
     """
     try:
-        data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
+        data_path = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
         data = np.load(
             data_path
         )  # Expected shape: [rows, columns, metabolites, images]
@@ -207,7 +207,7 @@ def get_imaging_matrix():
     Version: 2.0.1
     """
     try:
-        data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
+        data_path = "/Users/zhouzih/Documents/Programming/MEDCAP/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
         data = np.load(data_path)
 
         if data.ndim != 4:

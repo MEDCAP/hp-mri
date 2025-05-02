@@ -33,9 +33,9 @@ import io
 from pathlib import Path
 
 # Constants
-DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/proton/1/"
+DICOM_FOLDER = "/Users/zhouzih/Documents/Programming/MEDCAP/data/data MRS/proton/1/"
 DATASET_FOLDER = Path(
-    "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/epsi/"
+    "/Users/zhouzih/Documents/Programming/MEDCAP/data/data MRS/epsi/"
 )
 DATASET = [
     folder
