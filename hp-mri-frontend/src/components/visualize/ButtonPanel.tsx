@@ -1,5 +1,5 @@
 /**
- * @fileoverview ButtonPanel.tsx: Improved Photoshop-style UI for HP-MRI Visualization.
+ * @fileoverview ButtonPanel.tsx: Improved UI for HP-MRI Visualization.
  *
  * @version 2.0.1
  * @author Ben Yoon
@@ -21,6 +21,9 @@ import {
     Button,
     Divider,
     Tooltip,
+    TextField,
+    Tabs,
+    Tab
 } from '@mui/material';
 import { CloudUpload, Save, Tune, GridOn, AspectRatio, RestartAlt } from '@mui/icons-material';
 
@@ -92,6 +95,8 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     setContrast,
 }) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [screenshotTab, setScreenshotTab] = useState(0);
+    const [filename, setFilename] = useState("screenshot.png");
 
     const handleSaveScreenshot = () => {
         html2canvas(document.body).then(canvas => {
@@ -135,8 +140,8 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 </Tooltip>
                 <input type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} ref={fileInputRef} />
 
-                <Tooltip title="Save Screenshot" placement="right">
-                    <IconButton sx={{ color: 'white' }} onClick={handleSaveScreenshot}>
+                <Tooltip title="Screenshot & Export" placement="right">
+                    <IconButton sx={{ color: 'white' }} onClick={() => onOpenDrawer('export')}>
                         <Save />
                     </IconButton>
                 </Tooltip>
@@ -196,6 +201,59 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 >
                     ✕
                 </IconButton>
+
+                {selectedTool === 'export' && (
+                    <>
+                        <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
+                            Export Options
+                        </Typography>
+
+                        <Tabs
+                            value={screenshotTab}
+                            onChange={(_, newValue) => setScreenshotTab(newValue)}
+                            textColor="inherit"
+                            TabIndicatorProps={{ style: { backgroundColor: 'white' } }}
+                            sx={{ mb: 2 }}
+                        >
+                            <Tab label="Image" sx={{ color: 'white', fontWeight: 'bold' }} />
+                            <Tab label="GIF" sx={{ color: 'white', fontWeight: 'bold' }} />
+                        </Tabs>
+
+                        {screenshotTab === 0 && (
+                            <>
+                                <TextField
+                                    fullWidth
+                                    label="File Name"
+                                    value={filename}
+                                    onChange={(e) => setFilename(e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        input: { color: 'black' },
+                                        label: { color: 'black' },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': { borderColor: 'white' },
+                                        },
+                                    }}
+                                />
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    onClick={handleSaveScreenshot}
+                                    sx={{ mt: 2, backgroundColor: 'black', fontWeight: 'bold' }}
+                                >
+                                    Save Screenshot
+                                </Button>
+                            </>
+                        )}
+
+                        {screenshotTab === 1 && (
+                            <Typography variant="body2" sx={{ color: 'white' }}>
+                                GIF export functionality coming soon...
+                            </Typography>
+                        )}
+                    </>
+                )}
 
                 {selectedTool === 'image' && (
                     <>
@@ -364,7 +422,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                         },
                                     }}
                                 />
-                                <Typography
+                                {/* <Typography
                                     variant="body1"
                                     sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
                                 >
@@ -373,7 +431,11 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                     value={metabolite}
                                     onChange={(e) => onMetaboliteChange(Number(e.target.value))} // cast string to number
                                     fullWidth
+                                    size='small'
                                     sx={{
+                                        mt: 1.5,
+                                        mb: 2,
+                                        fontSize: '0.85rem',
                                         color: 'white',
                                         '.MuiOutlinedInput-notchedOutline': {
                                             borderColor: 'white',
@@ -386,7 +448,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                     <MenuItem value={0}>Lactate</MenuItem>
                                     <MenuItem value={1}>Pyruvate</MenuItem>
                                     <MenuItem value={2}>Threonine</MenuItem>
-                                </Select>
+                                </Select> */}
                                 <Typography
                                     variant="body1"
                                     sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
@@ -396,7 +458,11 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                     value={colorScale}
                                     onChange={(e) => onColorScaleChange(e.target.value as 'Hot' | 'Jet' | 'B&W')}
                                     fullWidth
+                                    size='small'
                                     sx={{
+                                        mt: 1.5,
+                                        mb: 2,
+                                        fontSize: '0.85rem',
                                         color: 'white',
                                         '.MuiOutlinedInput-notchedOutline': {
                                             borderColor: 'white',
@@ -416,7 +482,10 @@ const ButtonPanel: React.FC<ButtonProps> = ({
 
                         <Divider sx={{ my: 2, background: 'white' }} />
                         <Typography variant="h6" color='white'>Magnet Type</Typography>
-                        <Select defaultValue="HUPC" onChange={onMagnetTypeChange} sx={{
+                        <Select defaultValue="HUPC" onChange={onMagnetTypeChange} size='small' sx={{
+                            mt: 1.5,
+                            mb: 2,
+                            fontSize: '0.85rem',
                             color: 'white',
                             '.MuiOutlinedInput-notchedOutline': {
                                 borderColor: 'white',

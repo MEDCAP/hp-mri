@@ -115,7 +115,17 @@ const ControlPanel: React.FC<ControlProps> = ({
                         width: 590,
                     }}
                 >
-                    <Typography align="center">Proton Slice: {imageSlice}</Typography>
+                    <Typography
+                        align="center"
+                        sx={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '1rem',
+                            mb: 1,
+                        }}
+                    >
+                        Proton Slice: {imageSlice}
+                    </Typography>
                     <Slider
                         className="control-slider"
                         value={imageSlice}
@@ -123,6 +133,22 @@ const ControlPanel: React.FC<ControlProps> = ({
                         max={numSliderValues}
                         onChange={handleImageSliceChange}
                         aria-labelledby="image-slice-slider"
+                        sx={{
+                            color: 'white',
+                            '& .MuiSlider-thumb': {
+                                backgroundColor: '#ffffff',
+                            },
+                            '& .MuiSlider-track': {
+                                backgroundColor: '#ffffff',
+                            },
+                            '& .MuiSlider-rail': {
+                                backgroundColor: '#888888',
+                            },
+                            '& .MuiSlider-markLabel': {
+                                color: 'white',
+                                fontWeight: 'bold',
+                            },
+                        }}
                     />
                 </Box>
             </Box>

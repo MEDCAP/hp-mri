@@ -328,6 +328,7 @@ const VisualizationPage: React.FC = () => {
                     alpha={showHpMriData ? alpha : 0}
                     colorScale={colorScale}
                     scaleByIntensity={scaleByIntensity}
+                    showHpMriData={showHpMriData}
                   />
                 </div>
               )}
@@ -357,13 +358,18 @@ const VisualizationPage: React.FC = () => {
         <footer>
           <Link to="/visualize-about">About</Link> • 2024 University of Pennsylvania The MEDCAP
         </footer>
-        <PlotShiftPanel
-          onMoveUp={moveUp}
-          onMoveDown={moveDown}
-          onMoveLeft={moveLeft}
-          onMoveRight={moveRight}
-          onReset={resetPlotShift}
-        />
+        {mode && (
+          <PlotShiftPanel
+            onMoveUp={moveUp}
+            onMoveDown={moveDown}
+            onMoveLeft={moveLeft}
+            onMoveRight={moveRight}
+            onReset={resetPlotShift}
+            mode={mode}
+            metabolite={selectedMetabolite}
+            onMetaboliteChange={setSelectedMetabolite}
+          />
+        )}
       </div>
     </div>
   );
