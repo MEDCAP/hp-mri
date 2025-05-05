@@ -2,7 +2,7 @@
 
 **Author(s):** The MEDCAP computing (Ben Yoon, Yamada, Kadlecek, Zhou)  
 **Date:** Fri Feb 28, 2025  
-**Version:** 2.0.1
+**Version:** 2.0.2
 
 A **full-stack web application** designed to streamline the **visualization, simulation, shareability, and conversion** of **Hyperpolarized MRI (HP MRI) data**. Built with **React (Vite)** on the **frontend** and **Flask** on the **backend**, this application provides an intuitive UI for managing MRI workflows, sharing (storing and retrieving) data, and visualizing MRI images in an **interactive and scalable** way.
 

@@ -96,6 +96,7 @@ interface Props {
     alpha: number; // Global alpha/opacity control (0.0 to 1.0)
     colorScale: 'Hot' | 'Jet' | 'B&W';
     scaleByIntensity: boolean; // Toggle for intensity-based scaling
+    showHpMriData: boolean;
 }
 
 const ImagingPlotComponent: React.FC<Props> = ({
@@ -105,6 +106,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
     alpha,
     colorScale,
     scaleByIntensity,
+    showHpMriData,
 }) => {
     if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
         console.error("Invalid data structure provided to ImagingPlotComponent");
@@ -119,8 +121,8 @@ const ImagingPlotComponent: React.FC<Props> = ({
     const rows = data.length;
     const cols = data[0].length;
 
-    const boxWidth = 45;
-    const boxHeight = 35;
+    const boxWidth = 55;
+    const boxHeight = 45;
 
     // Extract z matrix for the selected metabolite and image
     const zMatrix = data.map(row =>
@@ -142,7 +144,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
         gridShapes.push({
             type: 'line', xref: 'x', yref: 'y',
             x0: i * boxWidth, x1: i * boxWidth, y0: 0, y1: rows * boxHeight,
-            line: { color: 'white', width: 0.5 },
+            line: { color: 'transparent', width: 0 },
         });
     }
     // Horizontal lines
@@ -150,7 +152,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
         gridShapes.push({
             type: 'line', xref: 'x', yref: 'y',
             x0: 0, x1: cols * boxWidth, y0: j * boxHeight, y1: j * boxHeight,
-            line: { color: 'white', width: 0.5 },
+            line: { color: 'transparent', width: 0 },
         });
     }
 
@@ -186,7 +188,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
                     type: 'heatmap',
                     colorscale: plotColorscale, // Use the determined colorscale
                     opacity: plotOpacity,     // Use the determined opacity
-                    showscale: true,          // Show color scale bar
+                    showscale: showHpMriData,          // Show color scale bar
                     zmin: 0,                  // Explicitly set z range
                     zmax: 1,
                     // Map data indices to pixel coordinates for heatmap cells
@@ -217,6 +219,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
                     fixedrange: true,
                 },
                 shapes: gridShapes,             // Add the grid lines
+
             }}
             // Configuration options for the plot
             config={{
@@ -228,112 +231,3 @@ const ImagingPlotComponent: React.FC<Props> = ({
 };
 
 export default ImagingPlotComponent;
-
-
-// import React from 'react';
-// import Plot from 'react-plotly.js';
-
-// interface Props {
-//     data: number[][][][]; // [rows][cols][metabolites][images]
-//     imageIndex: number;
-//     metaboliteIndex: number;
-//     alpha: number;
-//     colorScale: 'Hot' | 'Jet' | 'B&W';
-//     scaleByIntensity: boolean;
-// }
-
-// const ImagingPlotComponent: React.FC<Props> = ({
-//     data,
-//     imageIndex,
-//     metaboliteIndex,
-//     alpha,
-//     colorScale,
-//     scaleByIntensity,
-// }) => {
-//     const rows = data.length;
-//     const cols = data[0].length;
-
-//     const boxWidth = 45;
-//     const boxHeight = 35;
-
-//     // Extract z matrix
-//     const zMatrix = data.map(row => row.map(cell => cell[metaboliteIndex][imageIndex]));
-
-//     const gridShapes: Partial<Plotly.Shape>[] = [];
-
-//     // Vertical lines
-//     for (let i = 0; i <= cols; i++) {
-//         gridShapes.push({
-//             type: 'line',
-//             xref: 'x',
-//             yref: 'y',
-//             x0: i * boxWidth,
-//             x1: i * boxWidth,
-//             y0: 0,
-//             y1: rows * boxHeight,
-//             line: { color: 'white', width: 0.5 },
-//         });
-//     }
-
-//     // Horizontal lines
-//     for (let j = 0; j <= rows; j++) {
-//         gridShapes.push({
-//             type: 'line',
-//             xref: 'x',
-//             yref: 'y',
-//             x0: 0,
-//             x1: cols * boxWidth,
-//             y0: j * boxHeight,
-//             y1: j * boxHeight,
-//             line: { color: 'white', width: 0.5 },
-//         });
-//     }
-
-//     return (
-//         <Plot
-//             data={[
-//                 {
-//                     z: zMatrix,
-//                     type: 'heatmap',
-//                     colorscale:
-//                         colorScale === 'Hot'
-//                             ? 'Hot'
-//                             : colorScale === 'Jet'
-//                                 ? 'Jet'
-//                                 : [[0, 'black'], [1, 'white']], // B&W
-//                     opacity: alpha,
-//                     showscale: true,
-//                     zmin: 0,
-//                     zmax: 1,
-//                     x: Array.from({ length: cols }, (_, i) => i * boxWidth + boxWidth / 2),
-//                     y: Array.from({ length: rows }, (_, j) => j * boxHeight + boxHeight / 2),
-//                 },
-//             ]}
-//             layout={{
-//                 width: cols * boxWidth,
-//                 height: rows * boxHeight,
-//                 margin: { t: 0, b: 0, l: 0, r: 0 },
-//                 paper_bgcolor: 'rgba(0,0,0,0)',
-//                 plot_bgcolor: 'rgba(0,0,0,0)',
-//                 xaxis: {
-//                     range: [0, cols * boxWidth],
-//                     showgrid: false,
-//                     zeroline: false,
-//                     showticklabels: false,
-//                     fixedrange: true,
-//                 },
-//                 yaxis: {
-//                     range: [rows * boxHeight, 0], // flipped
-//                     showgrid: false,
-//                     zeroline: false,
-//                     showticklabels: false,
-//                     fixedrange: true,
-//                 },
-//                 shapes: gridShapes,
-//             }}
-//             config={{ staticPlot: true }}
-//         />
-//     );
-// };
-
-// export default ImagingPlotComponent;

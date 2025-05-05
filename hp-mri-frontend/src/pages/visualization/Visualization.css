@@ -12,7 +12,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: calc(100vh - 20px);
+  height: calc(100vh - 30px);
   position: relative;
   width: calc(100vw);
 }
@@ -30,7 +30,7 @@
 
 /* Style for the image */
 .proton-image-hupc {
-  width: 50vw;
+  width: 60vw;
   height: auto;
   /* display: block; */
   position: absolute;
@@ -66,9 +66,9 @@
 .slice-contrast-container {
   position: absolute;
   bottom: 20px;
-  left: 50%;
+  left: 53%;
   transform: translateX(-50%);
-  width: 50%;
+  width: 40%;
 
 }
 
