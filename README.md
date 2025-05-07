@@ -21,13 +21,13 @@ A **full-stack web application** designed to streamline the **visualization, sim
 
 ## **Key Features**
 
-### **🔬 MRI Data Management & Visualization**
+### **MRI Data Management & Visualization**
 - **Upload MRI Data**: Drag-and-drop file uploads with real-time validation.
 - **Retrieve & Search**: View, filter, and sort MRI data with an interactive **data table**.
 - **Image Analysis & Visualization**: Overlay **HP-MRI spectral data** on MRI images with adjustable contrast, slice selection, and dataset switching.
 - **Grid-based Spectral Display**: Dynamic grid overlay ensuring spectral data is displayed properly aligned to MRI scans.
 
-### **🎛️ Advanced Simulation & Processing**
+### **Advanced Simulation & Processing**
 - **Custom HP-MRI Simulations**: Adjust and simulate MRI parameters with real-time feedback.
 - **Spectral Data Adjustments**: Modify MRI visualization using **sliders** for contrast, dataset selection, and image slices.
 - **Plot Manipulation**: Shift and reset the HP-MRI plot with a built-in **plot shift UI**.
@@ -65,7 +65,7 @@ To set up and run the frontend (React + Vite):
    ```bash
    npm run dev
 4. **Access the frontend at**:
-   👉 http://localhost:5173
+   http://localhost:5173
 
 ### **Backend Setup**
 To set up and run the backend (Flask):
@@ -90,11 +90,11 @@ To set up and run the backend (Flask):
    ```bash
    python app.py
 6. **Access the backend at**:
-   👉 http://localhost:5000
+   http://localhost:5000
 
 ## **Application Overview**
 
-### **📌 Core Pages & Components**
+### **Core Pages & Components**
 1. **MRI Visualization Page (`/visualize`)**
 - Displays **MRI images** with spectral data overlay.
 - **Three sliders** (Dataset, Image Slice, Contrast) for fine-tuning visualizations.
@@ -105,9 +105,9 @@ To set up and run the backend (Flask):
 3. **Simulation Page (`/simulate`)**
 - Tools for MRI data reconstruction and parameter simulations.
 
-For more details, bug reports, or feature requests, feel free to reach out! 🚀
+For more details, bug reports, or feature requests, feel free to reach out!
 
-📧 **Contact**: [yoonb@seas.upenn.edu](mailto:yoonb@seas.upenn.edu)  
-💻 **MEDCAP Project & GitHub Repository**: [github.com/MEDCAP/hpmri-app](https://github.com/MEDCAP)  
+**Contact**: [yoonb@seas.upenn.edu](mailto:yoonb@seas.upenn.edu)  
+**MEDCAP Project & GitHub Repository**: [github.com/MEDCAP/hpmri-app](https://github.com/MEDCAP)  
 
-We appreciate your feedback and contributions! 🚀
+We appreciate your feedback and contributions!
