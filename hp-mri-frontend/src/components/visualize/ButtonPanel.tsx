@@ -1,7 +1,7 @@
 /**
- * @fileoverview ButtonPanel.tsx: Improved UI for HP-MRI Visualization.
+ * @fileoverview ButtonPanel.tsx: Menu UI for HP-MRI Visualization.
  *
- * @version 2.0.1
+ * @version 2.0.3
  * @author Ben Yoon
  * @date 2025-03-03
  */
@@ -25,7 +25,7 @@ import {
     Tabs,
     Tab
 } from '@mui/material';
-import { CloudUpload, Save, Tune, GridOn, AspectRatio, RestartAlt } from '@mui/icons-material';
+import { CloudUpload, Save, Tune, AspectRatio } from '@mui/icons-material';
 
 interface ButtonProps {
     className?: string;
@@ -64,10 +64,6 @@ interface ButtonProps {
 const ButtonPanel: React.FC<ButtonProps> = ({
     className,
     toggleHpMriData,
-    onMoveUp,
-    onMoveLeft,
-    onMoveDown,
-    onMoveRight,
     onFileUpload,
     onThresholdChange,
     onAlphaChange,
@@ -97,12 +93,16 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [screenshotTab, setScreenshotTab] = useState(0);
     const [filename, setFilename] = useState("screenshot.png");
+    const [gifStart, setGifStart] = useState(1);
+    const [gifEnd, setGifEnd] = useState(10);
+    const [gifFps, setGifFps] = useState(2);
+    const [gifFilename, setGifFilename] = useState("export.gif");
 
     const handleSaveScreenshot = () => {
         html2canvas(document.body).then(canvas => {
             const link = document.createElement('a');
             link.href = canvas.toDataURL('image/png');
-            link.download = 'screenshot.png';
+            link.download = filename || 'screenshot.png';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -163,7 +163,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 anchor="left"
                 open={openDrawer}
                 onClose={() => onOpenDrawer('')}
-                variant="persistent" // keeps drawer open until explicitly closed
+                variant="persistent"
                 hideBackdrop
                 sx={{
                     '& .MuiDrawer-paper': {
@@ -171,9 +171,9 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         padding: 3,
                         background: '#2b2b2b',
                         color: 'white',
-                        borderRadius: '0px 10px 10px 0px', // only round outer right corners
+                        borderRadius: '0px 10px 10px 0px',
                         marginLeft: '60px',
-                        boxShadow: '4px 0px 8px rgba(0,0,0,0.3)', // shadow on far right only
+                        boxShadow: '4px 0px 8px rgba(0,0,0,0.3)',
                     },
                 }}
                 ModalProps={{
@@ -181,7 +181,6 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                     BackdropProps: { style: { backgroundColor: 'transparent' } },
                 }}
             >
-
                 <IconButton
                     onClick={() => onOpenDrawer('')}
                     sx={{
@@ -221,18 +220,31 @@ const ButtonPanel: React.FC<ButtonProps> = ({
 
                         {screenshotTab === 0 && (
                             <>
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    File Name
+                                </Typography>
                                 <TextField
                                     fullWidth
-                                    label="File Name"
                                     value={filename}
                                     onChange={(e) => setFilename(e.target.value)}
                                     variant="outlined"
                                     size="small"
                                     sx={{
-                                        input: { color: 'black' },
-                                        label: { color: 'black' },
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
                                         '& .MuiOutlinedInput-root': {
-                                            '& fieldset': { borderColor: 'white' },
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
                                         },
                                     }}
                                 />
@@ -240,7 +252,17 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                     fullWidth
                                     variant="contained"
                                     onClick={handleSaveScreenshot}
-                                    sx={{ mt: 2, backgroundColor: 'black', fontWeight: 'bold' }}
+                                    sx={{
+                                        mt: 2,
+                                        backgroundColor: '#000c3f',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        '&.Mui-disabled': {
+                                            backgroundColor: '#000c3f',
+                                            color: 'white',
+                                            opacity: 0.6,
+                                        },
+                                    }}
                                 >
                                     Save Screenshot
                                 </Button>
@@ -248,9 +270,141 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         )}
 
                         {screenshotTab === 1 && (
-                            <Typography variant="body2" sx={{ color: 'white' }}>
-                                GIF export functionality coming soon...
-                            </Typography>
+                            <>
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    GIF Filename
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    value={gifFilename}
+                                    onChange={(e) => setGifFilename(e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Start Dataset
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    value={gifStart}
+                                    onChange={(e) => setGifStart(Number(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    End Dataset
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    value={gifEnd}
+                                    onChange={(e) => setGifEnd(Number(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Frame Rate (FPS)
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    value={gifFps}
+                                    onChange={(e) => setGifFps(Number(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    disabled
+                                    sx={{
+                                        mt: 2,
+                                        backgroundColor: '#000c3f',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        '&.Mui-disabled': {
+                                            backgroundColor: '#000c3f',
+                                            color: 'white',
+                                            opacity: 0.6,
+                                        },
+                                    }}
+                                >
+                                    Export GIF (coming soon)
+                                </Button>
+                            </>
                         )}
                     </>
                 )}
