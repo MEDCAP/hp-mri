@@ -100,6 +100,11 @@ const VisualizationPage: React.FC = () => {
     setOffsetY(0);
   };
 
+  const handleFrameRendered = () => {
+    console.log('Frame rendered event dispatched');
+    window.dispatchEvent(new Event('frameRendered'));
+  };
+
   // Event handlers for UI control components.
   const handleSliderChange = (newValue: any, contrastValue: any) => sendSliderValueToBackend(newValue, contrastValue);
   const handleContrastChange = (sliderValue: any, newContrastValue: any) => sendSliderValueToBackend(sliderValue, newContrastValue);
@@ -126,7 +131,12 @@ const VisualizationPage: React.FC = () => {
 
           if (targetElement) {
             html2canvas(targetElement as HTMLElement).then(canvas => {
-              gif.addFrame(canvas, { delay: frameDelay });
+              const { width, height } = canvas;
+              if (width > 0 && height > 0) {
+                gif.addFrame(canvas, { delay: frameDelay });
+              } else {
+                console.warn("Skipped frame with empty canvas");
+              }
               window.removeEventListener('frameRendered', handler);
               resolve();
             });
@@ -149,6 +159,9 @@ const VisualizationPage: React.FC = () => {
         await addFrame(i);
       }
 
+      // Wait a little extra to make sure the last frame is rendered
+      await new Promise((resolve) => setTimeout(resolve, 100)); // wait 100ms
+
       gif.on('finished', (blob: Blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -160,11 +173,12 @@ const VisualizationPage: React.FC = () => {
         URL.revokeObjectURL(url);
       });
 
-      gif.render();
+      gif.render(); // Now safe to call
     };
 
     renderFrames();
   };
+
   const toggleHpMriData = () => {
     setShowHpMriData(!showHpMriData);
     sendDatasetToBackend(datasetIndex);
@@ -388,9 +402,7 @@ const VisualizationPage: React.FC = () => {
                   magnetType={magnetType}
                   offsetX={offsetX}
                   offsetY={offsetY}
-                  onRendered={() => {
-                    window.dispatchEvent(new Event('frameRendered'));
-                  }}
+                  onRendered={handleFrameRendered}
                 />
               )}
 
@@ -414,9 +426,7 @@ const VisualizationPage: React.FC = () => {
                     colorScale={colorScale}
                     scaleByIntensity={scaleByIntensity}
                     showHpMriData={showHpMriData}
-                    onRendered={() => {
-                      window.dispatchEvent(new Event('frameRendered'));
-                    }}
+                    onRendered={handleFrameRendered}
                   />
                 </div>
               )}
