@@ -3,9 +3,9 @@
  * providing functionalities such as displaying proton images, adjusting HP-MRI plots,
  * and offering navigation to the About page.
  *
- * @version 1.2.2
- * @author Benjamin Yoon
- * @date 2024-04-30
+ * @version 2.0.3
+ * @author Ben Yoon
+ * @date 2025-05-09
  */
 
 import GIF from 'gif.js.optimized';
