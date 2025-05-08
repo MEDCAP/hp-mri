@@ -101,7 +101,6 @@ const VisualizationPage: React.FC = () => {
   };
 
   const handleFrameRendered = () => {
-    console.log('Frame rendered event dispatched');
     window.dispatchEvent(new Event('frameRendered'));
   };
 
@@ -117,38 +116,34 @@ const VisualizationPage: React.FC = () => {
     const gif = new GIF({
       workers: 2,
       quality: 10,
-      workerScript: '/gif.worker.js', // Assumes public/gif.worker.js
-      width: 700, // Adjust as needed
-      height: 540,
+      workerScript: '/gif.worker.js',
     });
 
     const frameDelay = 1000 / gifFps;
 
     const addFrame = (index: number): Promise<void> => {
       return new Promise((resolve) => {
-        const handler = () => {
-          const targetElement = document.querySelector('.plot-container');
+        const onRendered = () => {
+          window.removeEventListener('frameRendered', onRendered);
 
-          if (targetElement) {
-            html2canvas(targetElement as HTMLElement).then(canvas => {
+          const el = document.getElementById('visualization-root');
+          if (el) {
+            html2canvas(el).then(canvas => {
               const { width, height } = canvas;
-              if (width > 0 && height > 0) {
-                gif.addFrame(canvas, { delay: frameDelay });
-              } else {
-                console.warn("Skipped frame with empty canvas");
+              if (width === 0 || height === 0) {
+                console.warn(`Skipped empty frame at index ${index}`);
+                return resolve();
               }
-              window.removeEventListener('frameRendered', handler);
+
+              gif.addFrame(canvas, { delay: frameDelay });
               resolve();
             });
-          } else {
-            resolve();
           }
         };
 
-        // Listen for confirmation that frame has rendered
-        window.addEventListener('frameRendered', handler);
+        window.addEventListener('frameRendered', onRendered);
 
-        // Dispatch dataset change (PlotComponent or ImagingPlotComponent must dispatch 'frameRendered')
+        // Trigger dataset change
         const event = new CustomEvent('datasetChange', { detail: index });
         window.dispatchEvent(event);
       });
@@ -159,10 +154,11 @@ const VisualizationPage: React.FC = () => {
         await addFrame(i);
       }
 
-      // Wait a little extra to make sure the last frame is rendered
-      await new Promise((resolve) => setTimeout(resolve, 100)); // wait 100ms
-
       gif.on('finished', (blob: Blob) => {
+        if (blob.size === 0) {
+          console.error("Empty blob. GIF generation failed.");
+          return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -173,7 +169,7 @@ const VisualizationPage: React.FC = () => {
         URL.revokeObjectURL(url);
       });
 
-      gif.render(); // Now safe to call
+      gif.render();
     };
 
     renderFrames();
@@ -377,7 +373,7 @@ const VisualizationPage: React.FC = () => {
         }}
       >
         <div className="visualization-container">
-          <div className="image-and-plot-container">
+          <div className="image-and-plot-container" id="visualization-root">
             <img
               src={imageUrl}
               alt="Proton"

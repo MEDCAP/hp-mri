@@ -107,14 +107,17 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     const [filename, setFilename] = useState("screenshot.png");
 
     const handleSaveScreenshot = () => {
-        html2canvas(document.body).then(canvas => {
-            const link = document.createElement('a');
-            link.href = canvas.toDataURL('image/png');
-            link.download = filename || 'screenshot.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
+        const el = document.getElementById('visualization-root');
+        if (el) {
+            html2canvas(el).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = filename || 'screenshot.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
     };
 
     const handleFileSelect = () => fileInputRef.current?.click();
