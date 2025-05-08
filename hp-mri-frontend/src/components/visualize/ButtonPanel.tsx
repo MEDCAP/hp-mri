@@ -59,6 +59,16 @@ interface ButtonProps {
     imageSlice: number;
     contrast: number;
     setContrast: (value: number) => void;
+    gifStart: number;
+    setGifStart: (value: number) => void;
+    gifEnd: number;
+    setGifEnd: (value: number) => void;
+    gifFps: number;
+    setGifFps: (value: number) => void;
+    gifFilename: string;
+    setGifFilename: (value: string) => void;
+    setImageSlice: (value: number) => void;
+    onExportGif: () => void;
 }
 
 const ButtonPanel: React.FC<ButtonProps> = ({
@@ -67,15 +77,8 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     onFileUpload,
     onThresholdChange,
     onAlphaChange,
-    onMetaboliteChange,
-    onToggleSelecting,
-    onSelecting,
-    onSetSelectedGroup,
-    selectedGroup,
-    onResetVoxels,
     threshold,
     alpha,
-    metabolite,
     onMagnetTypeChange,
     mode,
     colorScale,
@@ -89,14 +92,19 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     imageSlice,
     contrast,
     setContrast,
+    gifStart,
+    setGifStart,
+    gifEnd,
+    setGifEnd,
+    gifFps,
+    setGifFps,
+    gifFilename,
+    setGifFilename,
+    onExportGif,
 }) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [screenshotTab, setScreenshotTab] = useState(0);
     const [filename, setFilename] = useState("screenshot.png");
-    const [gifStart, setGifStart] = useState(1);
-    const [gifEnd, setGifEnd] = useState(10);
-    const [gifFps, setGifFps] = useState(2);
-    const [gifFilename, setGifFilename] = useState("export.gif");
 
     const handleSaveScreenshot = () => {
         html2canvas(document.body).then(canvas => {
@@ -388,8 +396,8 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                 />
                                 <Button
                                     fullWidth
-                                    variant="outlined"
-                                    disabled
+                                    variant="contained"
+                                    onClick={onExportGif}
                                     sx={{
                                         mt: 2,
                                         backgroundColor: '#000c3f',
@@ -402,7 +410,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                         },
                                     }}
                                 >
-                                    Export GIF (coming soon)
+                                    Export GIF
                                 </Button>
                             </>
                         )}

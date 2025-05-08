@@ -6,7 +6,7 @@
  * @date 2025-03-02
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import Plot from "react-plotly.js";
 import { Box } from "@mui/material";
 
@@ -26,6 +26,7 @@ interface PlotProps {
     magnetType: string;
     offsetX: number; // New prop
     offsetY: number; // New prop
+    onRendered?: () => void;
 }
 
 const PlotComponent: React.FC<PlotProps> = ({
@@ -41,9 +42,9 @@ const PlotComponent: React.FC<PlotProps> = ({
     plotShift,
     windowSize,
     showHpMriData,
-    magnetType,
     offsetX,
     offsetY,
+    onRendered,
 }) => {
     const domain = calculateDomain(
         longitudinalScale,
@@ -62,6 +63,13 @@ const PlotComponent: React.FC<PlotProps> = ({
     const plotData = showHpMriData ? [...gridData, createLineData(xValues, processedData)] : gridData;
 
     const layout = configureLayout(domain, columns, spectralData, rows, windowSize, gridData);
+
+    useEffect(() => {
+        if (onRendered) {
+            const timer = setTimeout(() => onRendered(), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [xValues, data, columns, rows]);
 
     return (
         <Box
