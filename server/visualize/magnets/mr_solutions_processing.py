@@ -31,18 +31,33 @@ import cv2
 import pydicom
 import io
 from pathlib import Path
+import boto3
 
-# Constants
-DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/proton/1/"
-DATASET_FOLDER = Path(
-    "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/epsi/"
-)
-DATASET = [
-    folder
-    for folder in os.listdir(DATASET_FOLDER)
-    if os.path.isdir(DATASET_FOLDER / folder)
-]
+local = False   # set to true to test files stored locally
+if local:
+    # Constants
+    DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/proton/1/"
+    DATASET_FOLDER = Path(
+        "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/epsi/"
+    )
+    DATASET = [
+        folder
+        for folder in os.listdir(DATASET_FOLDER)
+        if os.path.isdir(DATASET_FOLDER / folder)
+    ]
+else:
+    s3 = boto3.client('s3')
+    BUCKET_NAME = "medcap-data"
+    DICOM_FOLDER = "MRS/proton/"
+    DATASET_FOLDER = "MRS/epsi/"
+    # Get the list of dataset folders in the bucket/MRS/epsi/
+    response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DATASET_FOLDER, Delimiter='/')
+    DATASET = [obj['Prefix'] for obj in response.get('CommonPrefixes', [])]
 
+# read s3 file decode as binary
+def read_binary_from_s3(bucket, filepath):
+    response = s3.get_object(Bucket=bucket, Key=filepath)
+    return response['Body'].read()
 
 class MRSSolutionsDataProcessor:
     """
@@ -76,67 +91,75 @@ class MRSSolutionsDataProcessor:
             epsi_index (int): Index of the dataset folder from which to read the MRD file.
 
         """
-        folder_path = DATASET_FOLDER / DATASET[epsi_index]
-        files = [f for f in os.listdir(folder_path) if f.endswith(".MRD")]
-        if not files:
-            raise FileNotFoundError(f"No MRD file found in directory: {folder_path}")
+        if local:   # test data files stored locally
+            folder_path = DATASET_FOLDER / DATASET[epsi_index]
+            files = [f for f in os.listdir(folder_path) if f.endswith(".MRD")]
+            if not files:
+                raise FileNotFoundError(f"No MRD file found in directory: {folder_path}")
+            with open(folder_path / files[0], "rb") as fd:
+                fdbytes = fd.read()    
+        else:   # retrieve data files from s3 bucket
+            # Index subfolder path of s3 bucket under MRS/epsi/
+            folder_path = DATASET[epsi_index]
+            # look for file with .MRD extension
+            response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
+            filename = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.MRD')]
+            fdbytes = read_binary_from_s3(BUCKET_NAME, filename[0])
 
-        with open(folder_path / files[0], "rb") as fd:
-            fdbytes = fd.read()
-            self.samples = np.frombuffer(fdbytes[0:4], dtype="int32")[0]
-            self.views = np.frombuffer(fdbytes[4:8], dtype="int32")[0]
-            self.slice_views = np.frombuffer(fdbytes[8:12], dtype="int32")[0]
-            self.slices = np.frombuffer(fdbytes[12:16], dtype="int32")[0]
-            self.type = np.frombuffer(fdbytes[18:20], dtype="int16")[0]
-            self.echoes = np.frombuffer(fdbytes[152:156], dtype="int32")[0]
-            self.nex = np.frombuffer(fdbytes[156:160], dtype="int32")[0]
+        self.samples = np.frombuffer(fdbytes[0:4], dtype="int32")[0]
+        self.views = np.frombuffer(fdbytes[4:8], dtype="int32")[0]
+        self.slice_views = np.frombuffer(fdbytes[8:12], dtype="int32")[0]
+        self.slices = np.frombuffer(fdbytes[12:16], dtype="int32")[0]
+        self.type = np.frombuffer(fdbytes[18:20], dtype="int16")[0]
+        self.echoes = np.frombuffer(fdbytes[152:156], dtype="int32")[0]
+        self.nex = np.frombuffer(fdbytes[156:160], dtype="int32")[0]
 
-            total_points = (
-                self.samples
-                * self.views
-                * self.slice_views
-                * self.slices
-                * self.echoes
-                * self.nex
-            )
-            data_start = 512
-            data_type_map = {
-                3: ("int16", 2),
-                16: ("uint8", 2),
-                17: ("int8", 2),
-                18: ("int16", 4),
-                19: ("int16", 4),
-                20: ("int32", 8),
-                21: ("float32", 8),
-                22: ("float64", 16),
-            }
+        total_points = (
+            self.samples
+            * self.views
+            * self.slice_views
+            * self.slices
+            * self.echoes
+            * self.nex
+        )
+        data_start = 512
+        data_type_map = {
+            3: ("int16", 2),
+            16: ("uint8", 2),
+            17: ("int8", 2),
+            18: ("int16", 4),
+            19: ("int16", 4),
+            20: ("int32", 8),
+            21: ("float32", 8),
+            22: ("float64", 16),
+        }
 
-            dtype, multiplier = data_type_map.get(self.type, (None, None))
-            if not dtype:
-                print("Unknown data format")
-                return
+        dtype, multiplier = data_type_map.get(self.type, (None, None))
+        if not dtype:
+            print("Unknown data format")
+            return
 
-            data_end = data_start + total_points * multiplier
-            data = np.frombuffer(fdbytes[data_start:data_end], dtype=dtype)
+        data_end = data_start + total_points * multiplier
+        data = np.frombuffer(fdbytes[data_start:data_end], dtype=dtype)
 
-            if self.type in (16, 17, 18, 19, 20, 21, 22):
-                data = data[::2] + 1j * data[1::2]  # Combining real and imaginary parts
+        if self.type in (16, 17, 18, 19, 20, 21, 22):
+            data = data[::2] + 1j * data[1::2]  # Combining real and imaginary parts
 
-            self.raw_data = np.reshape(
-                data,
-                (
-                    self.samples,
-                    self.views,
-                    self.slice_views,
-                    self.slices,
-                    self.echoes,
-                    self.nex,
-                ),
-                order="F",
-            )
-            self.parameters = fdbytes[
-                data_end:
-            ]  # Parameters are appended at the end of the file as a text description
+        self.raw_data = np.reshape(
+            data,
+            (
+                self.samples,
+                self.views,
+                self.slice_views,
+                self.slices,
+                self.echoes,
+                self.nex,
+            ),
+            order="F",
+        )
+        self.parameters = fdbytes[
+            data_end:
+        ]  # Parameters are appended at the end of the file as a text description
 
 
 def get_num_slider_values():
@@ -146,7 +169,12 @@ def get_num_slider_values():
     Returns:
         int: Total number of slider values available.
     """
-    dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
+    if local:
+        dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
+    else:
+        # List all DICOM files in the S3 bucket under the specified DICOM folder
+        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DICOM_FOLDER)
+        dicom_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.dcm')]
     return len(dicom_files)
 
 
@@ -157,12 +185,13 @@ def count_datasets():
     Returns:
         int: Number of dataset folders found.
     """
-    dataset_count = 0
+    # dataset_count = 0
 
-    for entry in os.listdir(DATASET_FOLDER):
-        dataset_count += 1
+    # for entry in os.listdir(DATASET_FOLDER):
+    #     dataset_count += 1
 
-    return dataset_count
+    # return dataset_count
+    return len(DATASET)
 
 
 def process_proton_picture(slider_value, data):
@@ -179,10 +208,14 @@ def process_proton_picture(slider_value, data):
     try:
         filename = f"5091_{slider_value:05d}.dcm"
         dicom_path = os.path.join(DICOM_FOLDER, filename)
-        if not os.path.exists(dicom_path):
-            return jsonify({"error": "DICOM file not found"}), 404
-        # Image processing logic
-        dcm = pydicom.dcmread(dicom_path)
+        if local:
+            if not os.path.exists(dicom_path):
+                return jsonify({"error": "DICOM file not found"}), 404
+            dcm = pydicom.dcmread(dicom_path)
+        else:
+            s3.download_file(BUCKET_NAME, dicom_path, filename)
+            dcm = pydicom.dcmread(filename)        # Image processing logic
+            os.remove(filename)
         slice_image = dcm.pixel_array
         slice_image[slice_image < 5] = 0
 

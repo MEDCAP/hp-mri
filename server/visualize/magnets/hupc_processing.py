@@ -8,12 +8,22 @@ import cv2
 import pydicom
 from scipy.fft import fftn
 import io
+import boto3
 
-# Constants
-DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03.dmc/"
-EPSI_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/epsi_16x12_13c_"
-DATASET_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/"
-FID_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03"
+local = False  # set to true to test files stored locally
+if local:
+    # Constants
+    DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03.dmc/"
+    EPSI_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/epsi_16x12_13c_"
+    DATASET_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/"
+    FID_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03"
+else:
+    s3 = boto3.client("s3")
+    BUCKET_NAME = "medcap-data"
+    DICOM_FOLDER = "MRS/s_2023041103/fsems_rat_liver_05.dmc/"
+    EPSI_FOLDER = "MRS/s_2023041103/epsi_16x12_13c_"
+    DATASET_FOLDER = "MRS/s_2023041103/"
+    FID_FOLDER = "MRS/s_2023041103/fsems_rat_liver_05"
 EPSI_INFO = {"pictures_to_read_write": 1, "proton": 60, "centric": 1}
 PATH_EPSI = ""
 SCALE = True
@@ -29,7 +39,11 @@ def get_num_slider_values():
     Returns:
         int: The total number of slider values (datasets or images).
     """
-    dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
+    if local:
+        dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
+    else:
+        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DICOM_FOLDER)
+        dicom_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.dcm')]
     num_slider_values = len(dicom_files)
     return num_slider_values
 
@@ -42,21 +56,24 @@ def count_datasets():
     Returns:
     int: Number of dataset folders.
     """
-    # Initialize the count of datasets
-    dataset_count = 0
-
-    # List all entries in the directory given by 'epsi_folder'
-    for entry in os.listdir(DATASET_FOLDER):
-        # Check if the entry is a directory and matches the expected pattern
-        if (
-            os.path.isdir(os.path.join(DATASET_FOLDER, entry))
-            and entry.startswith("epsi_16x12_13c_")
-            and entry.endswith(".fid")
-        ):
-            dataset_count += 1
-
+    if local:
+        # Initialize the count of datasets
+        dataset_count = 0
+        # List all entries in the directory given by 'epsi_folder'
+        for entry in os.listdir(DATASET_FOLDER):
+            # Check if the entry is a directory and matches the expected pattern
+            if (
+                os.path.isdir(os.path.join(DATASET_FOLDER, entry))
+                and entry.startswith("epsi_16x12_13c_")
+                and entry.endswith(".fid")
+            ):
+                dataset_count += 1
+    else:
+        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DATASET_FOLDER, Delimiter="/") 
+        epsi_folders = [obj['Prefix'] for obj in response.get('CommonPrefixes', [])]
+        dataset_count = len([fid for fid in epsi_folders 
+                             if fid.startswith("epsi_16x12_13c_") and fid.endswith(".fid/")])
     return dataset_count
-
 
 def process_proton_picture(slider_value: int, data):
     """
@@ -72,11 +89,14 @@ def process_proton_picture(slider_value: int, data):
     try:
         filename = f"slice{slider_value:03d}image001echo001.dcm"
         dicom_path = os.path.join(DICOM_FOLDER, filename)
-
-        if not os.path.exists(dicom_path):
-            return jsonify({"error": "DICOM file not found"}), 404
-
-        dcm = pydicom.dcmread(dicom_path)
+        if local:
+            if not os.path.exists(dicom_path):
+                return jsonify({"error": "DICOM file not found"}), 404
+            dcm = pydicom.dcmread(dicom_path)
+        else:
+            s3.download_file(BUCKET_NAME, dicom_path, filename)
+            dcm = pydicom.dcmread(filename)
+            os.remove(filename)
         slice_image = dcm.pixel_array
         slice_image[slice_image < 5] = 0
 
@@ -291,14 +311,21 @@ def read_write_procpar(read_line, file_path):
     Version: 1.0.0
     """
     global lro_fid, lpe_fid, lro_epsi, lpe_epsi, x_epsi, epsi, spectral_data
-    file_path = file_path + ".fid"
-    file_path = os.path.join(file_path, "procpar")
-    with open(file_path) as g:
-        read_lines = g.readlines()
-        for i, line in enumerate(read_lines):
-            if line.strip().startswith(read_line):
-                line_read = read_lines[i + 1].strip()
-                return [float(val) for val in line_read.split()[1:]]
+    file_path += ".fid"
+    file_path += "/procpar"
+    if local:
+        with open(file_path) as g:
+            read_lines = g.readlines()
+    else:
+        # procpar file is read as txt file
+        print("procpar reader", file_path)
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=file_path)
+        read_lines = response["Body"].readlines()
+        read_lines = [line.decode("utf-8") for line in read_lines]  # decode bytes to str
+    for i, line in enumerate(read_lines):
+        if line.strip().startswith(read_line):
+            line_read = read_lines[i + 1].strip()
+            return [float(val) for val in line_read.split()[1:]]
 
 
 # Method to read data from a 'fid' file
@@ -316,91 +343,96 @@ def read_write_fid(file_path):
     """
     global lro_fid, lpe_fid, lro_epsi, lpe_epsi, x_epsi, epsi, spectral_data
     path = f"{file_path}.fid/fid"
-    with open(path, "rb") as fid:
-        blocks = struct.unpack(">i", fid.read(4))[0]
-        traces = struct.unpack(">i", fid.read(4))[0]
-        points = struct.unpack(">i", fid.read(4))[0]
-        eb = struct.unpack(">i", fid.read(4))[0]
-        tb = struct.unpack(">i", fid.read(4))[0]
-        bb = struct.unpack(">i", fid.read(4))[0]
-        vi = struct.unpack(">h", fid.read(2))[0]
-        s = struct.unpack(">h", fid.read(2))[0]
-        number_of_headers = struct.unpack(">i", fid.read(4))[0]
-        s32 = int(bool(s & 4))
-        sf = int(bool(s & 8))
-        real_information = []
-        imaginary_information = []
-        b = list(range(1, blocks + 1))
-        ob = len(b)
-        t = list(range(1, traces + 1))
-        ot = len(t)
-        i = 1
-        j = 1
-        for k in range(1, blocks + 1):
-            # Read a block header
-            scale = struct.unpack(">h", fid.read(2))[0]
-            bs = struct.unpack(">h", fid.read(2))[0]
-            index = struct.unpack(">h", fid.read(2))[0]
-            m = struct.unpack(">h", fid.read(2))[0]
-            cc = struct.unpack(">i", fid.read(4))[0]
-            lv = struct.unpack(">f", fid.read(4))[0]
-            rv = struct.unpack(">f", fid.read(4))[0]
-            lvl = struct.unpack(">f", fid.read(4))[0]
-            tl = struct.unpack(">f", fid.read(4))[0]
-            a = 1
-            kk = 0
-            for c in range(1, traces + 1):
-                # Read data for each trace
-                if sf == 1:
-                    d = struct.unpack(f">{points}f", fid.read(points * 4))
-                elif s32 == 1:
-                    d = struct.unpack(f">{points}i", fid.read(points * 4))
-                else:
-                    d = struct.unpack(f">{points}h", fid.read(points * 2))
+    if local:
+        with open(path, "rb") as f:
+            fid = f
+    else:
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=path)
+        fid = response['Body']
+    blocks = struct.unpack(">i", fid.read(4))[0]
+    traces = struct.unpack(">i", fid.read(4))[0]
+    points = struct.unpack(">i", fid.read(4))[0]
+    eb = struct.unpack(">i", fid.read(4))[0]
+    tb = struct.unpack(">i", fid.read(4))[0]
+    bb = struct.unpack(">i", fid.read(4))[0]
+    vi = struct.unpack(">h", fid.read(2))[0]
+    s = struct.unpack(">h", fid.read(2))[0]
+    number_of_headers = struct.unpack(">i", fid.read(4))[0]
+    s32 = int(bool(s & 4))
+    sf = int(bool(s & 8))
+    real_information = []
+    imaginary_information = []
+    b = list(range(1, blocks + 1))
+    ob = len(b)
+    t = list(range(1, traces + 1))
+    ot = len(t)
+    i = 1
+    j = 1
+    for k in range(1, blocks + 1):
+        # Read a block header
+        scale = struct.unpack(">h", fid.read(2))[0]
+        bs = struct.unpack(">h", fid.read(2))[0]
+        index = struct.unpack(">h", fid.read(2))[0]
+        m = struct.unpack(">h", fid.read(2))[0]
+        cc = struct.unpack(">i", fid.read(4))[0]
+        lv = struct.unpack(">f", fid.read(4))[0]
+        rv = struct.unpack(">f", fid.read(4))[0]
+        lvl = struct.unpack(">f", fid.read(4))[0]
+        tl = struct.unpack(">f", fid.read(4))[0]
+        a = 1
+        kk = 0
+        for c in range(1, traces + 1):
+            # Read data for each trace
+            if sf == 1:
+                d = struct.unpack(f">{points}f", fid.read(points * 4))
+            elif s32 == 1:
+                d = struct.unpack(f">{points}i", fid.read(points * 4))
+            else:
+                d = struct.unpack(f">{points}h", fid.read(points * 2))
 
-                # Keep the data if it matches the desired blocks and traces
-                if b[j - 1] == k:
-                    if a <= ot:
-                        if t[a - 1] == c:
-                            real_information.append(list(d[::2]))
-                            imaginary_information.append(list(d[1::2]))
-                            i += 1
-                            a += 1
-                            kk = 1
-            if kk:
-                j += 1
-            if j > ob:
-                break
-        real_information = np.array(real_information).T
-        imaginary_information = np.array(imaginary_information).T
-        number_of_points = points // 2
-        number_of_blocks = blocks
-        number_of_traces = traces
-        header_information = [
-            blocks,
-            traces,
-            points,
-            eb,
-            tb,
-            bb,
-            vi,
-            s,
-            number_of_headers,
-            scale,
-            bs,
-            index,
-            m,
-            cc,
-            lv,
-            rv,
-            lvl,
-            tl,
-        ]
-        return (
-            real_information,
-            imaginary_information,
-            number_of_points,
-            number_of_blocks,
-            number_of_traces,
-            header_information,
-        )
+            # Keep the data if it matches the desired blocks and traces
+            if b[j - 1] == k:
+                if a <= ot:
+                    if t[a - 1] == c:
+                        real_information.append(list(d[::2]))
+                        imaginary_information.append(list(d[1::2]))
+                        i += 1
+                        a += 1
+                        kk = 1
+        if kk:
+            j += 1
+        if j > ob:
+            break
+    real_information = np.array(real_information).T
+    imaginary_information = np.array(imaginary_information).T
+    number_of_points = points // 2
+    number_of_blocks = blocks
+    number_of_traces = traces
+    header_information = [
+        blocks,
+        traces,
+        points,
+        eb,
+        tb,
+        bb,
+        vi,
+        s,
+        number_of_headers,
+        scale,
+        bs,
+        index,
+        m,
+        cc,
+        lv,
+        rv,
+        lvl,
+        tl,
+    ]
+    return (
+        real_information,
+        imaginary_information,
+        number_of_points,
+        number_of_blocks,
+        number_of_traces,
+        header_information,
+    )
