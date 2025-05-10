@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import {
@@ -14,7 +14,7 @@ import { Refresh, PlayArrow } from '@mui/icons-material';
 const NewSimulatorPage: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    const navigate = useNavigate();
+    // const navigate = useNavigate();
 
     const fetchNewSimulator = () => {
         // TODO

@@ -41,7 +41,7 @@ const PlotComponent: React.FC<PlotProps> = ({
     plotShift,
     windowSize,
     showHpMriData,
-    magnetType,
+    // magnetType,
     offsetX,
     offsetY,
 }) => {

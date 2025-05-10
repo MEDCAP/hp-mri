@@ -17,12 +17,12 @@ import { Link } from 'react-router-dom';
 import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponent';
 import PlotShiftPanel from '../../components/visualize/PlotShiftPanel';
 
-interface Voxel {
-  x: number;
-  y: number;
-  column: number;
-  row: number;
-}
+// interface Voxel {
+//   x: number;
+//   y: number;
+//   column: number;
+//   row: number;
+// }
 
 const VisualizationPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
@@ -40,22 +40,20 @@ const VisualizationPage: React.FC = () => {
   const [datasetIndex, setDatasetIndex] = useState(1);
   const [selecting, setSelecting] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState('A');
-  // const [groupA, setGroupA] = useState([]);
-  // const [groupB, setGroupB] = useState([]);
   // const plotContainerRef = useRef(null);
-  const [groupA, setGroupA] = useState<Voxel[]>([]);
-  const [groupB, setGroupB] = useState<Voxel[]>([]);
+  // const [groupA, setGroupA] = useState<Voxel[]>([]);
+  // const [groupB, setGroupB] = useState<Voxel[]>([]);
   const plotContainerRef = useRef<HTMLDivElement | null>(null);
-  const [offsetSelectX, setOffsetSelectX] = useState(-263); // X offset for voxel selection
-  const [offsetSelectY, setOffsetSelectY] = useState(-98); // Y offset for voxel selection
-  const [scaleOffsetX, setScaleOffsetX] = useState(1.335); // Scale factor for columns during selection
-  const [scaleOffsetY, setScaleOffsetY] = useState(1.875); // Scale factor for rows during selection
+  // const [offsetSelectX, setOffsetSelectX] = useState(-263); // X offset for voxel selection
+  // const [offsetSelectY, setOffsetSelectY] = useState(-98); // Y offset for voxel selection
+  // const [scaleOffsetX, setScaleOffsetX] = useState(1.335); // Scale factor for columns during selection
+  // const [scaleOffsetY, setScaleOffsetY] = useState(1.875); // Scale factor for rows during selection
   const [threshold, setThreshold] = useState(0.2); // Initial threshold value for HP MRI data filtering
   const [mode, setMode] = useState<"spectral" | "imaging" | null>(null);
   const [imagingData, setImagingData] = useState<number[][][][] | null>(null); // 4D: [rows][cols][metabolites][images]
   const [selectedMetabolite, setSelectedMetabolite] = useState(0);
   const [alpha, setAlpha] = useState(0.6);
-  const [numMetabolites, setNumMetabolites] = useState(0);
+  // const [numMetabolites, setNumMetabolites] = useState(0);
   const [colorScale, setColorScale] = useState<'Hot' | 'Jet' | 'B&W'>('Hot');
   const [scaleByIntensity, setScaleByIntensity] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -111,23 +109,23 @@ const VisualizationPage: React.FC = () => {
       .catch((error) => console.error("Error uploading files:", error));
   };
 
-  const handleVoxelSelect = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!selecting || !plotContainerRef.current) return;
+  // const handleVoxelSelect = (event: React.MouseEvent<HTMLDivElement>) => {
+  //   if (!selecting || !plotContainerRef.current) return;
 
-    const plotRect = plotContainerRef.current.getBoundingClientRect();
-    const xInsidePlot = event.clientX - plotRect.left;
-    const yInsidePlot = event.clientY - plotRect.top;
+  //   const plotRect = plotContainerRef.current.getBoundingClientRect();
+  //   const xInsidePlot = event.clientX - plotRect.left;
+  //   const yInsidePlot = event.clientY - plotRect.top;
 
-    if (xInsidePlot >= 0 && yInsidePlot >= 0) {
-      const scaleX = hpMriData.columns / plotRect.width;
-      const scaleY = hpMriData.rows / plotRect.height;
-      const column = Math.floor(xInsidePlot * scaleX);
-      const row = Math.floor(yInsidePlot * scaleY);
+  //   if (xInsidePlot >= 0 && yInsidePlot >= 0) {
+  //     const scaleX = hpMriData.columns / plotRect.width;
+  //     const scaleY = hpMriData.rows / plotRect.height;
+  //     const column = Math.floor(xInsidePlot * scaleX);
+  //     const row = Math.floor(yInsidePlot * scaleY);
 
-      const voxel: Voxel = { x: xInsidePlot, y: yInsidePlot, column, row };
-      selectedGroup === "A" ? setGroupA([...groupA, voxel]) : setGroupB([...groupB, voxel]);
-    }
-  };
+  //     const voxel: Voxel = { x: xInsidePlot, y: yInsidePlot, column, row };
+  //     selectedGroup === "A" ? setGroupA([...groupA, voxel]) : setGroupB([...groupB, voxel]);
+  //   }
+  // };
 
   // Handler for changing the threshold
   const handleThresholdChange = (event: { target: { value: React.SetStateAction<number>; }; }) => setThreshold(event.target.value);
@@ -140,13 +138,13 @@ const VisualizationPage: React.FC = () => {
 
   const toggleSelecting = () => setSelecting(!selecting);
 
-  const displayVoxels = (group: any[]) => group.map((voxel, index) => (
-    <div key={index}>{`(X: ${voxel.x.toFixed(2)}, Y: ${voxel.y.toFixed(2)}) (Column: ${voxel.column}, Row: ${voxel.row})`}</div>
-  ));
+  // const displayVoxels = (group: any[]) => group.map((voxel, index) => (
+  //   <div key={index}>{`(X: ${voxel.x.toFixed(2)}, Y: ${voxel.y.toFixed(2)}) (Column: ${voxel.column}, Row: ${voxel.row})`}</div>
+  // ));
 
   const resetVoxels = () => {
-    setGroupA([]);
-    setGroupB([]);
+    // setGroupA([]);
+    // setGroupB([]);
   };
 
   // Function to change the magnet type
@@ -196,7 +194,7 @@ const VisualizationPage: React.FC = () => {
       .then(res => res.json())
       .then(data => {
         setNumDatasets(data.numImages - 1);         // updates datasetIndex slider
-        setNumMetabolites(data.numMetabolites); // enables metabolite selection
+        // setNumMetabolites(data.numMetabolites); // enables metabolite selection
       });
   };
   const fetchImagingData = () => {

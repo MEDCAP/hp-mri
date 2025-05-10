@@ -20,7 +20,7 @@ const ImagesDetails: React.FC = () => {
     const navigate = useNavigate();
     const [imageDetails, setImageDetails] = useState<any>(null);
     const [fileDetails, setFileDetails] = useState<any>(null);
-    const [image, setImage] = useState<string | null>(null);
+    // const [image, setImage] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
 

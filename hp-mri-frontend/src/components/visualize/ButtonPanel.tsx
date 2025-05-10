@@ -25,7 +25,7 @@ import {
     Tabs,
     Tab
 } from '@mui/material';
-import { CloudUpload, Save, Tune, GridOn, AspectRatio, RestartAlt } from '@mui/icons-material';
+import { CloudUpload, Save, Tune, AspectRatio } from '@mui/icons-material';
 
 interface ButtonProps {
     className?: string;
@@ -64,22 +64,22 @@ interface ButtonProps {
 const ButtonPanel: React.FC<ButtonProps> = ({
     className,
     toggleHpMriData,
-    onMoveUp,
-    onMoveLeft,
-    onMoveDown,
-    onMoveRight,
+    // onMoveUp,
+    // onMoveLeft,
+    // onMoveDown,
+    // onMoveRight,
     onFileUpload,
     onThresholdChange,
     onAlphaChange,
-    onMetaboliteChange,
-    onToggleSelecting,
-    onSelecting,
-    onSetSelectedGroup,
-    selectedGroup,
-    onResetVoxels,
+    // onMetaboliteChange,
+    // onToggleSelecting,
+    // onSelecting,
+    // onSetSelectedGroup,
+    // selectedGroup,
+    // onResetVoxels,
     threshold,
     alpha,
-    metabolite,
+    // metabolite,
     onMagnetTypeChange,
     mode,
     colorScale,

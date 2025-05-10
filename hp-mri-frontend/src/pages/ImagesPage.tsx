@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import HeaderAccount from '../components/HeaderAccount';
 import {
@@ -19,7 +19,7 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { ArrowUpward, ArrowDownward, CloudDownload, Delete, UploadFile, Refresh } from '@mui/icons-material';
+import { ArrowUpward, ArrowDownward, CloudDownload, Delete, Refresh } from '@mui/icons-material';
 import axios from 'axios';
 
 interface Image {

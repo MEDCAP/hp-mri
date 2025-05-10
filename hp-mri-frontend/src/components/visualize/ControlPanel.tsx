@@ -7,9 +7,9 @@
  */
 
 import React from 'react';
-import { Box, Typography, MenuItem, Select } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { Slider } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material';
+// import { SelectChangeEvent } from '@mui/material';
 
 interface ControlProps {
     mode: 'spectral' | 'imaging';
@@ -26,7 +26,7 @@ interface ControlProps {
 }
 
 const ControlPanel: React.FC<ControlProps> = ({
-    mode,
+    // mode,
     onSliderChange,
     onDatasetChange,
     datasetIndex,
@@ -35,7 +35,7 @@ const ControlPanel: React.FC<ControlProps> = ({
     imageSlice,
     contrast,
     setImageSlice,
-    setContrast,
+    // setContrast,
     openDrawer,
 }) => {
 
@@ -45,10 +45,10 @@ const ControlPanel: React.FC<ControlProps> = ({
         onSliderChange(value, contrast);
     };
 
-    const handleDatasetChange = (event: SelectChangeEvent<number>) => {
-        const value = Number(event.target.value);
-        onDatasetChange(value);
-    };
+    // const handleDatasetChange = (event: SelectChangeEvent<number>) => {
+    //     const value = Number(event.target.value);
+    //     onDatasetChange(value);
+    // };
 
     return (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

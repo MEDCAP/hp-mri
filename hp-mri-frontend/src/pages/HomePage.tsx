@@ -16,7 +16,7 @@ import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
 import AnalyzeV from './../images/analyze_image.png';
-import MedcapTop from './../images/medcap_top_image.png';
+// import MedcapTop from './../images/medcap_top_image.png';
 
 const HomePage: React.FC = () => {
   useEffect(() => {

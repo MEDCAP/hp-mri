@@ -1,6 +1,5 @@
 // src/components/FooterHomepage.tsx
 import React from 'react';
-import { Link } from 'react-router-dom';
 import './../styles/footerHomepage.css';
 import Medcap from './../images/medcap.png'
 
