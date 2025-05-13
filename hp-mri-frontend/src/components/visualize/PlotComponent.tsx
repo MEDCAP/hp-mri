@@ -23,7 +23,6 @@ interface PlotProps {
     plotShift: number[];
     windowSize: { width: number; height: number };
     showHpMriData: boolean;
-    magnetType: string;
     offsetX: number; // New prop
     offsetY: number; // New prop
 }
@@ -41,7 +40,6 @@ const PlotComponent: React.FC<PlotProps> = ({
     plotShift,
     windowSize,
     showHpMriData,
-    magnetType,
     offsetX,
     offsetY,
 }) => {
