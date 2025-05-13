@@ -178,9 +178,29 @@ const MRCalculatorPage: React.FC = () => {
                 )}
             </Paper>
 
+            <Box mt={4} display="flex" justifyContent="center" gap={4} flexWrap="wrap">
+                <Button
+                    variant="outlined"
+                    color="primary"
+                    href="/coil-inductor-molds.txt"
+                    download
+                >
+                    Download 3D Printing Coil Molds
+                </Button>
+                <Button
+                    variant="outlined"
+                    color="secondary"
+                    href="/pcb-gerber-files.txt"
+                    download
+                >
+                    Download PCB Gerber Files
+                </Button>
+            </Box>
+
             <Box mt={4} width="100%">
                 <CalculatorInfo />
             </Box>
+
         </Container>
     );
 };
