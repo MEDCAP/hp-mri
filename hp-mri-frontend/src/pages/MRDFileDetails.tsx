@@ -45,7 +45,9 @@ const MRDFileDetails: React.FC = () => {
         }
 
         axios
-            .get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
+            // localhost API call
+            // .get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
+            .get('/api/mrd-files/${fileId}')
             .then((response) => {
                 setFileDetails(response.data);
                 setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
@@ -56,7 +58,8 @@ const MRDFileDetails: React.FC = () => {
 
     const fetchImages = () => {
         axios
-            .get(`http://127.0.0.1:5000/api/images/${fileId}`)
+            // .get(`http://127.0.0.1:5000/api/images/${fileId}`)
+            .get(`/api/images/${fileId}`) 
             .then((response) => setImages(response.data))
             .catch((error) => console.error('Error fetching images:', error));
     };

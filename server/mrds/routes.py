@@ -4,7 +4,6 @@ from scipy.io import loadmat
 import os
 import io
 import matplotlib
-from flask_cors import CORS
 import boto3
 
 # Set the non-GUI backend before importing pyplot
@@ -16,14 +15,11 @@ matplotlib.use("Agg")
 from data import db_mrd
 from data import db_image
 from data import db_simulator
+from mrds import bp  # Import the Blueprint instance from __init__.py
 
-bp = Blueprint("mrds", __name__)
-# Apply CORS to the blueprint
-CORS(bp, resources={r"/*": {"origins": "http://localhost:5173"}})
 # setup aws s3 client
 s3 = boto3.client("s3")
 BUCKET = "mrissim-app-user-content"
-
 
 # Root route just to test the server is running
 @bp.route("/")

@@ -9,20 +9,15 @@ from visualize.magnets import (
     mr_solutions_processing,
 )
 import os
-from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import cv2
 
 bp = Blueprint("visualization", __name__)
 # Apply CORS to the blueprint
 CORS(bp, resources={r"/*": {"origins": "http://localhost:5173"}})
 
-from flask import Flask, request, jsonify
 
 # Constants
 UPLOAD_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data"
-app = Flask(__name__)
-CORS(app)
 
 
 @bp.route("/get_num_slider_values/<magnet_type>", methods=["GET"])

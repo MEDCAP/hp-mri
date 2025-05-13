@@ -25,8 +25,9 @@ import SolutionPage from './pages/SolutionPage';
 import PublicationPage from './pages/PublicationPage';
 import ResearchPage from './pages/ResearchPage';
 import NewSimulatorPage from './pages/NewSimulatorPage';
-import VisualizationPage from './pages/visualization/VisualizationPage'
+import VisualizationPage from './pages/visualization/VisualizationPage';
 import VisualizationAbout from './pages/visualization/VisualizationAbout';
+
 
 const APP_VERSION = 'BY: ' + 'v2.0.1';
 

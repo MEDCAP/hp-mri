@@ -4,7 +4,7 @@ import traceback
 import numpy as np
 from flask import jsonify, send_file
 from PIL import Image
-import cv2
+# import cv2
 import pydicom
 from scipy.fft import fftn
 import io
@@ -105,15 +105,16 @@ def process_proton_picture(slider_value: int, data):
         )
         normalized_image[normalized_image < 0.05] = 0.0
 
-        contrast = data.get("contrast", 1)
-        clahe = cv2.createCLAHE(clipLimit=contrast, tileGridSize=(8, 8))
-        clahe_image = clahe.apply(np.uint8(normalized_image * 255))
-        clahe_image[clahe_image < 5] = 0
-        rescaled_image = clahe_image / 255.0
-        rescaled_image[rescaled_image < 0.05] = 0.0
-
+        # temporary remove cv2 to avoid docker install error
+        # contrast = data.get("contrast", 1)
+        # clahe = cv2.createCLAHE(clipLimit=contrast, tileGridSize=(8, 8))
+        # clahe_image = clahe.apply(np.uint8(normalized_image * 255))
+        # clahe_image[clahe_image < 5] = 0
+        # rescaled_image = clahe_image / 255.0
+        # rescaled_image[rescaled_image < 0.05] = 0.0
+        # pil_image = Image.fromarray((rescaled_image * 255).astype(np.uint8))
+        pil_image = Image.fromarray((normalized_image * 255).astype(np.uint8))
         buffer = io.BytesIO()
-        pil_image = Image.fromarray((rescaled_image * 255).astype(np.uint8))
         pil_image.save(buffer, format="PNG")
         buffer.seek(0)
 
@@ -318,7 +319,6 @@ def read_write_procpar(read_line, file_path):
             read_lines = g.readlines()
     else:
         # procpar file is read as txt file
-        print("procpar reader", file_path)
         response = s3.get_object(Bucket=BUCKET_NAME, Key=file_path)
         read_lines = response["Body"].readlines()
         read_lines = [line.decode("utf-8") for line in read_lines]  # decode bytes to str
