@@ -10,6 +10,9 @@ const SimulatePage: React.FC = () => {
     return (
         <Container maxWidth="md" sx={{ paddingTop: 4 }}>
             <Typography variant="h3" gutterBottom>
+                Coming Soon... Fall 2025
+            </Typography>
+            <Typography variant="h3" gutterBottom>
                 Simulate Data
             </Typography>
             <Typography variant="body1">

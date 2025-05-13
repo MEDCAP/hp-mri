@@ -1,0 +1,109 @@
+.container {
+    max-width: 40rem;
+    margin: 0 auto;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.inputGroup {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+}
+
+.label {
+    font-weight: 500;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 0.375rem;
+    text-align: right;
+    flex-grow: 1;
+}
+
+
+.toggleButton {
+    background-color: #e5e7eb;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.toggleButton:hover {
+    background-color: #d1d5db;
+}
+
+.optionalBox {
+    background-color: #f3f4f6;
+    border: 1px solid #ccc;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.submitButton {
+    background-color: #2563eb;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.submitButton:hover {
+    background-color: #1d4ed8;
+}
+
+.results {
+    margin-top: 1.5rem;
+    text-align: left;
+}
+
+.resultsTitle {
+    font-weight: bold;
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+}
+
+.resultsList {
+    padding-left: 1.25rem;
+    list-style-type: disc;
+}
+
+.note {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+}
+
+.error {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.inlineInput {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.inputGroupVertical {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}

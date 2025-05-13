@@ -25,8 +25,9 @@ import SolutionPage from './pages/SolutionPage';
 import PublicationPage from './pages/PublicationPage';
 import ResearchPage from './pages/ResearchPage';
 import NewSimulatorPage from './pages/NewSimulatorPage';
-import VisualizationPage from './pages/visualization/VisualizationPage'
+import VisualizationPage from './pages/visualization/VisualizationPage';
 import VisualizationAbout from './pages/visualization/VisualizationAbout';
+import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
 const APP_VERSION = 'BY: ' + 'v2.0.1';
 
@@ -34,7 +35,7 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize'];
+  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-calculator'];
 
   // Determine if header should be shown
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
@@ -68,6 +69,7 @@ const AppContent: React.FC = () => {
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/visualize" element={<VisualizationPage />} />
           <Route path="/visualize-about" element={<VisualizationAbout />} />
+          <Route path="/mr-calculator" element={<MRCalculatorPage />} />
         </Routes>
       </div>
 
