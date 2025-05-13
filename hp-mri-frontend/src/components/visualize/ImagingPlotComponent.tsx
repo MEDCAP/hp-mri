@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import * as Plotly from 'plotly.js';
 
@@ -97,6 +97,7 @@ interface Props {
     colorScale: 'Hot' | 'Jet' | 'B&W';
     scaleByIntensity: boolean; // Toggle for intensity-based scaling
     showHpMriData: boolean;
+    onRendered?: () => void;
 }
 
 const ImagingPlotComponent: React.FC<Props> = ({
@@ -107,6 +108,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
     colorScale,
     scaleByIntensity,
     showHpMriData,
+    onRendered,
 }) => {
     if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
         console.error("Invalid data structure provided to ImagingPlotComponent");
@@ -123,6 +125,13 @@ const ImagingPlotComponent: React.FC<Props> = ({
 
     const boxWidth = 55;
     const boxHeight = 45;
+
+    useEffect(() => {
+        if (onRendered) {
+            const timer = setTimeout(() => onRendered(), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [data, imageIndex, metaboliteIndex]);
 
     // Extract z matrix for the selected metabolite and image
     const zMatrix = data.map(row =>
