@@ -29,7 +29,7 @@ import VisualizationPage from './pages/visualization/VisualizationPage';
 import VisualizationAbout from './pages/visualization/VisualizationAbout';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
-const APP_VERSION = 'BY: ' + 'v2.0.1';
+const APP_VERSION = 'BY: ' + 'v2.0.3';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
