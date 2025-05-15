@@ -35,7 +35,7 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-calculator'];
+  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
   // Determine if header should be shown
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
@@ -69,7 +69,7 @@ const AppContent: React.FC = () => {
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/visualize" element={<VisualizationPage />} />
           <Route path="/visualize-about" element={<VisualizationAbout />} />
-          <Route path="/mr-calculator" element={<MRCalculatorPage />} />
+          <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
         </Routes>
       </div>
 

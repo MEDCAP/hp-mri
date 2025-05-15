@@ -52,7 +52,7 @@ const HomePage: React.FC = () => {
       heading: 'MR Coil Component Calculator',
       description: 'A calculator for tuning and matching capacitance values.',
       image: MRCalculatorImage,
-      link: '/mr-calculator',
+      link: '/mr-coil-calculator',
     },
   ];
 
@@ -88,7 +88,7 @@ const HomePage: React.FC = () => {
               About Devs
             </Button>
           </Link>
-          <Link to="/mr-calculator" style={{ textDecoration: 'none' }}>
+          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
             <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
               MR Calculator
             </Button>
