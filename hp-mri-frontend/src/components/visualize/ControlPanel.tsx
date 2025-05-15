@@ -7,12 +7,10 @@
  */
 
 import React from 'react';
-import { Box, Typography, MenuItem, Select } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { Slider } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material';
 
 interface ControlProps {
-    mode: 'spectral' | 'imaging';
     onSliderChange: (value: number, contrast: number) => void;
     onDatasetChange: (value: number) => void;
     datasetIndex: number;
@@ -21,12 +19,10 @@ interface ControlProps {
     imageSlice: number;
     contrast: number;
     setImageSlice: (value: number) => void;
-    setContrast: (value: number) => void;
     openDrawer: boolean;
 }
 
 const ControlPanel: React.FC<ControlProps> = ({
-    mode,
     onSliderChange,
     onDatasetChange,
     datasetIndex,
@@ -35,7 +31,6 @@ const ControlPanel: React.FC<ControlProps> = ({
     imageSlice,
     contrast,
     setImageSlice,
-    setContrast,
     openDrawer,
 }) => {
 
@@ -43,11 +38,6 @@ const ControlPanel: React.FC<ControlProps> = ({
         const value = Array.isArray(newValue) ? newValue[0] : newValue;
         setImageSlice(value);
         onSliderChange(value, contrast);
-    };
-
-    const handleDatasetChange = (event: SelectChangeEvent<number>) => {
-        const value = Number(event.target.value);
-        onDatasetChange(value);
     };
 
     return (
@@ -104,7 +94,6 @@ const ControlPanel: React.FC<ControlProps> = ({
                     );
                 })}
             </Box>
-
 
             <Box className="slice-contrast-container">
                 <Box

@@ -1,6 +1,6 @@
 // src/components/visualize/PlotShiftPanel.tsx
 import React, { useState } from 'react';
-import { Box, IconButton, Tooltip, ToggleButtonGroup, ToggleButton, TextField, Typography } from '@mui/material';
+import { Box, IconButton, Tooltip, TextField, Typography } from '@mui/material';
 import { ArrowUpward, ArrowDownward, ArrowBack, ArrowForward, RestartAlt } from '@mui/icons-material';
 
 interface Props {

@@ -366,7 +366,6 @@ footer a:hover {
 
 .image-slice-slider,
 .vertical-slider {
-  -webkit-appearance: none;
   outline: none;
 }
 

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import React from 'react';
 import { Container, Typography } from '@mui/material';
 
-const SimulatePage: React.FC = () => {
+const ConvertStorePage: React.FC = () => {
     useEffect(() => {
         document.title = "HP-MRI Web App"; // Dynamically updates the tab title
     }, []);
@@ -10,13 +10,16 @@ const SimulatePage: React.FC = () => {
     return (
         <Container maxWidth="md" sx={{ paddingTop: 4 }}>
             <Typography variant="h3" gutterBottom>
-                Simulate Data
+                Coming Soon... Fall 2025
+            </Typography>
+            <Typography variant="h3" gutterBottom>
+                Convert and Store Data
             </Typography>
             <Typography variant="body1">
-                Detailed explanation about simulating data.
+                Detailed explanation about converting and storing data.
             </Typography>
         </Container>
     );
 };
 
-export default SimulatePage;
+export default ConvertStorePage;

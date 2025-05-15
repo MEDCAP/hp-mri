@@ -23,7 +23,6 @@ interface PlotProps {
     plotShift: number[];
     windowSize: { width: number; height: number };
     showHpMriData: boolean;
-    magnetType: string;
     offsetX: number; // New prop
     offsetY: number; // New prop
     onRendered?: () => void;
