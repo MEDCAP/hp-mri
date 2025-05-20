@@ -90,7 +90,7 @@ const HomePage: React.FC = () => {
           </Link>
           <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
             <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
-              MR Calculator
+              MR Coil Calculator
             </Button>
           </Link>
         </Grid>

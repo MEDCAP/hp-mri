@@ -182,15 +182,15 @@ const MRCalculatorPage: React.FC = () => {
                 <Button
                     variant="outlined"
                     color="primary"
-                    href="/coil-inductor-molds.txt"
+                    href="/coil_inductor_3dmodels.zip"
                     download
                 >
-                    Download 3D Printing Coil Molds
+                    Download Coil Inductor 3D models
                 </Button>
                 <Button
                     variant="outlined"
                     color="secondary"
-                    href="/pcb-gerber-files.txt"
+                    href="/PCB_gerber_files.zip"
                     download
                 >
                     Download PCB Gerber Files
