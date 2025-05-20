@@ -3,11 +3,12 @@
  * providing functionalities such as displaying proton images, adjusting HP-MRI plots,
  * and offering navigation to the About page.
  *
- * @version 1.2.2
- * @author Benjamin Yoon
- * @date 2024-04-30
+ * @version 2.0.3
+ * @author Ben Yoon
+ * @date 2025-05-09
  */
 
+import GIF from 'gif.js.optimized';
 import React, { useState, useEffect, useRef } from 'react';
 import './Visualization.css';
 import ControlPanel from '../../components/visualize/ControlPanel';
@@ -16,13 +17,7 @@ import PlotComponent from '../../components/visualize/PlotComponent';
 import { Link } from 'react-router-dom';
 import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponent';
 import PlotShiftPanel from '../../components/visualize/PlotShiftPanel';
-
-// interface Voxel {
-//   x: number;
-//   y: number;
-//   column: number;
-//   row: number;
-// }
+import html2canvas from 'html2canvas';
 
 const VisualizationPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
@@ -38,16 +33,10 @@ const VisualizationPage: React.FC = () => {
   const [showHpMriData, setShowHpMriData] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [datasetIndex, setDatasetIndex] = useState(1);
-  const [selecting, setSelecting] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState('A');
+  // const [groupA, setGroupA] = useState([]);
+  // const [groupB, setGroupB] = useState([]);
   // const plotContainerRef = useRef(null);
-  // const [groupA, setGroupA] = useState<Voxel[]>([]);
-  // const [groupB, setGroupB] = useState<Voxel[]>([]);
   const plotContainerRef = useRef<HTMLDivElement | null>(null);
-  // const [offsetSelectX, setOffsetSelectX] = useState(-263); // X offset for voxel selection
-  // const [offsetSelectY, setOffsetSelectY] = useState(-98); // Y offset for voxel selection
-  // const [scaleOffsetX, setScaleOffsetX] = useState(1.335); // Scale factor for columns during selection
-  // const [scaleOffsetY, setScaleOffsetY] = useState(1.875); // Scale factor for rows during selection
   const [threshold, setThreshold] = useState(0.2); // Initial threshold value for HP MRI data filtering
   const [mode, setMode] = useState<"spectral" | "imaging" | null>(null);
   const [imagingData, setImagingData] = useState<number[][][][] | null>(null); // 4D: [rows][cols][metabolites][images]
@@ -60,6 +49,10 @@ const VisualizationPage: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [imageSlice, setImageSlice] = useState(9);
   const [contrast, setContrast] = useState(1);
+  const [gifStart, setGifStart] = useState(1);
+  const [gifEnd, setGifEnd] = useState(10);
+  const [gifFps, setGifFps] = useState(2);
+  const [gifFilename, setGifFilename] = useState("export.gif");
 
   // Effect hook for initial data fetch and window resize event listener.
   useEffect(() => {
@@ -67,11 +60,23 @@ const VisualizationPage: React.FC = () => {
     fetchNumSliderValues();
     fetchCountDatasets();
     fetchInitialData();
+
     const handleResize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     };
+
+    const handleDatasetChangeEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      handleDatasetChange(customEvent.detail);
+    };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('datasetChange', handleDatasetChangeEvent);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('datasetChange', handleDatasetChangeEvent);
+    };
   }, [magnetType]);
 
   // Movement Functions
@@ -84,6 +89,10 @@ const VisualizationPage: React.FC = () => {
     setOffsetY(0);
   };
 
+  const handleFrameRendered = () => {
+    window.dispatchEvent(new Event('frameRendered'));
+  };
+
   // Event handlers for UI control components.
   const handleSliderChange = (newValue: any, contrastValue: any) => sendSliderValueToBackend(newValue, contrastValue);
   const handleContrastChange = (sliderValue: any, newContrastValue: any) => sendSliderValueToBackend(sliderValue, newContrastValue);
@@ -91,6 +100,70 @@ const VisualizationPage: React.FC = () => {
     setDatasetIndex(newDatasetIndex);
     sendDatasetToBackend(newDatasetIndex);
   };
+
+  const handleExportGif = () => {
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      workerScript: '/gif.worker.js',
+    });
+
+    const frameDelay = 1000 / gifFps;
+
+    const addFrame = (index: number): Promise<void> => {
+      return new Promise((resolve) => {
+        const onRendered = () => {
+          window.removeEventListener('frameRendered', onRendered);
+
+          const el = document.getElementById('visualization-root');
+          if (el) {
+            html2canvas(el).then(canvas => {
+              const { width, height } = canvas;
+              if (width === 0 || height === 0) {
+                console.warn(`Skipped empty frame at index ${index}`);
+                return resolve();
+              }
+
+              gif.addFrame(canvas, { delay: frameDelay });
+              resolve();
+            });
+          }
+        };
+
+        window.addEventListener('frameRendered', onRendered);
+
+        // Trigger dataset change
+        const event = new CustomEvent('datasetChange', { detail: index });
+        window.dispatchEvent(event);
+      });
+    };
+
+    const renderFrames = async () => {
+      for (let i = gifStart; i <= gifEnd; i++) {
+        await addFrame(i);
+      }
+
+      gif.on('finished', (blob: Blob) => {
+        if (blob.size === 0) {
+          console.error("Empty blob. GIF generation failed.");
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = gifFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      gif.render();
+    };
+
+    renderFrames();
+  };
+
   const toggleHpMriData = () => {
     setShowHpMriData(!showHpMriData);
     sendDatasetToBackend(datasetIndex);
@@ -109,24 +182,6 @@ const VisualizationPage: React.FC = () => {
       .catch((error) => console.error("Error uploading files:", error));
   };
 
-  // const handleVoxelSelect = (event: React.MouseEvent<HTMLDivElement>) => {
-  //   if (!selecting || !plotContainerRef.current) return;
-
-  //   const plotRect = plotContainerRef.current.getBoundingClientRect();
-  //   const xInsidePlot = event.clientX - plotRect.left;
-  //   const yInsidePlot = event.clientY - plotRect.top;
-
-  //   if (xInsidePlot >= 0 && yInsidePlot >= 0) {
-  //     const scaleX = hpMriData.columns / plotRect.width;
-  //     const scaleY = hpMriData.rows / plotRect.height;
-  //     const column = Math.floor(xInsidePlot * scaleX);
-  //     const row = Math.floor(yInsidePlot * scaleY);
-
-  //     const voxel: Voxel = { x: xInsidePlot, y: yInsidePlot, column, row };
-  //     selectedGroup === "A" ? setGroupA([...groupA, voxel]) : setGroupB([...groupB, voxel]);
-  //   }
-  // };
-
   // Handler for changing the threshold
   const handleThresholdChange = (event: { target: { value: React.SetStateAction<number>; }; }) => setThreshold(event.target.value);
 
@@ -134,17 +189,6 @@ const VisualizationPage: React.FC = () => {
   const fetchInitialData = () => {
     sendSliderValueToBackend(3, 1);
     sendDatasetToBackend(3);
-  };
-
-  const toggleSelecting = () => setSelecting(!selecting);
-
-  // const displayVoxels = (group: any[]) => group.map((voxel, index) => (
-  //   <div key={index}>{`(X: ${voxel.x.toFixed(2)}, Y: ${voxel.y.toFixed(2)}) (Column: ${voxel.column}, Row: ${voxel.row})`}</div>
-  // ));
-
-  const resetVoxels = () => {
-    // setGroupA([]);
-    // setGroupB([]);
   };
 
   // Function to change the magnet type
@@ -239,24 +283,13 @@ const VisualizationPage: React.FC = () => {
       {mode && (
         <ButtonPanel
           toggleHpMriData={toggleHpMriData}
-          onMoveUp={moveUp}
-          onMoveLeft={moveLeft}
-          onMoveDown={moveDown}
-          onMoveRight={moveRight}
           onFileUpload={handleFileUpload}
           onThresholdChange={handleThresholdChange}
-          onToggleSelecting={toggleSelecting}
-          onSelecting={selecting}
-          onSetSelectedGroup={setSelectedGroup}
-          selectedGroup={selectedGroup}
-          onResetVoxels={resetVoxels}
           threshold={threshold}
           onMagnetTypeChange={handleMagnetTypeChange}
           mode={mode}
           alpha={alpha}
           onAlphaChange={setAlpha}
-          metabolite={selectedMetabolite}
-          onMetaboliteChange={setSelectedMetabolite}
           colorScale={colorScale}
           onColorScaleChange={setColorScale}
           scaleByIntensity={scaleByIntensity}
@@ -268,6 +301,16 @@ const VisualizationPage: React.FC = () => {
           imageSlice={imageSlice}
           contrast={contrast}
           setContrast={setContrast}
+          gifStart={gifStart}
+          setGifStart={setGifStart}
+          gifEnd={gifEnd}
+          setGifEnd={setGifEnd}
+          gifFps={gifFps}
+          setGifFps={setGifFps}
+          gifFilename={gifFilename}
+          setGifFilename={setGifFilename}
+          setImageSlice={setImageSlice}
+          onExportGif={handleExportGif}
         />
       )}
 
@@ -279,7 +322,7 @@ const VisualizationPage: React.FC = () => {
         }}
       >
         <div className="visualization-container">
-          <div className="image-and-plot-container">
+          <div className="image-and-plot-container" id="visualization-root">
             <img
               src={imageUrl}
               alt="Proton"
@@ -301,9 +344,9 @@ const VisualizationPage: React.FC = () => {
                   plotShift={hpMriData.plotShift}
                   windowSize={windowSize}
                   showHpMriData={showHpMriData}
-                  magnetType={magnetType}
                   offsetX={offsetX}
                   offsetY={offsetY}
+                  onRendered={handleFrameRendered}
                 />
               )}
 
@@ -327,6 +370,7 @@ const VisualizationPage: React.FC = () => {
                     colorScale={colorScale}
                     scaleByIntensity={scaleByIntensity}
                     showHpMriData={showHpMriData}
+                    onRendered={handleFrameRendered}
                   />
                 </div>
               )}
@@ -337,7 +381,6 @@ const VisualizationPage: React.FC = () => {
           {/* Image Slice + Contrast Sliders */}
           {mode && (
             <ControlPanel
-              mode={mode}
               onSliderChange={handleSliderChange}
               onDatasetChange={handleDatasetChange}
               datasetIndex={datasetIndex}
@@ -346,7 +389,6 @@ const VisualizationPage: React.FC = () => {
               imageSlice={imageSlice}
               contrast={contrast}
               setImageSlice={setImageSlice}
-              setContrast={setContrast}
               openDrawer={openDrawer}
             />
           )}

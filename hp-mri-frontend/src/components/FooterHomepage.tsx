@@ -5,7 +5,7 @@ import Medcap from './../images/medcap.png'
 
 const FooterHomepage: React.FC = () => {
   return (
-    <footer className="footer-homepage"> 
+    <footer className="footer-homepage">
       <div className="footer-container">
         <img src={Medcap} alt="Footer Logo" className="footer-logo" />
         <div className="footer-text">

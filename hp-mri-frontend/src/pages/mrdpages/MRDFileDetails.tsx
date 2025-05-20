@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import HeaderAccount from '../components/HeaderAccount';
+import Sidebar from '../../components/Sidebar';
+import HeaderAccount from '../../components/HeaderAccount';
 import {
     Box,
     Button,
@@ -53,7 +53,7 @@ const MRDFileDetails: React.FC = () => {
                 setEditedTags({ parameter: response.data.parameter, raw: response.data.raw?.description });
             })
             .catch((error) => console.error('Error fetching file details:', error));
-        document.title = "File Details - HP"; 
+        document.title = "File Details - HP";
     }, [fileId, location.state]);
 
     const fetchImages = () => {

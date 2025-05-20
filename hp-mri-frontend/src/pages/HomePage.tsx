@@ -16,7 +16,7 @@ import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
 import AnalyzeV from './../images/analyze_image.png';
-// import MedcapTop from './../images/medcap_top_image.png';
+import MRCalculatorImage from './../images/mr_calculator_image.png'
 
 const HomePage: React.FC = () => {
   useEffect(() => {
@@ -47,6 +47,12 @@ const HomePage: React.FC = () => {
       description: 'A tool to simulate data with sequence design programming.',
       image: SimulateImage,
       link: '/simulate',
+    },
+    {
+      heading: 'MR Coil Component Calculator',
+      description: 'A calculator for tuning and matching capacitance values.',
+      image: MRCalculatorImage,
+      link: '/mr-coil-calculator',
     },
   ];
 
@@ -80,6 +86,11 @@ const HomePage: React.FC = () => {
           <Link to="/about-devs" style={{ textDecoration: 'none' }}>
             <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
               About Devs
+            </Button>
+          </Link>
+          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
+              MR Calculator
             </Button>
           </Link>
         </Grid>
