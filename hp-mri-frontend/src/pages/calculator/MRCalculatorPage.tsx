@@ -144,38 +144,41 @@ const MRCalculatorPage: React.FC = () => {
                     </Box>
                 </form>
 
-                {results.length > 0 && (
-                    <Box mt={4}>
-                        <Typography variant="h6" gutterBottom>
-                            Coil inductance values
-                        </Typography>
-                        <ul>
-                            {results.map((r) => (
-                                <li key={r.n}>n = {r.n} turn(s): {r.L_nH} nH</li>
-                            ))}
-                        </ul>
+{results.length > 0 && (
+  <Box mt={4}>
+    <Typography variant="h6" sx={{ mt: 0 }}>Capacitors required for your coil:</Typography>
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell sx={{ fontWeight: 'bold' }}>Number of turns</TableCell>
+          <TableCell sx={{ fontWeight: 'bold' }}>Tuning capacitance (pF)</TableCell>
+          <TableCell sx={{ fontWeight: 'bold' }}>Matching capacitance (pF)</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {results.map((row) => (
+          <TableRow key={row.n}>
+            <TableCell>{row.n}</TableCell>
+            <TableCell>{row.CT_pF}</TableCell>
+            <TableCell>{row.CM_pF}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
 
-                        <Typography variant="h6" sx={{ mt: 4 }}>Capacitors required for your coil:</Typography>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Number of turns</TableCell>
-                                    <TableCell>Tuning capacitance (pF)</TableCell>
-                                    <TableCell>Matching capacitance (pF)</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {results.map((row) => (
-                                    <TableRow key={row.n}>
-                                        <TableCell>{row.n}</TableCell>
-                                        <TableCell>{row.CT_pF}</TableCell>
-                                        <TableCell>{row.CM_pF}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </Box>
-                )}
+    <Typography variant="h6" sx={{ mt: 4 }}>
+      Coil inductance values
+    </Typography>
+    <Box>
+      {results.map((r) => (
+        <Typography key={r.n}>
+          n = {r.n} turn(s): {r.L_nH} nH
+        </Typography>
+      ))}
+    </Box>
+  </Box>
+)}
+
             </Paper>
 
             <Box mt={4} display="flex" justifyContent="center" gap={4} flexWrap="wrap">
