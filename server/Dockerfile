@@ -35,10 +35,10 @@ COPY --from=build --chown=appuser:appuser /root/.local /home/appuser/.local
 # copy application code
 COPY --chown=appuser:appuser . .
 
+# vite api url set to alb public ip
 ENV PATH="/home/appuser/.local/bin:${PATH}" \
     FLASK_ENV=production \
     GUNICORN_CMD_ARGS="--bind=0.0.0.0:5000 --workers=2 --timeout 60"
-    
 # Expose port and set CMD
 EXPOSE 5000
 

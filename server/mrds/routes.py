@@ -26,6 +26,22 @@ BUCKET = "mrissim-app-user-content"
 def index():
     return jsonify({"message": "Flask backend is running!"})
 
+# Route to list MRD files
+@bp.route("/mrd-files", methods=["GET"])
+def show_files():
+    # Transform the data to include only the specified fields
+    filtered_files = [
+        {
+            "id": file["id"],
+            "name": file["name"],
+            "date": file["date"],
+            "owner": file["owner"],
+            "reconImagesCount": file["reconImagesCount"],
+            "isSelected": file["isSelected"],
+        }
+        for file in db_mrd
+    ]
+    return jsonify(filtered_files)
 
 @bp.route("/plot-image", methods=["GET"])
 def plot_image():
@@ -62,25 +78,6 @@ def plot_image():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-# Route to list MRD files
-@bp.route("/mrd-files", methods=["GET"])
-def show_files():
-    # Transform the data to include only the specified fields
-    filtered_files = [
-        {
-            "id": file["id"],
-            "name": file["name"],
-            "date": file["date"],
-            "owner": file["owner"],
-            "reconImagesCount": file["reconImagesCount"],
-            "isSelected": file["isSelected"],
-        }
-        for file in db_mrd
-    ]
-    return jsonify(filtered_files)
-
 
 # Route to retrieve specific file details
 @bp.route("/mrd-files/<file_id>", methods=["GET"])

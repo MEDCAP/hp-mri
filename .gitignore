@@ -58,3 +58,6 @@ server/aws_lambda/*
 
 # recursively ignore all node modules folders
 **/node_modules
+
+# ignore python virtual environments
+server/.medcap

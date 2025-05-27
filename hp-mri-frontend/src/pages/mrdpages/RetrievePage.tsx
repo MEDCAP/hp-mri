@@ -43,7 +43,6 @@ const RetrievePage: React.FC = () => {
 
   const fetchFiles = () => {
     axios
-      // .get('http://127.0.0.1:5000/api/mrd-files')\
       .get('/api/mrd-files')
       .then((response) => setFiles(response.data))
       .catch((error) => console.error('Error fetching MRD files:', error));
