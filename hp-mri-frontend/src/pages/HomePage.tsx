@@ -74,10 +74,16 @@ const HomePage: React.FC = () => {
       {/* Top Buttons */}
       <Grid container spacing={2} justifyContent="space-between" sx={{ width: '100%' }}>
         <Grid item>
+          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
+              MR Coil Calculator
+            </Button>
+          </Link>
           <Button
             variant="outlined"
             color="secondary"
             size="large"
+            sx={{ marginLeft: 2 }}
             href="https://github.com/MEDCAP"
             target="_blank"
           >
@@ -86,11 +92,6 @@ const HomePage: React.FC = () => {
           <Link to="/about-devs" style={{ textDecoration: 'none' }}>
             <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
               About Devs
-            </Button>
-          </Link>
-          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
-              MR Coil Calculator
             </Button>
           </Link>
         </Grid>
