@@ -1,9 +1,9 @@
 /**
- * @fileoverview ButtonPanel.tsx: Improved Photoshop-style UI for HP-MRI Visualization.
+ * @fileoverview ButtonPanel.tsx: Menu UI for HP-MRI Visualization.
  *
- * @version 2.0.1
+ * @version 2.0.3
  * @author Ben Yoon
- * @date 2025-03-03
+ * @date 2025-05-09
  */
 
 import React, { useState, useRef } from 'react';
@@ -21,82 +21,92 @@ import {
     Button,
     Divider,
     Tooltip,
+    TextField,
+    Tabs,
+    Tab
 } from '@mui/material';
-import { CloudUpload, Save, Tune, GridOn, AspectRatio, RestartAlt } from '@mui/icons-material';
+import { CloudUpload, Save, Tune, AspectRatio } from '@mui/icons-material';
 
 interface ButtonProps {
     className?: string;
     toggleHpMriData: any;
-    onMoveUp: any;
-    onMoveLeft: any;
-    onMoveDown: any;
-    onMoveRight: any;
-    onResetPlotShift: any;
     onFileUpload: any;
     onThresholdChange: any;
     onAlphaChange: any;
-    onMetaboliteChange: any;
-    onToggleSelecting: any;
-    onSelecting: any;
-    onSetSelectedGroup: any;
-    selectedGroup: any;
-    onResetVoxels: any;
     threshold: any;
     alpha: number;
-    metabolite: number;
     onMagnetTypeChange: any;
     mode: 'spectral' | 'imaging';
     colorScale: 'Hot' | 'Jet' | 'B&W';
     onColorScaleChange: (value: 'Hot' | 'Jet' | 'B&W') => void;
     scaleByIntensity: boolean;
     onToggleScaleByIntensity: () => void;
+    openDrawer: boolean;
+    selectedTool: string | null;
+    onOpenDrawer: (tool: string) => void;
+    onContrastChange: (value: number, contrast: number) => void;
+    imageSlice: number;
+    contrast: number;
+    setContrast: (value: number) => void;
+    gifStart: number;
+    setGifStart: (value: number) => void;
+    gifEnd: number;
+    setGifEnd: (value: number) => void;
+    gifFps: number;
+    setGifFps: (value: number) => void;
+    gifFilename: string;
+    setGifFilename: (value: string) => void;
+    setImageSlice: (value: number) => void;
+    onExportGif: () => void;
 }
 
 const ButtonPanel: React.FC<ButtonProps> = ({
     className,
     toggleHpMriData,
-    onMoveUp,
-    onMoveLeft,
-    onMoveDown,
-    onMoveRight,
-    onResetPlotShift,
     onFileUpload,
     onThresholdChange,
     onAlphaChange,
-    onMetaboliteChange,
-    onToggleSelecting,
-    onSelecting,
-    onSetSelectedGroup,
-    selectedGroup,
-    onResetVoxels,
     threshold,
     alpha,
-    metabolite,
     onMagnetTypeChange,
     mode,
     colorScale,
     onColorScaleChange,
     scaleByIntensity,
     onToggleScaleByIntensity,
+    openDrawer,
+    selectedTool,
+    onOpenDrawer,
+    onContrastChange,
+    imageSlice,
+    contrast,
+    setContrast,
+    gifStart,
+    setGifStart,
+    gifEnd,
+    setGifEnd,
+    gifFps,
+    setGifFps,
+    gifFilename,
+    setGifFilename,
+    onExportGif,
 }) => {
-    const [openDrawer, setOpenDrawer] = useState(false);
-    const [selectedTool, setSelectedTool] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-    const handleOpenDrawer = (tool: string) => {
-        setSelectedTool(tool);
-        setOpenDrawer(true);
-    };
+    const [screenshotTab, setScreenshotTab] = useState(0);
+    const [filename, setFilename] = useState("screenshot.png");
 
     const handleSaveScreenshot = () => {
-        html2canvas(document.body).then(canvas => {
-            const link = document.createElement('a');
-            link.href = canvas.toDataURL('image/png');
-            link.download = 'screenshot.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
+        const el = document.getElementById('visualization-root');
+        if (el) {
+            html2canvas(el).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = filename || 'screenshot.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
     };
 
     const handleFileSelect = () => fileInputRef.current?.click();
@@ -124,55 +134,46 @@ const ButtonPanel: React.FC<ButtonProps> = ({
         >
             <Box sx={{ width: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingY: 2 }}>
                 <Tooltip title="Upload File" placement="right">
-                    <IconButton color="primary" onClick={handleFileSelect}>
+                    <IconButton sx={{ color: 'white' }} onClick={handleFileSelect}>
                         <CloudUpload />
                     </IconButton>
                 </Tooltip>
                 <input type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} ref={fileInputRef} />
 
-                <Tooltip title="Save Screenshot" placement="right">
-                    <IconButton color="primary" onClick={handleSaveScreenshot}>
+                <Tooltip title="Screenshot & Export" placement="right">
+                    <IconButton sx={{ color: 'white' }} onClick={() => onOpenDrawer('export')}>
                         <Save />
                     </IconButton>
                 </Tooltip>
 
-                <Tooltip title="Plot Shift" placement="right">
-                    <IconButton color="primary" onClick={() => handleOpenDrawer('plot')}>
-                        <GridOn />
-                    </IconButton>
-                </Tooltip>
-
                 <Tooltip title="Image Adjustments" placement="right">
-                    <IconButton color="primary" onClick={() => handleOpenDrawer('image')}>
+                    <IconButton sx={{ color: 'white' }} onClick={() => onOpenDrawer('image')}>
                         <AspectRatio />
                     </IconButton>
                 </Tooltip>
 
-                <Tooltip title="Reset Plot" placement="right">
-                    <IconButton color="primary" onClick={onResetPlotShift}>
-                        <RestartAlt />
-                    </IconButton>
-                </Tooltip>
-
                 <Tooltip title="Settings" placement="right">
-                    <IconButton color="primary" onClick={() => handleOpenDrawer('settings')}>
+                    <IconButton sx={{ color: 'white' }} onClick={() => onOpenDrawer('settings')}>
                         <Tune />
                     </IconButton>
                 </Tooltip>
             </Box>
 
             <Drawer
-                anchor="right"
+                anchor="left"
                 open={openDrawer}
-                onClose={() => setOpenDrawer(false)}
+                onClose={() => onOpenDrawer('')}
+                variant="persistent"
+                hideBackdrop
                 sx={{
                     '& .MuiDrawer-paper': {
                         width: 320,
                         padding: 3,
                         background: '#2b2b2b',
                         color: 'white',
-                        borderRadius: '10px 0px 0px 10px',
-                        boxShadow: '0px 4px 8px rgba(0,0,0,0.3)',
+                        borderRadius: '0px 10px 10px 0px',
+                        marginLeft: '60px',
+                        boxShadow: '4px 0px 8px rgba(0,0,0,0.3)',
                     },
                 }}
                 ModalProps={{
@@ -180,28 +181,289 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                     BackdropProps: { style: { backgroundColor: 'transparent' } },
                 }}
             >
-                {selectedTool === 'plot' && (
+                <IconButton
+                    onClick={() => onOpenDrawer('')}
+                    sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        color: 'white',
+                        width: 24,
+                        height: 24,
+                        fontSize: '16px',
+                        padding: 0,
+                        minWidth: 'unset',
+                        border: '1px solid white',
+                        borderRadius: '4px',
+                        lineHeight: 1,
+                    }}
+                >
+                    ✕
+                </IconButton>
+
+                {selectedTool === 'export' && (
                     <>
-                        <Typography variant="h6" sx={{ color: '#00c7be', mb: 2 }}>
-                            Plot Shift
+                        <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
+                            Export Options
                         </Typography>
-                        <Box display="flex" justifyContent="center">
-                            <Button variant="contained" color="secondary" onClick={onMoveUp}>⬆️</Button>
-                        </Box>
-                        <Box display="flex" justifyContent="center" mt={1}>
-                            <Button variant="contained" color="secondary" onClick={onMoveLeft}>⬅️</Button>
-                            <Button variant="contained" color="secondary" onClick={onMoveDown} sx={{ mx: 1 }}>⬇️</Button>
-                            <Button variant="contained" color="secondary" onClick={onMoveRight}>➡️</Button>
-                        </Box>
-                        <Button variant="outlined" fullWidth onClick={onResetPlotShift} sx={{ mt: 3, color: 'white' }}>
-                            Reset
-                        </Button>
+
+                        <Tabs
+                            value={screenshotTab}
+                            onChange={(_, newValue) => setScreenshotTab(newValue)}
+                            textColor="inherit"
+                            TabIndicatorProps={{ style: { backgroundColor: 'white' } }}
+                            sx={{ mb: 2 }}
+                        >
+                            <Tab label="Image" sx={{ color: 'white', fontWeight: 'bold' }} />
+                            <Tab label="GIF" sx={{ color: 'white', fontWeight: 'bold' }} />
+                        </Tabs>
+
+                        {screenshotTab === 0 && (
+                            <>
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    File Name
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    value={filename}
+                                    onChange={(e) => setFilename(e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    onClick={handleSaveScreenshot}
+                                    sx={{
+                                        mt: 2,
+                                        backgroundColor: '#000c3f',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        '&.Mui-disabled': {
+                                            backgroundColor: '#000c3f',
+                                            color: 'white',
+                                            opacity: 0.6,
+                                        },
+                                    }}
+                                >
+                                    Save Screenshot
+                                </Button>
+                            </>
+                        )}
+
+                        {screenshotTab === 1 && (
+                            <>
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    GIF Filename
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    value={gifFilename}
+                                    onChange={(e) => setGifFilename(e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Start Dataset
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    value={gifStart}
+                                    onChange={(e) => setGifStart(Number(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    End Dataset
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    value={gifEnd}
+                                    onChange={(e) => setGifEnd(Number(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Typography
+                                    align="left"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Frame Rate (FPS)
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    value={gifFps}
+                                    onChange={(e) => setGifFps(Number(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        color: 'black',
+                                        fontWeight: 'bold',
+                                        borderRadius: 1,
+                                        input: {
+                                            color: 'black',
+                                            fontWeight: 'bold',
+                                        },
+                                        '& .MuiOutlinedInput-root': {
+                                            '& fieldset': {
+                                                borderColor: 'white',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    onClick={onExportGif}
+                                    sx={{
+                                        mt: 2,
+                                        backgroundColor: '#000c3f',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        '&.Mui-disabled': {
+                                            backgroundColor: '#000c3f',
+                                            color: 'white',
+                                            opacity: 0.6,
+                                        },
+                                    }}
+                                >
+                                    Export GIF
+                                </Button>
+                            </>
+                        )}
                     </>
                 )}
 
                 {selectedTool === 'image' && (
                     <>
-                        <Typography variant="h6" sx={{ color: '#00c7be', mb: 2 }}>
+                        <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
+                            Image Adjustments
+                        </Typography>
+
+                        <Typography
+                            variant="body1"
+                            sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                        >
+                            Contrast
+                        </Typography>
+                        <Slider
+                            value={contrast}
+                            min={0.1}
+                            max={3.0}
+                            step={0.1}
+                            onChange={(_e, val) => setContrast(val as number)}
+                            onChangeCommitted={(_e, val) => onContrastChange(imageSlice, val as number)}
+                            sx={{
+                                color: 'white',
+                                '& .MuiSlider-thumb': { backgroundColor: 'white' },
+                                '& .MuiSlider-track': { backgroundColor: 'white' },
+                                '& .MuiSlider-rail': { backgroundColor: '#555' },
+                            }}
+                        />
+
+                        {mode === 'spectral' ? (
+                            <>
+                            </>
+                        ) : (
+                            <>
+                                <Divider sx={{ my: 2, background: 'white' }} />
+
+                                <Typography
+                                    variant="body1"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Alpha: {alpha.toFixed(2)}</Typography>
+                                <Slider
+                                    value={alpha}
+                                    min={0.0}
+                                    max={1.0}
+                                    step={0.05}
+                                    onChange={(_e, newValue) => onAlphaChange(newValue as number)}
+                                    sx={{
+                                        color: 'white',
+                                        '& .MuiSlider-thumb': { backgroundColor: 'white' },
+                                        '& .MuiSlider-track': { backgroundColor: 'white' },
+                                        '& .MuiSlider-rail': { backgroundColor: '#555' },
+                                    }}
+                                />
+                            </>
+                        )}
+                        {/* <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
                             Voxel Selection
                         </Typography>
                         <Button fullWidth variant="contained" color="primary" onClick={onToggleSelecting}>
@@ -210,8 +472,12 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         <Button fullWidth variant="outlined" color="secondary" onClick={onResetVoxels} sx={{ mt: 1 }}>
                             Reset
                         </Button>
-                        <Box mt={2}>
-                            <Typography variant="body1">Select Group:</Typography>
+                        <Box mt={2} sx={{ color: 'white', fontWeight: 'bold' }}>
+                            <Typography
+                                variant="body1"
+                                sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                            >
+                                Select Group:</Typography>
                             <label>
                                 <input type="radio" checked={selectedGroup === 'A'} onChange={() => onSetSelectedGroup('A')} />
                                 Group A
@@ -220,61 +486,145 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                 <input type="radio" checked={selectedGroup === 'B'} onChange={() => onSetSelectedGroup('B')} />
                                 Group B
                             </label>
-                        </Box>
+                        </Box> */}
                     </>
                 )}
 
                 {selectedTool === 'settings' && (
                     <>
-                        <Typography variant="h6" sx={{ color: '#00c7be', mb: 2 }}>
+                        <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
                             Settings
                         </Typography>
+
                         <FormControlLabel
-                            control={<Switch onChange={toggleHpMriData} color="primary" />}
+                            control={
+                                <Switch
+                                    onChange={toggleHpMriData}
+                                    color="primary"
+                                    sx={{
+                                        '& .MuiSwitch-switchBase': {
+                                            color: 'white',
+                                        },
+                                        '& .Mui-checked': {
+                                            color: '#00c7be',
+                                        },
+                                        '& .Mui-checked + .MuiSwitch-track': {
+                                            backgroundColor: '#00c7be',
+                                        },
+                                    }}
+                                />
+                            }
                             label="Show HP-MRI Data"
+                            sx={{
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '0.95rem',
+                                '& .MuiFormControlLabel-label': {
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                },
+                            }}
                         />
+
                         <Divider sx={{ my: 2, background: 'white' }} />
+
+                        <Typography
+                            variant="body1"
+                            sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                        >
+                            Threshold</Typography>
+                        <Slider value={threshold} min={0} max={1} step={0.1} onChange={onThresholdChange} sx={{
+                            color: 'white',
+                            '& .MuiSlider-thumb': { backgroundColor: 'white' },
+                            '& .MuiSlider-track': { backgroundColor: 'white' },
+                            '& .MuiSlider-rail': { backgroundColor: '#555' },
+                        }} />
+
                         {mode === 'spectral' ? (
                             <>
-                                <Typography variant="body1">Threshold</Typography>
-                                <Slider value={threshold} min={0} max={1} step={0.1} onChange={onThresholdChange} />
                             </>
                         ) : (
                             <>
-                                <Typography variant="body1">Alpha</Typography>
-                                <Typography variant="body1">Alpha: {alpha.toFixed(2)}</Typography>
-                                <Slider
-                                    value={alpha}
-                                    min={0.0}
-                                    max={1.0}
-                                    step={0.05}
-                                    onChange={(_e, newValue) => onAlphaChange(newValue as number)} // ensure numeric
-                                />
+                                <Divider sx={{ my: 2, background: 'white' }} />
                                 <FormControlLabel
                                     control={
                                         <Switch
                                             checked={scaleByIntensity}
                                             onChange={onToggleScaleByIntensity}
                                             color="primary"
+                                            sx={{
+                                                '& .MuiSwitch-switchBase': {
+                                                    color: 'white',
+                                                },
+                                                '& .Mui-checked': {
+                                                    color: '#00c7be',
+                                                },
+                                                '& .Mui-checked + .MuiSwitch-track': {
+                                                    backgroundColor: '#00c7be',
+                                                },
+                                            }}
                                         />
                                     }
                                     label="Scale by Intensity"
+                                    sx={{
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.95rem',
+                                        '& .MuiFormControlLabel-label': {
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                        },
+                                    }}
                                 />
-                                <Typography variant="body1">Metabolite</Typography>
+                                {/* <Typography
+                                    variant="body1"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Metabolite</Typography>
                                 <Select
                                     value={metabolite}
                                     onChange={(e) => onMetaboliteChange(Number(e.target.value))} // cast string to number
                                     fullWidth
+                                    size='small'
+                                    sx={{
+                                        mt: 1.5,
+                                        mb: 2,
+                                        fontSize: '0.85rem',
+                                        color: 'white',
+                                        '.MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'white',
+                                        },
+                                        '& .MuiSvgIcon-root': {
+                                            color: 'white',
+                                        },
+                                    }}
                                 >
                                     <MenuItem value={0}>Lactate</MenuItem>
                                     <MenuItem value={1}>Pyruvate</MenuItem>
                                     <MenuItem value={2}>Threonine</MenuItem>
-                                </Select>
-                                <Typography variant="body1">Heatmap Color Scale</Typography>
+                                </Select> */}
+                                <Typography
+                                    variant="body1"
+                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                                >
+                                    Heatmap Color Scale</Typography>
                                 <Select
                                     value={colorScale}
                                     onChange={(e) => onColorScaleChange(e.target.value as 'Hot' | 'Jet' | 'B&W')}
                                     fullWidth
+                                    size='small'
+                                    sx={{
+                                        mt: 1.5,
+                                        mb: 2,
+                                        fontSize: '0.85rem',
+                                        color: 'white',
+                                        '.MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'white',
+                                        },
+                                        '& .MuiSvgIcon-root': {
+                                            color: 'white',
+                                        },
+                                    }}
                                 >
                                     <MenuItem value="Hot">Hot</MenuItem>
                                     <MenuItem value="Jet">Jet</MenuItem>
@@ -285,8 +635,19 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         )}
 
                         <Divider sx={{ my: 2, background: 'white' }} />
-                        <Typography variant="h6">Magnet Type</Typography>
-                        <Select defaultValue="HUPC" onChange={onMagnetTypeChange}>
+                        <Typography variant="h6" color='white'>Magnet Type</Typography>
+                        <Select defaultValue="HUPC" onChange={onMagnetTypeChange} size='small' sx={{
+                            mt: 1.5,
+                            mb: 2,
+                            fontSize: '0.85rem',
+                            color: 'white',
+                            '.MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'white',
+                            },
+                            '& .MuiSvgIcon-root': {
+                                color: 'white',
+                            },
+                        }}>
                             <MenuItem value="HUPC">HUPC</MenuItem>
                             <MenuItem value="Clinical">Clinical</MenuItem>
                             <MenuItem value="MR Solutions">MR Solutions</MenuItem>

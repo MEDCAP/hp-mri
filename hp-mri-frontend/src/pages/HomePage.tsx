@@ -16,7 +16,7 @@ import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
 import AnalyzeV from './../images/analyze_image.png';
-import MedcapTop from './../images/medcap_top_image.png';
+import MRCalculatorImage from './../images/mr_calculator_image.png'
 
 const HomePage: React.FC = () => {
   useEffect(() => {
@@ -48,6 +48,12 @@ const HomePage: React.FC = () => {
       image: SimulateImage,
       link: '/simulate',
     },
+    {
+      heading: 'MR Coil Component Calculator',
+      description: 'A calculator for tuning and matching capacitance values.',
+      image: MRCalculatorImage,
+      link: '/mr-coil-calculator',
+    },
   ];
 
   return (
@@ -68,10 +74,16 @@ const HomePage: React.FC = () => {
       {/* Top Buttons */}
       <Grid container spacing={2} justifyContent="space-between" sx={{ width: '100%' }}>
         <Grid item>
+          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
+              MR Coil Calculator
+            </Button>
+          </Link>
           <Button
             variant="outlined"
             color="secondary"
             size="large"
+            sx={{ marginLeft: 2 }}
             href="https://github.com/MEDCAP"
             target="_blank"
           >

@@ -55,3 +55,6 @@ server/mrds/tmpdata/*
 server/mrds/aws_test.py
 # ignore aws lambda functions
 server/aws_lambda/*
+
+# recursively ignore all node modules folders
+**/node_modules

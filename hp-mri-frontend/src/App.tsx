@@ -9,32 +9,33 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import HeaderAccount from './components/HeaderAccount';
 // All page imports
 import UploadPage from './pages/UploadPage';
-import RetrievePage from './pages/RetrievePage';
-import MRDFileDetails from './pages/MRDFileDetails';
+import RetrievePage from './pages/mrdpages/RetrievePage';
+import MRDFileDetails from './pages/mrdpages/MRDFileDetails';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
-import ConceptPage from './pages/ConceptPage';
-import ConvertStorePage from './pages/ConvertStorePage';
-import VisualizeAnalyzePage from './pages/VisualizeAnalyzePage';
-import SimulatePage from './pages/SimulatePage';
-import ImagesPage from './pages/ImagesPage';
-import SimulatorPage from './pages/SimulatorPage';
+import ConceptPage from './pages/description/ConceptPage';
+import ConvertStorePage from './pages/description/ConvertStorePage';
+import VisualizeAnalyzePage from './pages/description/VisualizeAnalyzePage';
+import SimulatePage from './pages/description/SimulatePage';
+import ImagesPage from './pages/imagepages/ImagesPage';
+import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import AccountPage from './pages/AccountPage';
-import ImagesDetails from './pages/ImagesDetails';
+import ImagesDetails from './pages/imagepages/ImagesDetails';
 import SolutionPage from './pages/SolutionPage';
 import PublicationPage from './pages/PublicationPage';
 import ResearchPage from './pages/ResearchPage';
-import NewSimulatorPage from './pages/NewSimulatorPage';
-import VisualizationPage from './pages/visualization/VisualizationPage'
+import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
+import VisualizationPage from './pages/visualization/VisualizationPage';
 import VisualizationAbout from './pages/visualization/VisualizationAbout';
+import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
-const APP_VERSION = 'BY: ' + 'v2.0.1';
+const APP_VERSION = 'BY: ' + 'v2.0.5';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize'];
+  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
   // Determine if header should be shown
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
@@ -68,6 +69,7 @@ const AppContent: React.FC = () => {
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/visualize" element={<VisualizationPage />} />
           <Route path="/visualize-about" element={<VisualizationAbout />} />
+          <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
         </Routes>
       </div>
 
