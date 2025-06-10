@@ -100,13 +100,13 @@ const RetrievePage: React.FC = () => {
     // const selectedFileIds = files.filter(file => file.isSelected).map(file => file.id);
     // if (selectedFileIds.length === 0) return;
 
-    // axios
-    //   .delete(`http://127.0.0.1:5000/api/mrd-file/`, { data: { ids: selectedFileIds } })
-    //   .then(() => {
-    //     // Remove the deleted files from the local state
-    //     setFiles(files.filter(file => !file.isSelected));
-    //   })
-    //   .catch(error => console.error("Error deleting files:", error));
+  //   axios
+  //     .delete(`http://127.0.0.1:5000/api/mrd-file/`, { data: { ids: selectedFileIds } })
+  //     .then(() => {
+  //       // Remove the deleted files from the local state
+  //       setFiles(files.filter(file => !file.isSelected));
+  //     })
+  //     .catch(error => console.error("Error deleting files:", error));
   };
 
   return (
