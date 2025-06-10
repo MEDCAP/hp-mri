@@ -11,12 +11,12 @@ import {
   CardContent,
   CardMedia,
 } from '@mui/material';
-import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
+import PigiLogo from './../images/pigi_optblue_transparentexceptpennlogo.png';
 import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
 import AnalyzeV from './../images/analyze_image.png';
-import MRCalculatorImage from './../images/mr_calculator_image.png'
+import MRCalculatorImage from './../images/mr_calc_thumbnail.png'
 
 const HomePage: React.FC = () => {
   useEffect(() => {

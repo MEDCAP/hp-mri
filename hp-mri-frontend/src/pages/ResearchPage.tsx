@@ -3,12 +3,12 @@ import React from 'react';
 import './../styles/researchPage.css';
 import HeaderHomepage from '../components/HeaderHomepage';
 import FooterHomepage from '../components/FooterHomepage';
-import MRIRecon from '../images/mri-recon.png';
-import ImageAnalysis from '../images/image-analysis.png';
-import MRISim from '../images/mri-simulator.png';
-import MRIHardware from '../images/mri-hardware.png';
-import MetaModel from '../images/metabolic-model.png';
-import MoleModel from '../images/molecular-model.png';
+import MRIRecon from '../images/mri_recon.png';
+import ImageAnalysis from '../images/image_analysis.png';
+import MRISim from '../images/mri_simulator.png';
+import MRIHardware from '../images/mri_hardware.png';
+import MetaModel from '../images/metabolic_model.png';
+import MoleModel from '../images/molecular_model.png';
 
 const ResearchPage: React.FC = () => {
   return (
