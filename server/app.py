@@ -1,45 +1,29 @@
+# keep this file as simple as possible
+import os
 from flask import Flask
 from flask_cors import CORS
 
-# def create_app():
-#     # Initialize Flask application
-#     app = Flask(__name__)
-
-#     # Configure CORS for production
-#     # Replace 'http://localhost:5173' with your production frontend domain
-#     CORS(app, resources={r"/*": 
-#         {"origins": ["http://localhost:5173", "https://medcap.ai"]}})
-#     # Import blueprints inside the factory to avoid circular imports
-#     from mrds.routes import bp as mrds_bp
-#     from visualize.visualization import bp as visualization_bp
-
-#     # Register blueprints
-#     app.register_blueprint(mrds_bp, url_prefix="/api")
-#     app.register_blueprint(visualization_bp, url_prefix="/visualize-api")
-
-#     return app
-
-# # Create application instance
-# app = create_app()
-
-
-# keep this file as simple as possible
-from flask import Flask, jsonify, request
-from flask_cors import CORS
 from mrds.routes import bp as mrds_bp  # Import the blueprint from routes.py
 from visualize.visualization import bp as visualization_bp
+from config import DevelopmentConfig, ProductionConfig
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
 
-# Allow CORS for requests from frontend dev server
-CORS(app, resources={r"/*": 
-{"origins": ["http://localhost:5173", 
-             "https://medcap.ai"]}})
+    if os.environ.get("FLASK_ENV") == "production":
+        app.config.from_object(ProductionConfig)
+    else:
+        app.config.from_object(DevelopmentConfig)
 
-# Register the mrds blueprint
-app.register_blueprint(mrds_bp, url_prefix="/api")
-app.register_blueprint(visualization_bp, url_prefix="/visualize-api")
+    # Allow CORS for requests from frontend dev server
+    CORS(app, resources={r"/*": {"origins": app.config["CORS_ORIGINS"]}})
 
-# Start the server
+    # Register the mrds blueprint
+    app.register_blueprint(mrds_bp, url_prefix="/api")
+    app.register_blueprint(visualization_bp, url_prefix="/visualize-api")
+
+    return app
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app = create_app()
+    app.run(debug=app.config["DEBUG"], port=5000)
