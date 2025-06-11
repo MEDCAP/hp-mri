@@ -15,7 +15,7 @@ import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import ConceptPage from './pages/description/ConceptPage';
 import ConvertStorePage from './pages/description/ConvertStorePage';
-import VisualizeAnalyzePage from './pages/description/VisualizeAnalyzePage';
+import ReconstructionToolsPage from './pages/description/ReconstructionToolsPage';
 import SimulatePage from './pages/description/SimulatePage';
 import ImagesPage from './pages/imagepages/ImagesPage';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
@@ -35,7 +35,7 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/visualize-analyze', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
+  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
   // Determine if header should be shown
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
@@ -56,7 +56,7 @@ const AppContent: React.FC = () => {
           <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
           <Route path="/about-devs" element={<AboutPage />} />
           <Route path="/account" element={<AccountPage />} />
-          <Route path="/visualize-analyze" element={<VisualizeAnalyzePage />} />
+          <Route path="/reconstruction-tools" element={<ReconstructionToolsPage />} />
           <Route path="/concept" element={<ConceptPage />} />
           <Route path="/convert-store" element={<ConvertStorePage />} />
           <Route path="/simulate" element={<SimulatePage />} />
