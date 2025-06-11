@@ -18,6 +18,6 @@ export default defineConfig(({ mode }) => {
           }
         }
       }
-      : undefined // in production, 
+      : undefined // in production, use reverse proxy ALB
   }
 });

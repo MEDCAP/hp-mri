@@ -15,19 +15,19 @@ matplotlib.use("Agg")
 from data import db_mrd
 from data import db_image
 from data import db_simulator
-from mrds import bp  # Import the Blueprint instance from __init__.py
+from . import mrds_bp 
 
 # setup aws s3 client
 s3 = boto3.client("s3")
 BUCKET = "mrissim-app-user-content"
 
 # Root route just to test the server is running
-@bp.route("/")
+@mrds_bp.route("/")
 def index():
     return jsonify({"message": "Flask backend is running!"})
 
 # Route to list MRD files
-@bp.route("/mrd-files", methods=["GET"])
+@mrds_bp.route("/mrd-files", methods=["GET"])
 def show_files():
     # Transform the data to include only the specified fields
     filtered_files = [
@@ -43,7 +43,7 @@ def show_files():
     ]
     return jsonify(filtered_files)
 
-@bp.route("/plot-image", methods=["GET"])
+@mrds_bp.route("/plot-image", methods=["GET"])
 def plot_image():
     try:
         # Load the proton image
@@ -80,7 +80,7 @@ def plot_image():
         return jsonify({"error": str(e)}), 500
 
 # Route to retrieve specific file details
-@bp.route("/mrd-files/<file_id>", methods=["GET"])
+@mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
 def get_file_details(file_id):
     try:
         # Convert file_id to an integer for comparison
@@ -95,7 +95,7 @@ def get_file_details(file_id):
 
 
 # Route to update file tags
-@bp.route("/mrd-files/<file_id>/edit-tags", methods=["POST"])
+@mrds_bp.route("/mrd-files/<file_id>/edit-tags", methods=["POST"])
 def edit_file_tags(file_id):
     try:
         file_id = int(file_id)
@@ -118,7 +118,7 @@ def edit_file_tags(file_id):
 
 
 # Route to list Images
-@bp.route("/images", methods=["GET"])
+@mrds_bp.route("/images", methods=["GET"])
 def show_images():
     # Transform the data to include only the specified fields
     filtered_images = [
@@ -137,13 +137,13 @@ def show_images():
 
 
 # Route to retrieve images by sequence_id
-@bp.route("/images/<int:sequence_id>", methods=["GET"])
+@mrds_bp.route("/images/<int:sequence_id>", methods=["GET"])
 def get_images_by_sequence(sequence_id):
     images = [image for image in db_image if image["sequence_id"] == sequence_id]
     return jsonify(images)
 
 
-@bp.route("/images/delete", methods=["DELETE"])
+@mrds_bp.route("/images/delete", methods=["DELETE"])
 def delete_images():
     global db_image
     image_ids = request.json.get("ids", [])
@@ -155,7 +155,7 @@ def delete_images():
 
 
 # Route to retrieve specific image file details
-@bp.route("/image-details/<image_id>", methods=["GET"])
+@mrds_bp.route("/image-details/<image_id>", methods=["GET"])
 def get_image(image_id):
     try:
         image_id = int(image_id)
@@ -171,13 +171,13 @@ def get_image(image_id):
 
 # TODO: Route to get actual image associated with this image id from
 # the s3 bucket and return it to the frontend
-@bp.route("/image/<int:image_id>/", methods=["GET"])
+@mrds_bp.route("/image/<int:image_id>/", methods=["GET"])
 def get_image_details(image_id):
     return jsonify({"message": "TODO: Display Image"})
 
 
 # Route to upload MRD file page
-@bp.route("/upload", methods=["POST"])
+@mrds_bp.route("/upload", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
         return jsonify({"error": "No files selected"}), 400
@@ -199,7 +199,7 @@ def upload_file():
     return jsonify({"message": "files uploaded"}), 200
 
 
-@bp.route("/mrd-file", methods=["DELETE"])
+@mrds_bp.route("/mrd-file", methods=["DELETE"])
 def delete_files():
     global db_mrd
     file_ids = request.json.get("ids", [])
@@ -210,14 +210,14 @@ def delete_files():
     return jsonify({"message": "Files deleted successfully"}), 200
 
 
-@bp.route("/mrd-file/<int:file_id>/download")
+@mrds_bp.route("/mrd-file/<int:file_id>/download")
 def download_file(file_id):
     # download file
     pass
 
 
 # Route to list Simulators
-@bp.route("/simulator", methods=["GET"])
+@mrds_bp.route("/simulator", methods=["GET"])
 def show_simulator():
     filtered_simulator = [
         {
@@ -234,7 +234,7 @@ def show_simulator():
     return jsonify(filtered_simulator)
 
 
-@bp.route("/simluators", methods=["DELETE"])
+@mrds_bp.route("/simluators", methods=["DELETE"])
 def delete_simulator():
     global db_simulator
     simulator_ids = request.json.get("ids", [])

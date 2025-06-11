@@ -1,0 +1,29 @@
+# --- Python (backend) ---
+venv/
+.env
+*.pyc
+
+# --- General ignores ---
+*.log
+
+# --- IDE specific files ---
+.vscode/
+.idea/
+
+# --- Local environment files ---
+.env
+.env.local
+.env.production
+.env.development
+
+# ignore pycache files
+**/__pycache__/
+
+# ignore test data folder to store files locally
+mrds/test_image_matfiles/*
+
+# ignore aws lambda functions
+aws_lambda/*
+
+# ignore python virtual environments
+.medcap
