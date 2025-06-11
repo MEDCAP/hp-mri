@@ -37,10 +37,10 @@ const HomePage: React.FC = () => {
       link: '/convert-store',
     },
     {
-      heading: 'Visualize and Analyze Data',
-      description: 'A tool to enable real-time data visualization and analysis.',
+      heading: 'MRI Reconstruction Tools',
+      description: 'Scripts to reconstruct HP-MRI data.',
       image: AnalyzeV,
-      link: '/visualize-analyze',
+      link: '/reconstruction-tools',
     },
     {
       heading: 'Simulate Data',
