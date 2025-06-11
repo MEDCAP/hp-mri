@@ -1,4 +1,3 @@
-# keep this file as simple as possible
 import os
 from flask import Flask
 from flask_cors import CORS
@@ -9,7 +8,6 @@ from config import DevelopmentConfig, ProductionConfig
 
 def create_app():
     app = Flask(__name__)
-
     if os.environ.get("FLASK_ENV") == "production":
         app.config.from_object(ProductionConfig)
     else:
@@ -20,7 +18,7 @@ def create_app():
 
     # Register the mrds blueprint
     app.register_blueprint(mrds_bp, url_prefix="/api")
-    app.register_blueprint(visualization_bp, url_prefix="/visualize-api")
+    app.register_blueprint(visualization_bp, url_prefix="/api")
 
     return app
 

@@ -1,9 +1,3 @@
-# --- Node.js and Vite (frontend) ---
-vite-project/node_modules
-vite-project/.env
-vite-project/dist
-vite-project/.DS_Store
-
 # --- Python (backend) ---
 server/venv/
 server/__pycache__/
