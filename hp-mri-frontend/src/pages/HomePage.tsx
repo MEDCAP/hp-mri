@@ -11,12 +11,12 @@ import {
   CardContent,
   CardMedia,
 } from '@mui/material';
-import PigiLogo from './../images/pigi-optblue_transparentexceptpennlogo.png';
+import PigiLogo from './../images/pigi_optblue_transparentexceptpennlogo.png';
 import ConceptImage from './../images/concept_image.png';
 import ConvertStoreImage from './../images/convert_store_image.png';
 import SimulateImage from './../images/simulate_image.png';
 import AnalyzeV from './../images/analyze_image.png';
-import MRCalculatorImage from './../images/mr_calculator_image.png'
+import MRCalculatorImage from './../images/mr_calc_thumbnail.png'
 
 const HomePage: React.FC = () => {
   useEffect(() => {
@@ -37,10 +37,10 @@ const HomePage: React.FC = () => {
       link: '/convert-store',
     },
     {
-      heading: 'Visualize and Analyze Data',
-      description: 'A tool to enable real-time data visualization and analysis.',
+      heading: 'MRI Reconstruction Tools',
+      description: 'Scripts to reconstruct HP-MRI data.',
       image: AnalyzeV,
-      link: '/visualize-analyze',
+      link: '/reconstruction-tools',
     },
     {
       heading: 'Simulate Data',
@@ -74,10 +74,16 @@ const HomePage: React.FC = () => {
       {/* Top Buttons */}
       <Grid container spacing={2} justifyContent="space-between" sx={{ width: '100%' }}>
         <Grid item>
+          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
+            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
+              MR Coil Calculator
+            </Button>
+          </Link>
           <Button
             variant="outlined"
             color="secondary"
             size="large"
+            sx={{ marginLeft: 2 }}
             href="https://github.com/MEDCAP"
             target="_blank"
           >
@@ -86,11 +92,6 @@ const HomePage: React.FC = () => {
           <Link to="/about-devs" style={{ textDecoration: 'none' }}>
             <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
               About Devs
-            </Button>
-          </Link>
-          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
-              MR Coil Calculator
             </Button>
           </Link>
         </Grid>
