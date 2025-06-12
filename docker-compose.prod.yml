@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+    env_file:
+      - ./server/.env.production
+
+  frontend:
+    build:
+      context: ./hp-mri-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=https://your-production-api.com
+    env_file:
+      - ./hp-mri-frontend/.env.production 

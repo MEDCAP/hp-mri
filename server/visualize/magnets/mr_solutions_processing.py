@@ -27,37 +27,18 @@ from flask import jsonify, send_file
 import os
 import traceback
 from PIL import Image
-# import cv2
 import pydicom
 import io
 from pathlib import Path
-import boto3
+from services.storage import StorageService
 
-local = False   # set to true to test files stored locally
-if local:
-    # Constants
-    DICOM_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/proton/1/"
-    DATASET_FOLDER = Path(
-        "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/epsi/"
-    )
-    DATASET = [
-        folder
-        for folder in os.listdir(DATASET_FOLDER)
-        if os.path.isdir(DATASET_FOLDER / folder)
-    ]
-else:
-    s3 = boto3.client('s3')
-    BUCKET_NAME = "medcap-data"
-    DICOM_FOLDER = "MRS/proton/"
-    DATASET_FOLDER = "MRS/epsi/"
-    # Get the list of dataset folders in the bucket/MRS/epsi/
-    response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DATASET_FOLDER, Delimiter='/')
-    DATASET = [obj['Prefix'] for obj in response.get('CommonPrefixes', [])]
+# Initialize storage service
+storage = StorageService()
 
-# read s3 file decode as binary
-def read_binary_from_s3(bucket, filepath):
-    response = s3.get_object(Bucket=bucket, Key=filepath)
-    return response['Body'].read()
+# Constants
+DICOM_FOLDER = "MRS/proton/"
+DATASET_FOLDER = "MRS/epsi/"
+DATASET = storage.list_objects(DATASET_FOLDER, delimiter='/')
 
 class MRSSolutionsDataProcessor:
     """
@@ -89,22 +70,15 @@ class MRSSolutionsDataProcessor:
 
         Args:
             epsi_index (int): Index of the dataset folder from which to read the MRD file.
-
         """
-        if local:   # test data files stored locally
-            folder_path = DATASET_FOLDER / DATASET[epsi_index]
-            files = [f for f in os.listdir(folder_path) if f.endswith(".MRD")]
-            if not files:
-                raise FileNotFoundError(f"No MRD file found in directory: {folder_path}")
-            with open(folder_path / files[0], "rb") as fd:
-                fdbytes = fd.read()    
-        else:   # retrieve data files from s3 bucket
-            # Index subfolder path of s3 bucket under MRS/epsi/
-            folder_path = DATASET[epsi_index]
-            # look for file with .MRD extension
-            response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
-            filename = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.MRD')]
-            fdbytes = read_binary_from_s3(BUCKET_NAME, filename[0])
+        folder_path = DATASET[epsi_index]
+        files = storage.list_objects(folder_path)
+        mrd_files = [f for f in files if f.endswith('.MRD')]
+        
+        if not mrd_files:
+            raise FileNotFoundError(f"No MRD file found in directory: {folder_path}")
+        
+        fdbytes = storage.read_file(os.path.join(folder_path, mrd_files[0]))
 
         self.samples = np.frombuffer(fdbytes[0:4], dtype="int32")[0]
         self.views = np.frombuffer(fdbytes[4:8], dtype="int32")[0]
@@ -157,10 +131,7 @@ class MRSSolutionsDataProcessor:
             ),
             order="F",
         )
-        self.parameters = fdbytes[
-            data_end:
-        ]  # Parameters are appended at the end of the file as a text description
-
+        self.parameters = fdbytes[data_end:]  # Parameters are appended at the end of the file as a text description
 
 def get_num_slider_values():
     """
@@ -169,14 +140,8 @@ def get_num_slider_values():
     Returns:
         int: Total number of slider values available.
     """
-    if local:
-        dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
-    else:
-        # List all DICOM files in the S3 bucket under the specified DICOM folder
-        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DICOM_FOLDER)
-        dicom_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.dcm')]
-    return len(dicom_files)
-
+    dicom_files = storage.list_objects(DICOM_FOLDER)
+    return len([f for f in dicom_files if f.endswith('.dcm')])
 
 def count_datasets():
     """
@@ -185,14 +150,7 @@ def count_datasets():
     Returns:
         int: Number of dataset folders found.
     """
-    # dataset_count = 0
-
-    # for entry in os.listdir(DATASET_FOLDER):
-    #     dataset_count += 1
-
-    # return dataset_count
     return len(DATASET)
-
 
 def process_proton_picture(slider_value, data):
     """
@@ -208,14 +166,14 @@ def process_proton_picture(slider_value, data):
     try:
         filename = f"5091_{slider_value:05d}.dcm"
         dicom_path = os.path.join(DICOM_FOLDER, filename)
-        if local:
-            if not os.path.exists(dicom_path):
-                return jsonify({"error": "DICOM file not found"}), 404
-            dcm = pydicom.dcmread(dicom_path)
-        else:
-            s3.download_file(BUCKET_NAME, dicom_path, filename)
-            dcm = pydicom.dcmread(filename)        # Image processing logic
-            os.remove(filename)
+        
+        # Download the file to a temporary location
+        temp_path = f"/tmp/{filename}"
+        storage.download_file(dicom_path, temp_path)
+        
+        dcm = pydicom.dcmread(temp_path)
+        os.remove(temp_path)  # Clean up temporary file
+        
         slice_image = dcm.pixel_array
         slice_image[slice_image < 5] = 0
 
@@ -224,14 +182,6 @@ def process_proton_picture(slider_value, data):
         )
         normalized_image[normalized_image < 0.05] = 0.0
 
-        # temporarily comment below to avoid cv2 import error in dockerfile
-        contrast = data.get("contrast", 1)
-        # clahe = cv2.createCLAHE(clipLimit=contrast, tileGridSize=(8, 8))
-        # clahe_image = clahe.apply(np.uint8(normalized_image * 255))
-        # clahe_image[clahe_image < 5] = 0
-        # rescaled_image = clahe_image / 255.0
-        # rescaled_image[rescaled_image < 0.05] = 0.0
-        # pil_image = Image.fromarray((rescaled_image * 255).astype(np.uint8))
         pil_image = Image.fromarray((normalized_image * 255).astype(np.uint8))
         buffer = io.BytesIO()
         pil_image.save(buffer, format="PNG")
@@ -241,7 +191,6 @@ def process_proton_picture(slider_value, data):
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
 
 def process_hpmri_data(epsi_value, threshold):
     """
