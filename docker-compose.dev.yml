@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./server:/app
+      - ./local_storage:/app/local_storage
+    environment:
+      - FLASK_ENV=development
+      - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
+      - LOCAL_STORAGE_PATH=/app/local_storage
+    depends_on:
+      - dynamodb-local
+
+  frontend:
+    build:
+      context: ./hp-mri-frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./hp-mri-frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5001
+
+  dynamodb-local:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data/"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+
+volumes:
+  dynamodb-data: 
