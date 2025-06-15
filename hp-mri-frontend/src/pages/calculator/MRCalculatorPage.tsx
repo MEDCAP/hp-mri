@@ -73,11 +73,11 @@ const MRCalculatorPage: React.FC = () => {
     }
 
     if (inputs.frequencyMHz === "" || isNaN(inputs.frequencyMHz)) {
-        newErrors.frequencyMHz = "Please enter a resonance frequency.";
-      } else if (inputs.frequencyMHz < 20 || inputs.frequencyMHz > 100) {
-        newErrors.frequencyMHz = "Resonance Frequency must be between 20–100 MHz.";
-      }
-    
+      newErrors.frequencyMHz = "Please enter a resonance frequency.";
+    } else if (inputs.frequencyMHz < 20 || inputs.frequencyMHz > 100) {
+      newErrors.frequencyMHz = "Resonance Frequency must be between 20–100 MHz.";
+    }
+
     if (inputs.coaxLengthMM === "" || isNaN(inputs.coaxLengthMM)) {
       newErrors.coaxLengthMM = "Please enter a coax length value.";
     } else if (inputs.coaxLengthMM < 0 || inputs.coaxLengthMM > 200) {
@@ -112,9 +112,9 @@ const MRCalculatorPage: React.FC = () => {
         MR Coil Component Calculator
       </Typography>
       <Typography paragraph>
-      Welcome! This calculator helps you design heteronuclear MR coils for small-animal imaging.
-        </Typography>
-
+        Welcome! This calculator helps you design heteronuclear MR coils for
+        small-animal imaging.
+      </Typography>
 
       {/* “How to use calculator” section above all controls */}
       <Box mt={1} width="100%">
@@ -122,21 +122,30 @@ const MRCalculatorPage: React.FC = () => {
           How to use calculator
         </Typography>
         <Typography paragraph align="left">
-          1. <strong>Choose the inductor radius</strong> based on the size and depth of the structure 
-          you want to image. (<strong>Note:</strong> penetration depth is roughly equal to one inductor radius). <br />
-          2. <strong>Determine coaxial cable length</strong> by considering experimental layout. 
-          Keep in mind that Equation [4] (see theory setion) becomes inaccurate for lengths over 25 cm 
-          in the frequency range covered here. <br />
-          3. <strong>Calculate the tuning and matching capacitors</strong> If the output calls for very small 
-          or negative capacitance values, reduce coil inductance by decreasing the number of turns, shortening the coaxial cable, or both. <br />
-          4. <strong>Choose # of turns for inductor;</strong> lower frequencies and imaging 
-          of protruding structures (e.g. flank tumor) typically require more turns. 
-          
-          <br /><br />
-          <strong>Note:</strong> Due to variability in exact MRI field strength, we recommend using a tuning capacitor which is 5-10 pF lower
-          than the calculated capacitance, and supplementing with a variable screw tuning capacitor (see components list). Similarly, we have found 
-          that a 50pF range variable screw matching capacitor works as a matching component in all cases.
-        </Typography>      </Box>
+          1. <strong>Choose the inductor radius</strong> based on the size and
+          depth of the structure you want to image. (Note: penetration depth is
+          roughly equal to one inductor radius). <br />
+          2. <strong>Determine coaxial cable length</strong> by considering
+          experimental layout. Keep in mind that Equation [4] (see theory
+          section) becomes inaccurate for lengths over 25 cm in the frequency
+          range covered here. <br />
+          3. <strong>Calculate the tuning and matching capacitors</strong>. If
+          the output calls for very small or negative capacitance values, reduce
+          coil inductance by decreasing the number of turns, shortening the
+          coaxial cable, or both. <br />
+          4. <strong>Choose # of turns for inductor</strong>; lower frequencies
+          and imaging of protruding structures (e.g. flank tumor) typically
+          require more turns.
+          <br />
+          <br />
+          <strong>Note:</strong> Due to variability in exact MRI field strength,
+          we recommend using a tuning capacitor which is 5–10 pF lower than the
+          calculated capacitance, and supplementing with a variable screw
+          tuning capacitor (see components list). Similarly, a 50 pF range
+          variable screw matching capacitor works as a matching component in
+          all cases.
+        </Typography>
+      </Box>
 
       <Paper elevation={3} sx={{ p: 4, width: "100%", mt: 2 }}>
         <form onSubmit={handleSubmit}>
@@ -145,9 +154,11 @@ const MRCalculatorPage: React.FC = () => {
               variant="outlined"
               onClick={() => setShowResCalc(!showResCalc)}
             >
-              {showResCalc
-                ? <strong>Hide Resonance Calculator</strong>
-                : <strong>Click Here for Resonance Frequency Calculator</strong>}
+              {showResCalc ? (
+                <strong>Hide Resonance Calculator</strong>
+              ) : (
+                <strong>Click Here for Resonance Frequency Calculator</strong>
+              )}
             </Button>
 
             <Collapse in={showResCalc}>
@@ -186,8 +197,7 @@ const MRCalculatorPage: React.FC = () => {
                 <Typography variant="body1" sx={{ mt: 1 }}>
                   {inputs.nucleusGamma && inputs.fieldStrength
                     ? `Resonance frequency: ${Math.abs(
-                        (inputs.nucleusGamma as number) *
-                          parseFloat(inputs.fieldStrength as any)
+                        inputs.nucleusGamma as number * parseFloat(inputs.fieldStrength as any)
                       ).toFixed(3)} MHz`
                     : "Resonance frequency: —"}
                 </Typography>
@@ -215,6 +225,7 @@ const MRCalculatorPage: React.FC = () => {
               fullWidth
               type="number"
             />
+
             <TextField
               label="Coax cable length (mm) [0–200]"
               name="coaxLengthMM"
@@ -230,7 +241,11 @@ const MRCalculatorPage: React.FC = () => {
               onClick={() => setShowOptional(!showOptional)}
               variant="outlined"
             >
-              {showOptional ? <strong>Hide Optional Inputs</strong> : <strong>Show Optional Inputs</strong>}
+              {showOptional ? (
+                <strong>Hide Optional Inputs</strong>
+              ) : (
+                <strong>Show Optional Inputs</strong>
+              )}
             </Button>
 
             <Collapse in={showOptional}>
@@ -293,9 +308,6 @@ const MRCalculatorPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: "bold", py: 1 }}>
                     Tuning Capacitance (pF)
                   </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", py: 1 }}>
-                    Matching Capacitance (pF)
-                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -304,7 +316,6 @@ const MRCalculatorPage: React.FC = () => {
                     <TableCell sx={{ py: 0.5 }}>{row.n}</TableCell>
                     <TableCell sx={{ py: 0.5 }}>{row.L_nH}</TableCell>
                     <TableCell sx={{ py: 0.5 }}>{row.CT_pF}</TableCell>
-                    <TableCell sx={{ py: 0.5 }}>{row.CM_pF}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -313,7 +324,6 @@ const MRCalculatorPage: React.FC = () => {
         )}
       </Paper>
 
-      
       <Box
         component="img"
         src={MRCalcImage}
@@ -327,7 +337,8 @@ const MRCalculatorPage: React.FC = () => {
           boxShadow: 3,
         }}
       />
-<Box
+
+      <Box
         mt={4}
         display="flex"
         justifyContent="center"
