@@ -97,7 +97,7 @@ const CalculatorInfo: React.FC = () => {
         </Box>
 
         <Typography paragraph align="left">
-          By using separation of variables, abbreviating (<i>ωXZ₀c</i>), and
+          By using separation of variables, abbreviating (<i>β = ωXZ₀c</i>), and
           integrating along the cable length <i>x</i> = 0 to X and impedance{" "}
           <i>Z</i> = <i>jωL + R</i> to Z₁, we obtain:
         </Typography>
@@ -208,28 +208,8 @@ const CalculatorInfo: React.FC = () => {
         </Box>
 
         <Typography paragraph align="left">
-          A similar calculation, setting the imaginary part of Eq. [4] to zero,
-          yields:
-        </Typography>
-        <Box
-          component="pre"
-          sx={{
-            bgcolor: "#fff",
-            p: 2,
-            borderLeft: "3px solid #3b82f6",
-            fontFamily: "monospace",
-            fontSize: "0.95rem",
-            my: 2,
-            overflowX: "auto",
-            textAlign: "left",
-          }}
-        >
-          C<sub>M</sub> = √(ωL/(QZ₀)) / (ω²Q(L + Xl) + ωZ₀) [7]
-        </Box>
-
-        <Typography paragraph align="left">
-          <i>C<sub>M</sub></i> should be adjusted as necessary for any parasitic
-          series contribution from the circuit board. In practice, since losses
+          A similar calculation, setting the imaginary part of Eq. 4 to zero can be used to approximate the value for C<sub>M</sub>. However, for Q≫1 and β≪1, this value differs from C = C<sub>T</sub> + C<sub>P</sub> by a few percent.
+          In practice, since losses
           and slight variations are of less importance outside of the tank
           circuit, and since the required value is affected by capacitive
           coupling to the imaging subject, a single variable capacitor covering
@@ -256,7 +236,7 @@ const CalculatorInfo: React.FC = () => {
             textAlign: "left",
           }}
         >
-          L = L₀ + k D ln(D) nᵖ [8]
+          L = L₀ + k D ln(D) nᵖ [7]
         </Box>
         <Typography paragraph align="left">
           Here, D is the inductor diameter in mm and n is the number of turns.
