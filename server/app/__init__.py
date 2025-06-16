@@ -1,6 +1,6 @@
-# application factory for dev and prod environments
 import os
 from flask import Flask
+from flask_cors import CORS
 from config import DevelopmentConfig, ProductionConfig
 
 def create_app():
@@ -8,9 +8,11 @@ def create_app():
     # overwrite FLASK_ENV to production in dockerfile
     FLASK_ENV = os.getenv("FLASK_ENV", default="development")
     app.config.from_object(ProductionConfig if FLASK_ENV == "production" else DevelopmentConfig)
+    # Initialize CORS
+    CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
     # Register the mrds blueprint
-    from .mrds import mrds_bp
+    from app.mrds import mrds_bp
     app.register_blueprint(mrds_bp, url_prefix="/api")
-    from visualization import visualization_bp
-    app.register_blueprint(visualization_bp, url_prefix="/api")
+    from app.viewer import viewer_bp
+    app.register_blueprint(viewer_bp, url_prefix="/api")
     return app
