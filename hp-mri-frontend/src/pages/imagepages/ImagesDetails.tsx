@@ -25,14 +25,14 @@ const ImagesDetails: React.FC = () => {
 
     useEffect(() => {
         axios
-            .get(`http://127.0.0.1:5000/api/image-details/${imageId}`)
+            .get(`/api/image-details/${imageId}`)
             .then((response) => {
                 setImageDetails(response.data);
             })
             .catch((error) => console.error('Error fetching image details:', error));
 
         axios
-            .get(`http://127.0.0.1:5000/api/mrd-files/${fileId}`)
+            .get(`/api/mrd-files/${fileId}`)
             .then((response) => {
                 setFileDetails(response.data);
             })
@@ -49,7 +49,7 @@ const ImagesDetails: React.FC = () => {
         //     .catch(error => console.error("Error fetching image:", error));
         // Fetch the generated image from the backend
         axios
-            .get(`http://127.0.0.1:5000/api/plot-image`, { responseType: 'blob' })
+            .get(`/api/plot-image`, { responseType: 'blob' })
             .then((response) => {
                 const imageUrl = URL.createObjectURL(response.data);
                 setImageUrl(imageUrl);

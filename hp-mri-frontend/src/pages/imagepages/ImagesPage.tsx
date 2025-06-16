@@ -44,7 +44,7 @@ const ImagesPage: React.FC = () => {
 
   const fetchImages = () => {
     axios
-      .get('http://127.0.0.1:5000/api/images')
+      .get('/api/images')
       .then((response) => setImages(response.data))
       .catch((error) => console.error('Error fetching images:', error));
   };

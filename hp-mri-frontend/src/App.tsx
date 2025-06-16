@@ -8,25 +8,23 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 
 import HeaderAccount from './components/HeaderAccount';
 // All page imports
-import UploadPage from './pages/UploadPage';
+import UploadPage from './pages/mrdpages/UploadPage';
 import RetrievePage from './pages/mrdpages/RetrievePage';
 import MRDFileDetails from './pages/mrdpages/MRDFileDetails';
-import HomePage from './pages/HomePage';
-import AboutPage from './pages/AboutPage';
-import ConceptPage from './pages/description/ConceptPage';
-import ConvertStorePage from './pages/description/ConvertStorePage';
-import ReconstructionToolsPage from './pages/description/ReconstructionToolsPage';
-import SimulatePage from './pages/description/SimulatePage';
+import HomePage from './pages/homepages/HomePage';
+import AboutPage from './pages/homepages/AboutPage';
+import ConceptPage from './pages/homepages/ConceptPage';
+import ConvertStorePage from './pages/homepages/ConvertStorePage';
+import ReconstructionToolsPage from './pages/homepages/ReconstructionToolsPage';
+import SimulatePage from './pages/homepages/SimulatePage';
 import ImagesPage from './pages/imagepages/ImagesPage';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
-import AccountPage from './pages/AccountPage';
+import AccountPage from './pages/loginpages/AccountPage';
 import ImagesDetails from './pages/imagepages/ImagesDetails';
-import SolutionPage from './pages/SolutionPage';
-import PublicationPage from './pages/PublicationPage';
-import ResearchPage from './pages/ResearchPage';
+import PublicationPage from './pages/homepages/PublicationPage';
+import ResearchPage from './pages/homepages/ResearchPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
-import VisualizationPage from './pages/visualization/VisualizationPage';
-import VisualizationAbout from './pages/visualization/VisualizationAbout';
+import VisualizationPage from './pages/viewerpages/VisualizationPage';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
 const APP_VERSION = 'BY: ' + 'v2.0.5';
@@ -64,11 +62,9 @@ const AppContent: React.FC = () => {
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
           <Route path="/research" element={<ResearchPage />} />
-          <Route path="/solution" element={<SolutionPage />} />
           <Route path="/publication" element={<PublicationPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/visualize" element={<VisualizationPage />} />
-          <Route path="/visualize-about" element={<VisualizationAbout />} />
           <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
         </Routes>
       </div>
