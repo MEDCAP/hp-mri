@@ -4,7 +4,12 @@ import boto3
 class Config:
     # parse aws credentials from ~/.aws/credentials after aws-federated-login
     FLASK_APP='app.py'
-    session = boto3.Session(profile_name='aws-medcap-psom-PennResearcher')
+    session = boto3.Session(
+        aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+        aws_session_token=os.environ.get('AWS_SESSION_TOKEN'),  # if using temporary credentials
+        region_name=os.environ.get('AWS_DEFAULT_REGION')
+    )
     AWS_ACCESS_KEY_ID = session.get_credentials().access_key
     AWS_SECRET_ACCESS_KEY = session.get_credentials().secret_key
     AWS_SESSION_TOKEN = session.get_credentials().token

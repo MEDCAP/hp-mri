@@ -37,11 +37,11 @@ COPY --chown=appuser:appuser . .
 
 # vite api url set to alb public ip
 ENV PATH="/home/appuser/.local/bin:${PATH}" \
-    FLASK_CONFIG=production \
+    FLASK_CONFIG=development \
     GUNICORN_CMD_ARGS="--bind=0.0.0.0:5000 --workers=2 --timeout 60"
 # Expose port and set CMD
 EXPOSE 5000
 
 # run gunicorn using set PATH variable
 # app.py as entrypoint and app = create_app()
-CMD ["gunicorn", "app:app"]
+CMD ["gunicorn", "app:create_app()"]
