@@ -129,7 +129,7 @@ const MRCalculatorPage: React.FC = () => {
           experimental layout. Keep in mind that Equation [4] (see theory
           section) becomes inaccurate for lengths over 25 cm in the frequency
           range covered here. <br />
-          3. <strong>Calculate the tuning and matching capacitors</strong>. If
+          3. <strong>Calculate the tuning capacitors</strong>. If
           the output calls for very small or negative capacitance values, reduce
           coil inductance by decreasing the number of turns, shortening the
           coaxial cable, or both. <br />
