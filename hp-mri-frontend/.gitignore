@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.production
+.env.development
+
+# TypeScript build info
+tsconfig.app.tsbuildinfo
+tsconfig.node.tsbuildinfo

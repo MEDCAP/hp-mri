@@ -1,0 +1,19 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LambdaTestStack = void 0;
+const cdk = require("aws-cdk-lib");
+const lambda = require("aws-cdk-lib/aws-lambda");
+class LambdaTestStack extends cdk.Stack {
+    constructor(scope, id, props) {
+        super(scope, id, props);
+        // Create a Docker-based Lambda function using the code in "server/aws_lambda"
+        const handleDynamoLambda = new lambda.DockerImageFunction(this, 'HandleDynamoLambda', {
+            functionName: 'HandleDynamoLambda',
+            code: lambda.DockerImageCode.fromImageAsset('server/aws_lambda'),
+        });
+    }
+}
+exports.LambdaTestStack = LambdaTestStack;
+const app = new cdk.App();
+new LambdaTestStack(app, 'LambdaTestStack');
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFBLG1DQUFtQztBQUVuQyxpREFBaUQ7QUFFakQsTUFBYSxlQUFnQixTQUFRLEdBQUcsQ0FBQyxLQUFLO0lBQzVDLFlBQVksS0FBZ0IsRUFBRSxFQUFVLEVBQUUsS0FBc0I7UUFDOUQsS0FBSyxDQUFDLEtBQUssRUFBRSxFQUFFLEVBQUUsS0FBSyxDQUFDLENBQUM7UUFFeEIsOEVBQThFO1FBQzlFLE1BQU0sa0JBQWtCLEdBQUcsSUFBSSxNQUFNLENBQUMsbUJBQW1CLENBQUMsSUFBSSxFQUFFLG9CQUFvQixFQUFFO1lBQ3BGLFlBQVksRUFBRSxvQkFBb0I7WUFDbEMsSUFBSSxFQUFFLE1BQU0sQ0FBQyxlQUFlLENBQUMsY0FBYyxDQUFDLG1CQUFtQixDQUFDO1NBQ2pFLENBQUMsQ0FBQztJQUNMLENBQUM7Q0FDRjtBQVZELDBDQVVDO0FBRUQsTUFBTSxHQUFHLEdBQUcsSUFBSSxHQUFHLENBQUMsR0FBRyxFQUFFLENBQUM7QUFDMUIsSUFBSSxlQUFlLENBQUMsR0FBRyxFQUFFLGlCQUFpQixDQUFDLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgKiBhcyBjZGsgZnJvbSAnYXdzLWNkay1saWInO1xuaW1wb3J0IHsgQ29uc3RydWN0IH0gZnJvbSAnY29uc3RydWN0cyc7XG5pbXBvcnQgKiBhcyBsYW1iZGEgZnJvbSAnYXdzLWNkay1saWIvYXdzLWxhbWJkYSc7XG5cbmV4cG9ydCBjbGFzcyBMYW1iZGFUZXN0U3RhY2sgZXh0ZW5kcyBjZGsuU3RhY2sge1xuICBjb25zdHJ1Y3RvcihzY29wZTogQ29uc3RydWN0LCBpZDogc3RyaW5nLCBwcm9wcz86IGNkay5TdGFja1Byb3BzKSB7XG4gICAgc3VwZXIoc2NvcGUsIGlkLCBwcm9wcyk7XG5cbiAgICAvLyBDcmVhdGUgYSBEb2NrZXItYmFzZWQgTGFtYmRhIGZ1bmN0aW9uIHVzaW5nIHRoZSBjb2RlIGluIFwic2VydmVyL2F3c19sYW1iZGFcIlxuICAgIGNvbnN0IGhhbmRsZUR5bmFtb0xhbWJkYSA9IG5ldyBsYW1iZGEuRG9ja2VySW1hZ2VGdW5jdGlvbih0aGlzLCAnSGFuZGxlRHluYW1vTGFtYmRhJywge1xuICAgICAgZnVuY3Rpb25OYW1lOiAnSGFuZGxlRHluYW1vTGFtYmRhJyxcbiAgICAgIGNvZGU6IGxhbWJkYS5Eb2NrZXJJbWFnZUNvZGUuZnJvbUltYWdlQXNzZXQoJ3NlcnZlci9hd3NfbGFtYmRhJyksXG4gICAgfSk7XG4gIH1cbn1cblxuY29uc3QgYXBwID0gbmV3IGNkay5BcHAoKTtcbm5ldyBMYW1iZGFUZXN0U3RhY2soYXBwLCAnTGFtYmRhVGVzdFN0YWNrJyk7XG4iXX0=

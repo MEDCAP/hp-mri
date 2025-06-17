@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './../styles/headerHomepage.css';
-import Medcap from './../images/medcap.png'
+import Medcap from './../assets/medcap.png'
 
 const HeaderHomepage: React.FC = () => {
   return (

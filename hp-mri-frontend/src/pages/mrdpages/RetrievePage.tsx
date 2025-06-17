@@ -44,7 +44,10 @@ const RetrievePage: React.FC = () => {
   const fetchFiles = () => {
     axios
       .get('/api/mrd-files')
-      .then((response) => setFiles(response.data))
+      .then((response) => {
+        console.log("response.data: ", response.data);
+        setFiles(response.data);
+      })
       .catch((error) => console.error('Error fetching MRD files:', error));
   };
 

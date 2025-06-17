@@ -22,7 +22,7 @@ import {
 } from "@mui/material";
 import { calculateResults } from "./utils/calculate";
 import CalculatorInfo from "./components/CalculatorInfo";
-import MRCalcImage from "../../images/mr_calc_model.png";
+import MRCalcImage from "../../assets/mr_calc_model.png";
 
 const MRCalculatorPage: React.FC = () => {
   useEffect(() => {

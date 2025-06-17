@@ -1,7 +1,7 @@
 // src/components/FooterHomepage.tsx
 import React from 'react';
 import './../styles/footerHomepage.css';
-import Medcap from './../images/medcap.png'
+import Medcap from './../assets/medcap.png'
 
 const FooterHomepage: React.FC = () => {
   return (
