@@ -33,7 +33,8 @@ USER appuser
 COPY --from=build --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # copy application code
-COPY --chown=appuser:appuser . .
+COPY --chown=appuser:appuser app app
+COPY app.py config.py data.py ./
 
 # vite api url set to alb public ip
 ENV PATH="/home/appuser/.local/bin:${PATH}" \
