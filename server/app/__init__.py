@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from config import DevelopmentConfig, ProductionConfig
 
@@ -15,4 +15,10 @@ def create_app():
     app.register_blueprint(mrds_bp, url_prefix="/api")
     from app.viewer import viewer_bp
     app.register_blueprint(viewer_bp, url_prefix="/api")
+
+    # Health check endpoint for AWS ALB
+    @app.route("/api/health", methods=["GET"])
+    def health_check():
+        return jsonify({"status": "flask endpoint healthy"}), 200
+
     return app
