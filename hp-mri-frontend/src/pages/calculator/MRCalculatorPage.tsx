@@ -19,6 +19,7 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
+  Link,
 } from "@mui/material";
 import { calculateResults } from "./utils/calculate";
 import CalculatorInfo from "./components/CalculatorInfo";
@@ -116,7 +117,7 @@ const MRCalculatorPage: React.FC = () => {
         small-animal imaging.
       </Typography>
 
-      {/* “How to use calculator” section above all controls */}
+      {/* “How to use calculator” section */}
       <Box mt={1} width="100%">
         <Typography variant="h5" gutterBottom fontWeight={700}>
           How to use calculator
@@ -138,12 +139,15 @@ const MRCalculatorPage: React.FC = () => {
           require more turns.
           <br />
           <br />
-          <strong>Note:</strong> Due to variability in exact MRI field strength,
-          we recommend using a tuning capacitor which is 5–10 pF lower than the
+          <strong>Note on variable capacitors:</strong> Due to MRI field strength variability,
+          we recommend using a tuning capacitor 5–10 pF lower than the
           calculated capacitance, and supplementing with a variable screw
           tuning capacitor (see components list). Similarly, a 50 pF range
           variable screw matching capacitor works as a matching component in
           all cases.
+          <br />
+          <br />
+          <strong>Note on negative capacitance values:</strong>  Large resonance frequencies, inductor diameters, and coaxial cable lengths all decrease the required tuning capacitance. The calculator may therefore recommend negative values for certain theoretical coil designs. Adjust parameters accordingly or use an inductor with fewer turns to resolve this.
         </Typography>
       </Box>
 
@@ -250,6 +254,18 @@ const MRCalculatorPage: React.FC = () => {
 
             <Collapse in={showOptional}>
               <Box display="flex" flexDirection="column" gap={2} mt={2}>
+              <Typography variant="caption" align="left" sx={{ mt: 0 }}>
+                  Note: For other coax types, calculate capacitance and inductance per
+                  unit length at{" "}
+                  <Link
+                    href="https://www.allaboutcircuits.com/tools/coax-impedance-calculator/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    this calculator
+                  </Link>
+                  .
+                </Typography>
                 <TextField
                   label="Coaxial cable inductance per meter (nH)"
                   name="coaxInductance"
@@ -266,8 +282,9 @@ const MRCalculatorPage: React.FC = () => {
                   fullWidth
                   type="number"
                 />
+                
                 <TextField
-                  label="PCB parasitic capacitance (nH)"
+                  label="PCB parasitic capacitance (pF)"
                   name="parasiticCap"
                   value={inputs.parasiticCap}
                   onChange={handleChange}
@@ -371,7 +388,6 @@ const MRCalculatorPage: React.FC = () => {
         </Button>
       </Box>
 
-      {/* MR coil theory and onward stay in CalculatorInfo */}
       <Box mt={4} width="100%">
         <CalculatorInfo />
       </Box>
