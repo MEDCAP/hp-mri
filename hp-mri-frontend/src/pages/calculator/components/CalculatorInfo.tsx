@@ -72,6 +72,7 @@ const CalculatorInfo: React.FC = () => {
         <Typography variant="h5" gutterBottom fontWeight={700}>
           MR coil theory
         </Typography>
+
         <Typography paragraph align="left">
           The coaxial cable is modeled using its (parallel) capacitance,&nbsp;
           <i>c</i>, and (series) inductance <i>l</i> per unit length. The former
@@ -245,6 +246,27 @@ const CalculatorInfo: React.FC = () => {
           text. This is for a frequency range of 25 to 85 MHz, inductor diameter
           of 15–25 mm, and 20-AWG wire.
         </Typography>
+
+        <Typography variant="h5" gutterBottom fontWeight={700}>
+        Derivation of Optional Inputs
+                </Typography>
+        <Typography paragraph align="left">
+        Per‐unit‐length values for the coaxial cable’s capacitance (<i>c</i>) and inductance (<i>l</i>) were set using the cable manufacturer’s specifications (for <i>c</i>) and the known 50 Ω characteristic impedance (l = Z₀²·c), with those values then confirmed by measuring the impedance profile of 5–20 cm segments over 20–80 MHz on a Keysight 4395A network analyzer
+        </Typography>
+        <Typography paragraph align="left">
+          If you do not know the specific per‐unit‐length values for your coaxial cable’s capacitance and inductance, but do have the inner and outer conductor diameters, you can calculate <i>l</i> and <i>c</i> yourself using standard formulas which can be found in this {" "}
+          <Link
+            href="https://www.allaboutcircuits.com/tools/coax-impedance-calculator/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Coax Impedance Calculator
+          </Link>
+          .
+          <br></br><br></br>
+          Parasitic capacitance on the PCB (<i>C<sub>P</sub></i>) was estimated by measuring the impedance of the PCB assembly without an inductor attached. Finally, the overall coil quality factor (Q) was determined by recording the S₁₁ resonance peak’s –3 dB bandwidth (full‐width at half‐maximum) and calculating Q as the resonant frequency divided by that FWHM.
+        </Typography>
+
       </Paper>
     </Box>
   );
