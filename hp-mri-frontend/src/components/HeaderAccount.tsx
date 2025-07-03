@@ -1,13 +1,20 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
-import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme } from '@mui/material';
+import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
 // import TheMedcap from './../images/the-medcap.png';
 import Medcap from './../assets/medcap.png'
+import { getCurrentUserName, signOutCognito } from '../pages/loginpages/cognitoUtils';
 
 const HeaderAccount: React.FC = () => {
   const theme = useTheme();
+  const userName = getCurrentUserName();
+  const navigate = useNavigate();
+  const handleSignOut = () => {
+    signOutCognito();
+    navigate('/account');
+  };
 
   return (
     <AppBar
@@ -29,7 +36,7 @@ const HeaderAccount: React.FC = () => {
       >
         {/* Left Section: Logos */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: '5px', marginLeft: '-15px' }}>
-          <Link to="/mrd-files">
+          <Link to="/">
             <img
               src={PigiLogo}
               alt="Pigi Logo"
@@ -55,34 +62,23 @@ const HeaderAccount: React.FC = () => {
         </Typography>
 
         {/* Right Section: Account */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title="Go to Account">
-            <Link to="/account" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <IconButton
-                sx={{
-                  transition: 'background-color 0.3s',
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                <Avatar
-                  sx={{
-                    bgcolor: theme.palette.primary.main,
-                    color: theme.palette.getContrastText(theme.palette.primary.main),
-                  }}
-                >
-                  <FaUserCircle size={20} />
-                </Avatar>
-              </IconButton>
-            </Link>
-          </Tooltip>
-          <Typography
-            variant="body1"
-            sx={{ fontWeight: 500, display: { xs: 'none', sm: 'block' } }}
-          >
-            Account
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {userName && (
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+              Welcome, {userName}
+            </Typography>
+          )}
+          {userName && (
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="small"
+              onClick={handleSignOut}
+              sx={{ fontWeight: 700, ml: 1, textTransform: 'none', borderRadius: 2 }}
+            >
+              Sign Out
+            </Button>
+          )}
         </Box>
       </Toolbar>
     </AppBar>
