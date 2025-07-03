@@ -18,6 +18,14 @@ export default defineConfig(({ mode }) => {
           }
         }
       }
-      : undefined // in production, use reverse proxy ALB
+      : undefined, // in production, use reverse proxy ALB
+    define: {
+      global: 'globalThis',
+    },
+    resolve: {
+      alias: {
+        './runtimeConfig': './runtimeConfig.browser',
+      },
+    },
   }
 });

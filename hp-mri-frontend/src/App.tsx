@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import theme from './theme'; // './theme' exports MUI theme object
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import HeaderAccount from './components/HeaderAccount';
 // All page imports
@@ -26,6 +27,8 @@ import ResearchPage from './pages/homepages/ResearchPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
 import VisualizationPage from './pages/viewerpages/VisualizationPage';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
+import SignUpPage from './pages/loginpages/SignUpPage';
+import ConfirmSignUpPage from './pages/loginpages/ConfirmSignUpPage';
 
 const APP_VERSION = 'BY: ' + 'v2.0.5';
 
@@ -49,9 +52,9 @@ const AppContent: React.FC = () => {
         <Routes>
           {/* Routes */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/mrd-files" element={<RetrievePage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/file-details/:fileId" element={<MRDFileDetails />} />
+          <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
+          <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+          <Route path="/file-details/:fileId" element={<ProtectedRoute><MRDFileDetails /></ProtectedRoute>} />
           <Route path="/about-devs" element={<AboutPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/reconstruction-tools" element={<ReconstructionToolsPage />} />
@@ -66,6 +69,8 @@ const AppContent: React.FC = () => {
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/visualize" element={<VisualizationPage />} />
           <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/confirm-signup" element={<ConfirmSignUpPage />} />
         </Routes>
       </div>
 
