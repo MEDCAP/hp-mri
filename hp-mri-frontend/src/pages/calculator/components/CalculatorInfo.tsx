@@ -251,10 +251,10 @@ const CalculatorInfo: React.FC = () => {
         Derivation of Optional Inputs
                 </Typography>
         <Typography paragraph align="left">
-        Per‐unit‐length values for the coaxial cable’s capacitance (<i>c</i>) and inductance (<i>l</i>) were set using the cable manufacturer’s specifications (for <i>c</i>) and the known 50 Ω characteristic impedance (l = Z₀²·c), with those values then confirmed by measuring the impedance profile of 5–20 cm segments over 20–80 MHz on a Keysight 4395A network analyzer
+        Per‐unit‐length values for the coaxial cable’s capacitance (<i>c</i>) and inductance (<i>l</i>) were set using the cable manufacturer’s specifications (for <i>c</i>) and the known 50 Ω characteristic impedance (l = Z₀²·c), with those values then confirmed by measuring the impedance profile of 5–20 cm segments over 20–80 MHz on a Keysight 4395A network analyzer.
         </Typography>
         <Typography paragraph align="left">
-          If you do not know the specific per‐unit‐length values for your coaxial cable’s capacitance and inductance, but do have the inner and outer conductor diameters, you can calculate <i>l</i> and <i>c</i> yourself using standard formulas which can be found in this {" "}
+          If using a cable with unknown reactive properties, but known conductor dimensions and dielectric, <i>l</i> and <i>c</i> can be calculated using standard formulas (see, e.g., the online resources at RF Café: {" "} 
           <Link
             href="https://www.allaboutcircuits.com/tools/coax-impedance-calculator/"
             target="_blank"
