@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { ArrowUpward, ArrowDownward, CloudDownload, Delete, UploadFile, Refresh } from '@mui/icons-material';
 import axios from 'axios';
+import { getCurrentUserName, signOutCognito } from '../loginpages/cognitoUtils';
 
 interface MRDFile {
   id: number;
@@ -110,6 +111,12 @@ const RetrievePage: React.FC = () => {
   //       setFiles(files.filter(file => !file.isSelected));
   //     })
   //     .catch(error => console.error("Error deleting files:", error));
+  };
+
+  const userName = getCurrentUserName();
+  const handleSignOut = () => {
+    signOutCognito();
+    navigate('/account');
   };
 
   return (

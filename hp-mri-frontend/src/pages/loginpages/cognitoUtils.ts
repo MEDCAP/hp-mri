@@ -7,7 +7,7 @@ import {
 
 const poolData = {
   UserPoolId: 'us-east-1_vUo50ofKI',
-  ClientId: '5qt5c09ke6ahumgppnn69h0vu4',
+  ClientId: '4nvgf7et9f4ui0glr4ddf152r8',
 };
 
 const userPool = new CognitoUserPool(poolData);
@@ -79,4 +79,25 @@ export function isAuthenticated(): boolean {
     }
   });
   return valid;
+}
+
+export function getCurrentUserName(): string | null {
+  const user = userPool.getCurrentUser();
+  if (!user) return null;
+  let name: string | null = null;
+  user.getSession((err: any, session: any) => {
+    if (err || !session || !session.isValid()) {
+      name = null;
+    } else {
+      const idToken = session.getIdToken();
+      const payload = idToken.payload;
+      name = payload.name || payload.email || null;
+    }
+  });
+  return name;
+}
+
+export function signOutCognito() {
+  const user = userPool.getCurrentUser();
+  if (user) user.signOut();
 } 

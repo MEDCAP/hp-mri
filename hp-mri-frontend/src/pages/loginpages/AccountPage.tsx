@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import { Container, Box, Typography, TextField, Button, Paper, Link, Alert } from '@mui/material';
 import PigiLogo from '../../assets/pigi_optblue_transparentexceptpennlogo.png';
 import { signInCognito } from './cognitoUtils';
@@ -7,7 +7,8 @@ import HeaderAccount from '../../components/HeaderAccount';
 
 const AccountPage: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const [email, setEmail] = useState(() => (location.state && (location.state as any).email) || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   // TODO: Add loading state and Cognito logic
