@@ -106,9 +106,14 @@ const SignUpPage: React.FC = () => {
                 Sign Up
               </Button>
             </Box>
-            <Typography variant="body2" sx={{ mt: 3 }}>
+            <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
               Already have an account?{' '}
-              <Link component={RouterLink} to="/account" underline="hover" color="secondary">
+              <Link
+                component={RouterLink}
+                to="/account"
+                sx={{ fontWeight: 700, fontSize: '1.15rem', ml: 0.5, color: '#1976d2' }}
+                underline="hover"
+              >
                 Sign in
               </Link>
             </Typography>

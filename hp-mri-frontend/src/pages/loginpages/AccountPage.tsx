@@ -96,9 +96,14 @@ const AccountPage: React.FC = () => {
                 Sign In
               </Button>
             </Box>
-            <Typography variant="body2" sx={{ mt: 3 }}>
+            <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
               New to MEDCAP?{' '}
-              <Link component={RouterLink} to="/signup" underline="hover" color="secondary">
+              <Link
+                component={RouterLink}
+                to="/signup"
+                sx={{ fontWeight: 700, fontSize: '1.15rem', ml: 0.5, color: '#1976d2' }}
+                underline="hover"
+              >
                 Create an account
               </Link>
             </Typography>
