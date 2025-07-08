@@ -28,6 +28,7 @@ export function signUpCognito(name: string, email: string, password: string): Pr
   });
 }
 
+// confirm user's signup code from email
 export function confirmSignUpCognito(email: string, code: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const userData = {

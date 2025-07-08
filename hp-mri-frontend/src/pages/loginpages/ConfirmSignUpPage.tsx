@@ -3,7 +3,7 @@ import { useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Container, Box, Typography, TextField, Button, Paper, Link, Alert, Snackbar } from '@mui/material';
 import PigiLogo from '../../assets/pigi_optblue_transparentexceptpennlogo.png';
 import HeaderAccount from '../../components/HeaderAccount';
-import { confirmSignUpCognito, signInCognito } from './cognitoUtils';
+import { confirmSignUpCognito } from './cognitoUtils';
 
 const ConfirmSignUpPage: React.FC = () => {
   const navigate = useNavigate();

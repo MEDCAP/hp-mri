@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaUserCircle } from 'react-icons/fa';
-import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Tooltip, useTheme, Button } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, useTheme, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
 // import TheMedcap from './../images/the-medcap.png';
 import Medcap from './../assets/medcap.png'
@@ -13,7 +12,7 @@ const HeaderAccount: React.FC = () => {
   const navigate = useNavigate();
   const handleSignOut = () => {
     signOutCognito();
-    navigate('/account');
+    navigate('/');  // return to homepage upon sign out
   };
 
   return (
@@ -36,15 +35,14 @@ const HeaderAccount: React.FC = () => {
       >
         {/* Left Section: Logos */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: '5px', marginLeft: '-15px' }}>
-          <Link to="/">
+          <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
             <img
               src={PigiLogo}
               alt="Pigi Logo"
               style={{ height: 40, cursor: 'pointer' }}
             />
+            <img src={Medcap} alt="The Medcap Logo" style={{ height: 40, marginLeft: 8 }} />
           </Link>
-          {/* <img src={TheMedcap} alt="The Medcap Logo" style={{ height: 40 }} /> */}
-          <img src={Medcap} alt="The Medcap Logo" style={{ height: 40 }} />
         </Box>
 
         {/* Center Section: Title */}
@@ -84,5 +82,4 @@ const HeaderAccount: React.FC = () => {
     </AppBar>
   );
 };
-
 export default HeaderAccount;
