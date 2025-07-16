@@ -6,7 +6,7 @@ import {
   Button,
   Checkbox,
   Container,
-  Grid,
+  Grid2,
   Paper,
   TextField,
   Typography,
@@ -128,8 +128,8 @@ const RetrievePage: React.FC = () => {
           Retrieve MRD Files
         </Typography>
 
-        <Grid container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
-          <Grid item xs={6}>
+        <Grid2 container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
+          <Grid2 size={{xs: 6}}>
             <TextField
               fullWidth
               variant="outlined"
@@ -137,8 +137,8 @@ const RetrievePage: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </Grid>
-          <Grid item xs={6} textAlign="right">
+          </Grid2>
+          <Grid2 size={{xs: 6}} textAlign="right">
             <div
               style={{
                 display: 'flex',
@@ -198,8 +198,8 @@ const RetrievePage: React.FC = () => {
                 </Button>
               </Tooltip>
             </div>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
 
         <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
           <Table>
