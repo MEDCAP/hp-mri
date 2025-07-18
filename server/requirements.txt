@@ -22,6 +22,7 @@ packaging==24.2
 pillow==11.0.0
 pydicom==3.0.1
 pyMapVBVD==0.6.1
+pymongo==3.12.0
 pyparsing==3.2.0
 python-dateutil==2.9.0.post0
 s3transfer==0.10.4
