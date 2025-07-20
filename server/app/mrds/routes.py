@@ -1,13 +1,6 @@
-from flask import jsonify, request, send_file
-from matplotlib import pyplot as plt
-from scipy.io import loadmat
+from flask import jsonify, request
 import os
-import io
-import matplotlib
 import boto3
-
-# Set the non-GUI backend before importing pyplot
-matplotlib.use("Agg")
 
 # Temporary mock data
 # TODO: Replace with RDS Database for quick querying on file details
@@ -20,11 +13,6 @@ from . import mrds_bp
 # setup aws s3 client
 s3 = boto3.client("s3")
 BUCKET = "mrissim-app-user-content"
-
-# Root route just to test the server is running
-@mrds_bp.route("/")
-def index():
-    return jsonify({"message": "Flask backend is running!"})
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
@@ -42,42 +30,6 @@ def show_files():
         for file in db_mrd
     ]
     return jsonify(filtered_files)
-
-@mrds_bp.route("/plot-image", methods=["GET"])
-def plot_image():
-    try:
-        # Load the proton image
-        proton_matfile = "./mrds/test_image_matfiles/1115_first_measurement_dcm.mat"
-        if not os.path.exists(proton_matfile):
-            raise FileNotFoundError(f"File '{proton_matfile}' does not exist.")
-        proton_image = loadmat(proton_matfile)["data"]
-
-        # Load the carbon image
-        carbon_matfile = "./mrds/test_image_matfiles/meas_MID01696_FID08543_c13_spspsp_BPAL_inj2_reconimage.mat"
-        if not os.path.exists(carbon_matfile):
-            raise FileNotFoundError(f"File '{carbon_matfile}' does not exist.")
-        carbon_image = loadmat(carbon_matfile)["data"]
-        carbon_image = carbon_image[1, :, :, 3, 1]  # show a specific slice
-
-        # Plot the images using the Agg backend
-        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(proton_image, cmap="gray")
-        ax[0].set_title("Proton Image of liver slice")
-        ax[1].imshow(carbon_image, cmap="gray")
-        ax[1].set_title("Carbon Image of heart slice")
-        plt.tight_layout()
-
-        # Save the plot to a BytesIO stream
-        img_io = io.BytesIO()
-        plt.savefig(img_io, format="png", bbox_inches="tight")
-        img_io.seek(0)
-        plt.close(fig)  # Ensure the figure is closed
-
-        # Return the image as a response
-        return send_file(img_io, mimetype="image/png")
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
@@ -115,66 +67,6 @@ def edit_file_tags(file_id):
         return jsonify({"error": "File not found"}), 404
     except ValueError:
         return jsonify({"error": "Invalid file ID"}), 400
-
-
-# Route to list Images
-@mrds_bp.route("/images", methods=["GET"])
-def show_images():
-    # Transform the data to include only the specified fields
-    filtered_images = [
-        {
-            "id": image["id"],
-            "name": image["name"],
-            "date": image["date"],
-            "owner": image["owner"],
-            "sequence_id": image["sequence_id"],
-            "sequence": image["sequence"],
-            "isSelected": image["isSelected"],
-        }
-        for image in db_image
-    ]
-    return jsonify(filtered_images)
-
-
-# Route to retrieve images by sequence_id
-@mrds_bp.route("/images/<int:sequence_id>", methods=["GET"])
-def get_images_by_sequence(sequence_id):
-    images = [image for image in db_image if image["sequence_id"] == sequence_id]
-    return jsonify(images)
-
-
-@mrds_bp.route("/images/delete", methods=["DELETE"])
-def delete_images():
-    global db_image
-    image_ids = request.json.get("ids", [])
-    if not image_ids:
-        return jsonify({"error": "No image IDs provided"}), 400
-
-    db_image = [image for image in db_image if image["id"] not in image_ids]
-    return jsonify({"message": "Images deleted successfully"}), 200
-
-
-# Route to retrieve specific image file details
-@mrds_bp.route("/image-details/<image_id>", methods=["GET"])
-def get_image(image_id):
-    try:
-        image_id = int(image_id)
-        image_data = next(
-            (image for image in db_image if image["id"] == image_id), None
-        )
-        if image_data:
-            return jsonify(image_data)
-        return jsonify({"error": "Image not found"}), 404
-    except ValueError:
-        return jsonify({"error": "Invalid image ID"}), 400
-
-
-# TODO: Route to get actual image associated with this image id from
-# the s3 bucket and return it to the frontend
-@mrds_bp.route("/image/<int:image_id>/", methods=["GET"])
-def get_image_details(image_id):
-    return jsonify({"message": "TODO: Display Image"})
-
 
 # Route to upload MRD file page
 @mrds_bp.route("/upload", methods=["POST"])
@@ -214,7 +106,6 @@ def delete_files():
 def download_file(file_id):
     # download file
     pass
-
 
 # Route to list Simulators
 @mrds_bp.route("/simulator", methods=["GET"])
