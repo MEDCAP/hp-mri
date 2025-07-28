@@ -45,4 +45,4 @@ EXPOSE 5000
 
 # run gunicorn using set PATH variable
 # app.py as entrypoint and app = create_app()
-CMD ["gunicorn", "app:create_app()"]
+CMD ["gunicorn", "run:create_app()"]
