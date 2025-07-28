@@ -3,11 +3,8 @@ import os
 import boto3
 
 # Temporary mock data
-# TODO: Replace with RDS Database for quick querying on file details
-# TODO: When uploading actual file to S3 Bucket, add to this database
-from data import db_mrd
-from data import db_image
-from data import db_simulator
+# Deprecated mock data imports are kept for legacy routes; new routes use real DB
+from data import db_mrd_files
 from . import mrds_bp 
 
 # setup aws s3 client
@@ -17,19 +14,21 @@ BUCKET = "mrissim-app-user-content"
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
 def show_files():
-    # Transform the data to include only the specified fields
-    filtered_files = [
+    """Return a list of MRD files with selected fields from MongoDB."""
+
+    # Only include the subset of fields required by the frontend table
+    display_mrd_files = [
         {
-            "id": file["id"],
-            "name": file["name"],
-            "date": file["date"],
-            "owner": file["owner"],
-            "reconImagesCount": file["reconImagesCount"],
-            "isSelected": file["isSelected"],
+            "id": file["_id"],
+            "file_name": file["file_name"],
+            "study_date": file["study_date"],
+            "owner": file["uploader_name"],
+            "reconImagesCount": file[''],
+            "isSelected": False,
         }
-        for file in db_mrd
+        for file in files
     ]
-    return jsonify(filtered_files)
+    return jsonify(display_mrd_files)
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
@@ -82,8 +81,15 @@ def upload_file():
         filepath = os.path.join(upload_path, file.filename)
         file.save(filepath)
         try:
+            # read meta information using helper function as JSON
+            db_entry = read_header(filepath)
+            # encode db_entry into mongodb
+
+            # construct a filename
+            filename = uid
+            filepath = os.path.join(upload_path, filename)
             # upload to s3 as original name
-            s3.upload_file(filepath, BUCKET, file.filename)
+            s3.upload_file(filepath, BUCKET, filename)
         except Exception as e:
             return jsonify({"aws access error": e}), 400
         # remove local file
@@ -107,32 +113,37 @@ def download_file(file_id):
     # download file
     pass
 
-# Route to list Simulators
-@mrds_bp.route("/simulator", methods=["GET"])
-def show_simulator():
-    filtered_simulator = [
-        {
-            "id": simulator["id"],
-            "name": simulator["name"],
-            "date": simulator["date"],
-            "owner": simulator["owner"],
-            "sequence": simulator["sequence"],
-            "image": simulator["image"],
-            "isSelected": simulator["isSelected"],
-        }
-        for simulator in db_simulator
-    ]
-    return jsonify(filtered_simulator)
 
 
-@mrds_bp.route("/simluators", methods=["DELETE"])
-def delete_simulator():
-    global db_simulator
-    simulator_ids = request.json.get("ids", [])
-    if not simulator_ids:
-        return jsonify({"error": "No simulator IDs provided"}), 400
+'''
+Simulator section should be a separate folder
+'''
+# # Route to list Simulators
+# @mrds_bp.route("/simulator", methods=["GET"])
+# def show_simulator():
+#     filtered_simulator = [
+#         {
+#             "id": simulator["id"],
+#             "name": simulator["name"],
+#             "date": simulator["date"],
+#             "owner": simulator["owner"],
+#             "sequence": simulator["sequence"],
+#             "image": simulator["image"],
+#             "isSelected": simulator["isSelected"],
+#         }
+#         for simulator in db_simulator
+#     ]
+#     return jsonify(filtered_simulator)
 
-    db_simulator = [
-        simulator for simulator in db_simulator if simulator["id"] not in simulator_ids
-    ]
-    return jsonify({"message": "Simulator deleted successfully"}), 200
+
+# @mrds_bp.route("/simluators", methods=["DELETE"])
+# def delete_simulator():
+#     global db_simulator
+#     simulator_ids = request.json.get("ids", [])
+#     if not simulator_ids:
+#         return jsonify({"error": "No simulator IDs provided"}), 400
+
+#     db_simulator = [
+#         simulator for simulator in db_simulator if simulator["id"] not in simulator_ids
+#     ]
+#     return jsonify({"message": "Simulator deleted successfully"}), 200
