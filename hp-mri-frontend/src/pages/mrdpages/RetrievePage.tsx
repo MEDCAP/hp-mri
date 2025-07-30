@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../components/HeaderAccount';
@@ -17,26 +17,45 @@ import {
   TableRow,
   TableContainer,
   IconButton,
-  Tooltip,
+  Tooltip
 } from '@mui/material';
-import { ArrowUpward, ArrowDownward, CloudDownload, Delete, UploadFile, Refresh } from '@mui/icons-material';
+import { 
+  ArrowUpward, 
+  ArrowDownward, 
+  CloudDownload, 
+  Delete, 
+  UploadFile, 
+  Refresh
+} from '@mui/icons-material';
 import axios from 'axios';
 
 interface MRDFile {
-  id: number;
-  name: string;
-  date: string;
-  owner: string;
-  reconImagesCount: number;
-  isSelected: boolean;
+  _id: { $oid: string };
+  fileName: string;
+  studyDate: string;
+  studyTime: string;
+  ownerName: string;
+  subjectType: string;
+  groupName: string;
+  isReconstructed: boolean;
+  isSelected?: boolean;
 }
+
+const formatStudyTime = (timeString: string) => {
+  if (!timeString || !timeString.includes(':')) return '';
+  const [hour, minute] = timeString.split(':');
+  let h = parseInt(hour, 10);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12; // Convert hour to 12-hour format, with 12 for midnight/noon
+  return `${h}:${minute}${suffix}`;
+};
 
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof MRDFile; direction: 'asc' | 'desc' }>({
-    key: 'date',
+    key: 'fileName',
     direction: 'desc',
   });
   const navigate = useNavigate();
@@ -45,7 +64,7 @@ const RetrievePage: React.FC = () => {
     axios
       .get('/api/mrd-files')
       .then((response) => {
-        console.log("response.data: ", response.data);
+        console.log(response.data);
         setFiles(response.data);
       })
       .catch((error) => console.error('Error fetching MRD files:', error));
@@ -56,17 +75,24 @@ const RetrievePage: React.FC = () => {
     document.title = "MRD Files - HP"; // Dynamically updates the tab title
   }, []);
 
-  const filteredFiles = files.filter(
-    (file) =>
-      file.name.toLowerCase().includes(search.toLowerCase()) ||
-      file.date.toLowerCase().includes(search.toLowerCase()) ||
-      file.owner.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredFiles = useMemo(() => {
+    if (!search) {
+        return files;
+    }
+    const lowercasedFilter = search.toLowerCase();
+    return files.filter(
+        (file) =>
+            // Search by filename, subject type, or owner name
+            (file.fileName || '').toLowerCase().includes(lowercasedFilter) ||
+            (file.subjectType || '').toLowerCase().includes(lowercasedFilter) ||
+            (file.ownerName || '').toLowerCase().includes(lowercasedFilter)
+    );
+}, [files, search]);
 
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
-    const aValue = key === 'date' ? new Date(a[key]) : a[key];
-    const bValue = key === 'date' ? new Date(b[key]) : b[key];
+    const aValue = key === 'studyDate' ? new Date(a[key]) : a[key];
+    const bValue = key === 'studyDate' ? new Date(b[key]) : b[key];
     return aValue < bValue
       ? sortConfig.direction === 'asc'
         ? -1
@@ -83,16 +109,16 @@ const RetrievePage: React.FC = () => {
     }));
   };
 
-  const handleSelection = (fileId: number) => {
+  const handleSelection = (fileId: string) => {
     setFiles((prevFiles) =>
       prevFiles.map((file) =>
-        file.id === fileId ? { ...file, isSelected: !file.isSelected } : file
+        file._id.$oid === fileId ? { ...file, isSelected: !file.isSelected } : file
       )
     );
   };
 
   const goToDetails = (file: MRDFile) => {
-    navigate(`/file-details/${file.id}`);
+    navigate(`/file-details/${file._id.$oid}`);
   };
 
   const isAnyFileSelected = files.some((file) => file.isSelected);
@@ -169,33 +195,37 @@ const RetrievePage: React.FC = () => {
                 </Button>
               </Tooltip>
               <Tooltip title="Delete selected files">
-                <Button
-                  variant="contained"
-                  color="error"
-                  startIcon={<Delete />}
-                  disabled={!isAnyFileSelected}
-                  onClick={handleDelete}
-                  sx={{
-                    flex: '1 1 24%',
-                    marginTop: '-8px'
-                  }}
-                >
-                  Delete
-                </Button>
+                <span>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<Delete />}
+                    disabled={!isAnyFileSelected}
+                    onClick={handleDelete}
+                    sx={{
+                      flex: '1 1 24%',
+                      marginTop: '-8px'
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </span>
               </Tooltip>
               <Tooltip title="Download selected files">
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<CloudDownload />}
-                  disabled={!isAnyFileSelected}
-                  sx={{
-                    flex: '1 1 24%',
-                    marginTop: '-8px'
-                  }}
-                >
-                  Download
-                </Button>
+                <span>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<CloudDownload />}
+                    disabled={!isAnyFileSelected}
+                    sx={{
+                      flex: '1 1 24%',
+                      marginTop: '-8px'
+                    }}
+                  >
+                    Download
+                  </Button>
+                </span>
               </Tooltip>
             </div>
           </Grid2>
@@ -206,7 +236,7 @@ const RetrievePage: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell />
-                {['name', 'date', 'owner', 'reconImagesCount'].map((key) => (
+                {['fileName', 'studyDate', 'ownerName', 'Reconstruction'].map((key) => (
                   <TableCell key={key} onClick={() => handleSort(key as keyof MRDFile)} sx={{ cursor: 'pointer' }}>
                     <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       {key.charAt(0).toUpperCase() + key.slice(1)}{' '}
@@ -235,7 +265,7 @@ const RetrievePage: React.FC = () => {
             <TableBody>
               {sortedFiles.map((file) => (
                 <TableRow
-                  key={file.id}
+                  key={file._id.$oid}
                   sx={{
                     '&:hover': {
                       backgroundColor: '#f1f1f1',
@@ -245,7 +275,7 @@ const RetrievePage: React.FC = () => {
                   <TableCell>
                     <Checkbox
                       checked={file.isSelected}
-                      onChange={() => handleSelection(file.id)}
+                      onChange={() => handleSelection(file._id.$oid)}
                       color="primary"
                     />
                   </TableCell>
@@ -259,12 +289,25 @@ const RetrievePage: React.FC = () => {
                       }}
                       onClick={() => goToDetails(file)}
                     >
-                      {file.name}
+                      {file.fileName}
                     </Typography>
                   </TableCell>
-                  <TableCell>{file.date}</TableCell>
-                  <TableCell>{file.owner}</TableCell>
-                  <TableCell>{file.reconImagesCount}</TableCell>
+                  <TableCell>{`${file.studyDate} ${formatStudyTime(file.studyTime)}`}</TableCell>
+                  <TableCell>{file.ownerName}</TableCell>
+                  <TableCell>
+                    <Link to={`/viewer/${file._id.$oid}`}>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        cursor: 'pointer',
+                        color: '#011F5B',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      View
+                    </Typography>
+                    </Link>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
