@@ -1,4 +1,4 @@
-from flask import jsonify, request, current_app
+from flask import jsonify, request
 import os
 import boto3
 from bson import json_util
