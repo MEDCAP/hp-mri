@@ -19,29 +19,28 @@ def list_all_mrdfiles(projection=None):
     db = get_db()
     sort_condition = {"study_date": -1,
                       "study_time": -1}
-    return db.mrdfiles.find({}, projection).sort(sort_condition)
+    return db.files.find({}, projection).sort(sort_condition)
 
-# def get_mrdfile_by_id(file_id):
-#     """
-#     Retrieves a single MRD file by its MongoDB ObjectId.
-#     """
-#     db = get_db()
-#     return db.mrdfiles.find_one({"_id": ObjectId(file_id)})
+def get_mrdfile_by_id(file_id):
+    """
+    Retrieve mrdfile db entry by its ObjectId.
+    """
+    db = get_db()
+    return db.mrdfiles.find_one({"_id": ObjectId(file_id)})
 
-
-# def delete_mrdfiles_by_ids(file_ids):
-#     """
-#     Deletes multiple MRD files based on a list of ObjectIds.
-#     """
-#     db = get_db()
-#     # Convert string ids to ObjectId
-#     object_ids = [ObjectId(id) for id in file_ids]
-#     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
-#     return result.deleted_count
+def delete_mrdfiles_by_ids(file_ids):
+    """
+    Deletes multiple mrdfile db entries based on a list of ObjectIds.
+    """
+    db = get_db()
+    # Convert string ids to ObjectId
+    object_ids = [ObjectId(id) for id in file_ids]
+    result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
+    return result.deleted_count
 
 def read_mrdfile_header(filepath):
     """
-    Read the mrd file header to be encoded to databas
+    Read the mrd file header as dict in mongodb mrd-files collection format
     """
     with mrd.BinaryMrdReader(filepath) as r:
         h = r.read_header()
@@ -62,19 +61,22 @@ def read_mrdfile_header(filepath):
         }
     return header_for_db
 
-def insert_mrdfiles_header(header_data: dict) -> ObjectId:
+def insert_mrdfile_header(header_data: dict) -> ObjectId:
     """
-    Inserts a list of MRD file documents into the database.
+    Insert single MRD file document into mongodb
     
-    :param header_data: A list of dictionaries, where each dictionary 
+    :param header_data: dict where each dictionary 
                        represents an MRD file's metadata.
     :return: A list of ObjectId objects for the inserted documents.
     """
-    db = get_db()
-    if not header_data or not isinstance(header_data, list):
+    # check if header_data is dict
+    if not header_data or not isinstance(header_data, dict):
         return []
-    result = db.mrdfiles.insert_many(files_data)
-    return result.inserted_ids
+    db = get_db()
+    # insert single mrd file header as single document 
+    result = db.mrdfiles.insert_one(header_data)
+    # return the object id of inserted mrd header document
+    return result.inserted_id
 
 # mockdata
 # db_mrd = [
