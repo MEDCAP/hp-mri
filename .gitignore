@@ -29,6 +29,7 @@ dist-ssr
 .env
 .env.production
 .env.development
+.env.database
 
 # TypeScript build info
 tsconfig.app.tsbuildinfo

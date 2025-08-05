@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Components
 import HeaderAccount from './components/HeaderAccount';
+import UnifiedHeader from './components/UnifiedHeader';
 
 // Login Pages
 import AccountPage from './pages/loginpages/AccountPage';
@@ -44,18 +45,24 @@ const APP_VERSION = 'BY: ' + 'v2.0.5';
 
 const AppContent: React.FC = () => {
 
-  // Define pages where HeaderAccount should not appear
+  // Define pages where no header should appear
   const hideHeaderRoutes = ['/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
-  // Determine if header should be shown
+  // Define pages where HeaderAccount should be used (MRD files pages)
+  const mrdFileRoutes = ['/mrd-files', '/upload', '/file-details'];
+
+  // Determine which header should be shown
   const location = useLocation();
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
+  const isMrdFilePage = mrdFileRoutes.some(route => location.pathname.startsWith(route));
 
   return (
     // Using a React Fragment to avoid adding an unnecessary extra div wrapper
     <>
       {/* Conditional Header rendering */}
-      {shouldShowHeader && <HeaderAccount />}
+      {shouldShowHeader && (
+        isMrdFilePage ? <HeaderAccount /> : <UnifiedHeader />
+      )}
 
       {/* Main content container */}
       <div style={{ display: 'flex', marginTop: location.pathname !== '/visualize' ? 74 : 0 }}>

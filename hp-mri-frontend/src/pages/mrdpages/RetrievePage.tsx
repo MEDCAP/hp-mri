@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../components/HeaderAccount';
+import UploadModal from '../../components/UploadModal';
+import UploadProgressIndicator from '../../components/UploadProgressIndicator';
+import UploadProgressModal from '../../components/UploadProgressModal';
+import UploadCompletionModal from '../../components/UploadCompletionModal';
 import {
   Button,
   Checkbox,
@@ -17,7 +21,9 @@ import {
   TableRow,
   TableContainer,
   IconButton,
-  Tooltip
+  Tooltip,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   ArrowUpward, 
@@ -58,6 +64,15 @@ const RetrievePage: React.FC = () => {
     key: 'fileName',
     direction: 'desc',
   });
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadProgressModalOpen, setUploadProgressModalOpen] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+  const [isUploadCompleted, setIsUploadCompleted] = useState(false);
+  const [uploadCompletionModalOpen, setUploadCompletionModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const fetchFiles = () => {
@@ -91,8 +106,8 @@ const RetrievePage: React.FC = () => {
 
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
-    const aValue = key === 'studyDate' ? new Date(a[key]) : a[key];
-    const bValue = key === 'studyDate' ? new Date(b[key]) : b[key];
+    const aValue = key === 'studyDate' ? new Date(a[key] || '') : (a[key] || '');
+    const bValue = key === 'studyDate' ? new Date(b[key] || '') : (b[key] || '');
     return aValue < bValue
       ? sortConfig.direction === 'asc'
         ? -1
@@ -138,6 +153,59 @@ const RetrievePage: React.FC = () => {
   //     .catch(error => console.error("Error deleting files:", error));
   };
 
+  const handleUploadComplete = (uploadedFiles: any[]) => {
+    if (uploadedFiles && uploadedFiles.length > 0) {
+      setUploadSuccess(`${uploadedFiles.length} files uploaded successfully!`);
+    }
+    setIsUploading(false);
+    setIsUploadCompleted(true);
+    fetchFiles(); // Refresh the file list
+  };
+
+  const handleUploadStart = (files: any[]) => {
+    if (files && files.length > 0) {
+      setUploadFiles(files);
+      setIsUploading(true);
+      setIsMinimized(false);
+      setIsUploadCompleted(false);
+      setUploadCompletionModalOpen(false);
+      // Initialize progress for all files
+      const initialProgress: {[key: string]: number} = {};
+      files.forEach(file => {
+        initialProgress[file.id] = 0;
+      });
+      setUploadProgress(initialProgress);
+    }
+  };
+
+  const handleProgressUpdate = (fileId: string, progress: number) => {
+    setUploadProgress(prev => ({
+      ...prev,
+      [fileId]: progress
+    }));
+  };
+
+  const handleMinimize = () => {
+    setIsMinimized(true);
+    setUploadModalOpen(false);
+  };
+
+  const handleExpandProgress = () => {
+    if (isUploadCompleted) {
+      setUploadCompletionModalOpen(true);
+    } else {
+      setUploadProgressModalOpen(true);
+    }
+  };
+
+  const calculateOverallProgress = () => {
+    if (!uploadFiles || uploadFiles.length === 0) return 0;
+    const totalProgress = uploadFiles.reduce((sum, file) => {
+      return sum + (uploadProgress[file.id] || 0);
+    }, 0);
+    return totalProgress / uploadFiles.length;
+  };
+
   return (
     <div
       style={{
@@ -175,11 +243,21 @@ const RetrievePage: React.FC = () => {
               }}
             >
               <Tooltip title="Upload new file">
-                <Link to="/upload" style={{ textDecoration: 'none' }}>
-                  <Button variant="outlined" startIcon={<UploadFile />} sx={{ flex: '1 1 24%', marginTop: '-8px' }} >
-                    Upload
-                  </Button>
-                </Link>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<UploadFile />} 
+                  onClick={() => {
+                    console.log('Upload button clicked');
+                    // Clear any previous upload state
+                    setIsUploadCompleted(false);
+                    setUploadCompletionModalOpen(false);
+                    setUploadProgressModalOpen(false);
+                    setUploadModalOpen(true);
+                  }}
+                  sx={{ flex: '1 1 24%', marginTop: '-8px' }}
+                >
+                  Upload
+                </Button>
               </Tooltip>
               <Tooltip title="Refresh MRD files">
                 <Button
@@ -295,7 +373,6 @@ const RetrievePage: React.FC = () => {
                   <TableCell>{`${file.studyDate} ${formatStudyTime(file.studyTime)}`}</TableCell>
                   <TableCell>{file.ownerName}</TableCell>
                   <TableCell>
-                    <Link to={`/viewer/${file._id.$oid}`}>
                     <Typography
                       variant="body1"
                       sx={{
@@ -303,10 +380,10 @@ const RetrievePage: React.FC = () => {
                         color: '#011F5B',
                         '&:hover': { textDecoration: 'underline' },
                       }}
+                      onClick={() => navigate(`/viewer/${file._id.$oid}`)}
                     >
                       View
                     </Typography>
-                    </Link>
                   </TableCell>
                 </TableRow>
               ))}
@@ -314,6 +391,60 @@ const RetrievePage: React.FC = () => {
           </Table>
         </TableContainer>
       </Container>
+
+      {/* Upload Modal */}
+      <UploadModal
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onUploadComplete={handleUploadComplete}
+        onUploadStart={handleUploadStart}
+        onMinimize={handleMinimize}
+        isUploading={isUploading}
+        onProgressUpdate={handleProgressUpdate}
+      />
+
+      {/* Upload Progress Modal */}
+      <UploadProgressModal
+        open={uploadProgressModalOpen}
+        onClose={() => setUploadProgressModalOpen(false)}
+        files={uploadFiles}
+        overallProgress={calculateOverallProgress()}
+        isUploading={isUploading}
+        fileProgress={uploadProgress}
+      />
+
+      {/* Minimized Progress Indicator */}
+      <UploadProgressIndicator
+        files={uploadFiles}
+        overallProgress={calculateOverallProgress()}
+        isUploading={isUploading}
+        onExpand={handleExpandProgress}
+        isVisible={(isMinimized && uploadFiles.length > 0) || (isUploadCompleted && uploadFiles.length > 0)}
+        isCompleted={isUploadCompleted}
+      />
+
+      {/* Upload Completion Modal */}
+      <UploadCompletionModal
+        open={uploadCompletionModalOpen}
+        onClose={() => setUploadCompletionModalOpen(false)}
+        files={uploadFiles}
+      />
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={!!uploadSuccess}
+        autoHideDuration={6000}
+        onClose={() => setUploadSuccess(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setUploadSuccess(null)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          {uploadSuccess}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

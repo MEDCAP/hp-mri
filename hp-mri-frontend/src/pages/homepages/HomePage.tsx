@@ -4,9 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   Container,
   Typography,
-  Button,
   Box,
-  Grid,
   Card,
   CardContent,
   CardMedia,
@@ -68,41 +66,10 @@ const HomePage: React.FC = () => {
         textAlign: 'center',
         paddingY: 4,
         paddingTop: 0, // Remove unnecessary padding
-        marginTop: '-60px',
+        marginTop: '20px',
       }}
     >
-      {/* Top Buttons */}
-      <Grid container spacing={2} justifyContent="space-between" sx={{ width: '100%' }}>
-        <Grid item>
-          <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
-              MR Coil Calculator
-            </Button>
-          </Link>
-          <Button
-            variant="outlined"
-            color="secondary"
-            size="large"
-            sx={{ marginLeft: 2 }}
-            href="https://github.com/MEDCAP"
-            target="_blank"
-          >
-            GitHub
-          </Button>
-          <Link to="/about-devs" style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" size="large" sx={{ marginLeft: 2 }}>
-              About Devs
-            </Button>
-          </Link>
-        </Grid>
-        <Grid item>
-          <Link to="/account" style={{ textDecoration: 'none' }}>
-            <Button variant="contained" color="primary" size="large">
-              Sign in
-            </Button>
-          </Link>
-        </Grid>
-      </Grid>
+
 
       {/* Logo Section */}
       <Box
