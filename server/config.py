@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 
 class Config:
     FLASK_APP='run.py'
+    S3_BUCKET = 'medcap-data'
 
 class DevelopmentConfig(Config):
     DEBUG=True    

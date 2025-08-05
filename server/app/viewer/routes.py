@@ -11,8 +11,8 @@ from app.viewer.magnets import (
 )
 from app.viewer import viewer_bp
 
-# Constants
-UPLOAD_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data"
+
+
 
 @viewer_bp.route("/get_num_slider_values/<magnet_type>", methods=["GET"])
 def fetch_num_slider_values(magnet_type):
