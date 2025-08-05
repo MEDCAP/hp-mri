@@ -17,4 +17,5 @@ class DevelopmentConfig(Config):
     MONGO_URI = 'mongodb+srv://mrd-files.gzajigq.mongodb.net/?authSource=%24external&authMechanism=MONGODB-AWS'
 class ProductionConfig(Config):
     DEBUG=False
-    # MONGO_URI for?
+    # MONGO_URI?
+    MONGO_URI = 'mongodb+srv://mrd-files.gzajigq.mongodb.net/?authSource=%24external&authMechanism=MONGODB-AWS'
