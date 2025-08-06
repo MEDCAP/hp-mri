@@ -76,6 +76,7 @@ interface UploadFile {
   status: 'pending' | 'uploading' | 'completed' | 'error';
   progress: number;
   error?: string;
+  currentStep?: string;
 }
 
 interface UploadProgressModalProps {
@@ -194,6 +195,13 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
               <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
                 {Math.round(overallProgress)}% complete
               </Typography>
+              
+              {/* Show current step for uploading files */}
+              {isUploading && (
+                <Typography variant="caption" sx={{ mt: 1, opacity: 0.8, display: 'block' }}>
+                  {files.find(f => f.status === 'uploading')?.currentStep || 'Processing files...'}
+                </Typography>
+              )}
             </Box>
           </Fade>
         </OverallProgressContainer>
@@ -216,6 +224,11 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                     <Typography variant="caption" color="textSecondary">
                       {(file.file.size / 1024 / 1024).toFixed(2)} MB
                     </Typography>
+                    {file.currentStep && (
+                      <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+                        {file.currentStep}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
 

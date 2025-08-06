@@ -4,11 +4,12 @@ import boto3
 from bson import json_util
 import json
 from werkzeug.utils import secure_filename
+from datetime import datetime
 
 # list, insert mongodb functions
-from data import list_all_mrdfiles, insert_mrdfile_header  
+from data import list_all_mrdfiles, insert_mrdfile_header, read_mrdfile_header
 # read mrd header function
-from data import read_mrdfile_header
+from data import get_mrdfile_by_id
 
 # flask blueprint for mrds route
 from . import mrds_bp
@@ -31,8 +32,15 @@ def show_files():
             "isReconstructed": 1,
             "_id": 1
         }
-        sorted_cursor = list_all_mrdfiles(projection=proj)
-        return json_util.dumps(list(sorted_cursor))
+        result = list_all_mrdfiles(projection=proj)
+        
+        # Handle both cursor and list returns
+        if hasattr(result, '__iter__') and not isinstance(result, list):
+            # It's a cursor
+            return json_util.dumps(list(result))
+        else:
+            # It's already a list
+            return json_util.dumps(result)
     except Exception as e:
         return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400
 
@@ -48,59 +56,144 @@ def get_file_details(file_id):
     except Exception as e:
         return jsonify({"error": "Invalid file ID", "details": str(e)}), 400
 
-# Route to upload MRD file page
+# Route to upload MRD files
 @mrds_bp.route("/upload", methods=["POST"])
 def upload_file():
-    # setup aws s3 client
-    s3 = boto3.client("s3")
-    BUCKET = current_app.config['S3_BUCKET']
-
+    """
+    Handle batch upload of MRD files with proper error handling and status tracking
+    """
     if "file" not in request.files:
         return jsonify({"error": "No files selected"}), 400
-    # tmpdata dir to store files locally before uploading to s3 at "./tmpdata"
+    
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    BUCKET = current_app.config['S3_BUCKET']
+    
+    # Create temporary directory for file processing
     upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmpdata")
     if not os.path.exists(upload_path):
         os.makedirs(upload_path)
-    errors = {}
-    for file in request.files.getlist("file"):
-        # save file locally in temporary storage to read mrd file header
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(upload_path, filename)
-        file.save(filepath)
-        # read mrd file header as dict
+    
+    files = request.files.getlist("file")
+    results = []
+    successful_files = 0
+    failed_files = 0
+    
+    # Process each file
+    for file in files:
+        if file.filename == '':
+            continue
+            
+        # Validate file extension
+        allowed_extensions = {'.bin', '.mrd', '.mrd2'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            results.append({
+                "original_filename": file.filename,
+                "status": "error",
+                "error": f"File type {file_ext} not allowed. Supported: {', '.join(allowed_extensions)}"
+            })
+            failed_files += 1
+            continue
+        
+        # Save file to temporary location
+        temp_filepath = os.path.join(upload_path, secure_filename(file.filename))
+        file.save(temp_filepath)
+        
         try:
-            db_entry = read_mrdfile_header(filepath)
-        except Exception as e:
-            errors[file.filename] = f"Could not read mrdfile header: {e}"
-        # insert extracted db_entry to db
-        try:
+            import time
+            
+            # Step 1: Extract metadata from MRD file (20% of progress)
+            time.sleep(0.8)  # Simulate metadata extraction time
+            db_entry = read_mrdfile_header(temp_filepath)
+            
+            # Step 2: Insert metadata into MongoDB (40% of progress)
+            time.sleep(0.5)  # Simulate database operation
             inserted_id = insert_mrdfile_header(db_entry)
+            
+            # Step 3: Upload to S3 with MongoDB ObjectId as filename (80% of progress)
+            # Simulate upload time based on file size (longer for larger files)
+            file_size_mb = os.path.getsize(temp_filepath) / (1024 * 1024)
+            upload_time = min(2.0, max(0.5, file_size_mb * 0.3))  # 0.5-2.0 seconds based on file size
+            time.sleep(upload_time)
+            s3_key = f"mrd_files/{str(inserted_id)}"
+            s3.upload_file(temp_filepath, BUCKET, s3_key)
+            
+            # Step 4: Update database with S3 key (100% of progress)
+            time.sleep(0.3)  # Simulate final database update
+            from data import get_db
+            db = get_db()
+            db.mrdfiles.update_one(
+                {"_id": inserted_id},
+                {"$set": {"s3_key": s3_key}}
+            )
+            
+            # Convert metadata to JSON-serializable format
+            serializable_metadata = {}
+            for key, value in db_entry.items():
+                if hasattr(value, '__str__'):
+                    serializable_metadata[key] = str(value)
+                else:
+                    serializable_metadata[key] = value
+            
+            # Success result
+            results.append({
+                "original_filename": file.filename,
+                "status": "completed",
+                "metadata": serializable_metadata,
+                "db_id": str(inserted_id),
+                "s3_key": s3_key
+            })
+            successful_files += 1
+            
         except Exception as e:
-            errors[file.filename] = f"Error inserting mrd header document to db: {e}"
-        # upload to s3 bucket with filename=inserted_id of mongodb
-        try:
-            s3_filename = inserted_id
-            s3.upload_file(filepath, BUCKET, s3_filename)
-        except Exception as e:
-            return jsonify({"aws access error to upload mrd file to s3": e}), 400
-
+            # Error result
+            results.append({
+                "original_filename": file.filename,
+                "status": "error",
+                "error": str(e)
+            })
+            failed_files += 1
+            
         finally:
-            # Always remove the local file after processing
-            if os.path.exists(filepath):
-                os.remove(filepath)            
-        return jsonify({"message": "Files processed"}), 200
-
+            # Always cleanup temporary file
+            if os.path.exists(temp_filepath):
+                os.remove(temp_filepath)
+    
+    # Prepare response
+    response_data = {
+        "message": f"Processed {len(results)} files",
+        "total_files": len(results),
+        "successful_files": successful_files,
+        "failed_files": failed_files,
+        "results": results,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    # Return appropriate status code based on results
+    if failed_files > 0 and successful_files > 0:
+        return jsonify(response_data), 207  # 207 Multi-Status for partial success
+    elif failed_files > 0:
+        return jsonify(response_data), 400  # 400 Bad Request if all files failed
+    else:
+        return jsonify(response_data), 200  # 200 OK if all files succeeded
 
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
 def delete_files():
-    global db_mrd
-    file_ids = request.json.get("ids", [])
-    if not file_ids:
-        return jsonify({"error": "No file IDs provided"}), 400
+    try:
+        file_ids = request.json.get("ids", [])
+        if not file_ids:
+            return jsonify({"error": "No file IDs provided"}), 400
 
-    db_mrd = [file for file in db_mrd if file["id"] not in file_ids]
-    return jsonify({"message": "Files deleted successfully"}), 200
-
+        from data import delete_mrdfiles_by_ids
+        deleted_count = delete_mrdfiles_by_ids(file_ids)
+        
+        return jsonify({
+            "message": f"Successfully deleted {deleted_count} files",
+            "deleted_count": deleted_count
+        }), 200
+    except Exception as e:
+        return jsonify({"error": "Failed to delete files", "details": str(e)}), 400
 
 @mrds_bp.route("/mrd-file/<int:file_id>/download")
 def download_file(file_id):

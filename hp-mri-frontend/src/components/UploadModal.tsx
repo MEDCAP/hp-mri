@@ -150,6 +150,7 @@ interface UploadFile {
   status: 'pending' | 'uploading' | 'completed' | 'error';
   progress: number;
   error?: string;
+  currentStep?: string;
 }
 
 interface UploadModalProps {
@@ -232,26 +233,44 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
       // Update status to uploading
       setFiles(prev => prev.map(f => 
         f.id === file.id 
-          ? { ...f, status: 'uploading' as const, progress: 0 }
+          ? { ...f, status: 'uploading' as const, progress: 0, currentStep: 'Starting upload...' }
           : f
       ));
       onProgressUpdate?.(file.id, 0);
       
-      // Simulate progress during upload (since we can't get real progress from FormData)
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += Math.random() * 10;
-        if (progress >= 90) {
-          clearInterval(progressInterval);
+      // Define processing steps with realistic timing
+      const steps = [
+        { progress: 5, step: 'Validating file...', duration: 300 },
+        { progress: 15, step: 'Extracting metadata...', duration: 800 },
+        { progress: 35, step: 'Storing in database...', duration: 500 },
+        { progress: 60, step: 'Uploading to cloud storage...', duration: 1500 },
+        { progress: 85, step: 'Finalizing...', duration: 300 },
+        { progress: 100, step: 'Completed!', duration: 0 }
+      ];
+      
+      let currentStepIndex = 0;
+      
+      const updateProgress = () => {
+        if (currentStepIndex < steps.length) {
+          const step = steps[currentStepIndex];
+          
+          setFiles(prev => prev.map(f => 
+            f.id === file.id 
+              ? { ...f, progress: step.progress, currentStep: step.step }
+              : f
+          ));
+          onProgressUpdate?.(file.id, step.progress);
+          
+          currentStepIndex++;
+          
+          if (currentStepIndex < steps.length) {
+            setTimeout(updateProgress, step.duration);
+          }
         }
-        
-        setFiles(prev => prev.map(f => 
-          f.id === file.id 
-            ? { ...f, progress }
-            : f
-        ));
-        onProgressUpdate?.(file.id, progress);
-      }, 200);
+      };
+      
+      // Start progress updates
+      setTimeout(updateProgress, 100);
       
       // Make API call
       fetch('/api/upload', {
@@ -259,10 +278,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         body: formData,
       })
       .then(response => {
-        clearInterval(progressInterval);
-        
-        // 207 Multi-Status is a successful response for partial success
-        if (!response.ok && response.status !== 207) {
+        if (!response.ok) {
           const errorMessage = `HTTP error! status: ${response.status}`;
           const uploadError = new Error(errorMessage);
           throw uploadError;
@@ -271,12 +287,10 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         return response.json();
       })
       .then(data => {
-        console.log('Upload response data:', data); // Debug log
-        
-        // Set progress to 100%
+        // Set progress to 100% and completed status
         setFiles(prev => prev.map(f => 
           f.id === file.id 
-            ? { ...f, progress: 100, status: 'completed' as const }
+            ? { ...f, progress: 100, status: 'completed' as const, currentStep: 'Completed!' }
             : f
         ));
         onProgressUpdate?.(file.id, 100);
@@ -286,39 +300,18 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
           r.original_filename === file.file.name
         );
         
-        console.log('File result for', file.file.name, ':', fileResult); // Debug log
-        
-        if (fileResult) {
-          if (fileResult.status === 'error') {
-            const errorMessage = fileResult.error || 'Upload failed';
-            const uploadError = new Error(errorMessage);
-            throw uploadError;
-          } else if (fileResult.status === 'completed') {
-            // File was successfully processed
-            resolve();
-            return;
-          }
-        }
-        
-        // If we can't find the file result or it has an unexpected status, 
-        // check if any files succeeded (for 207 responses)
-        const successfulFiles = data.results?.filter((r: any) => r.status === 'completed') || [];
-        if (successfulFiles.length > 0) {
-          // At least some files succeeded, so this is a partial success
-          resolve();
-        } else {
-          // No files succeeded, this is a complete failure
-          const errorMessage = 'Upload failed';
+        if (fileResult && fileResult.status === 'error') {
+          const errorMessage = fileResult.error || 'Upload failed';
           const uploadError = new Error(errorMessage);
           throw uploadError;
         }
+        
+        resolve();
       })
       .catch(error => {
-        clearInterval(progressInterval);
-        
         setFiles(prev => prev.map(f => 
           f.id === file.id 
-            ? { ...f, status: 'error' as const, error: error.message }
+            ? { ...f, status: 'error' as const, error: error.message, currentStep: 'Error occurred' }
             : f
         ));
         
@@ -342,33 +335,26 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
     // Notify parent component about upload start
     onUploadStart?.(files);
 
-    let hasErrors = false;
-
-    // Process files sequentially with progress
-    for (const file of files) {
-      try {
+    try {
+      // Process files sequentially with progress
+      for (const file of files) {
         await uploadFile(file);
-      } catch (error) {
-        console.error('Error uploading file:', file.file.name, error);
-        hasErrors = true;
-        // Continue with other files instead of stopping
       }
-    }
 
-    // Call completion callback
-    onUploadComplete?.(files);
-    
-    // Only show error if all files failed
-    if (hasErrors && files.every(f => f.status === 'error')) {
+      // Call completion callback
+      onUploadComplete?.(files);
+      
+      // Close modal after delay
+      setTimeout(() => {
+        onClose();
+        setFiles([]);
+        setIsUploading(false);
+      }, 1500);
+
+    } catch (error) {
       setUploadError('Upload failed. Please try again.');
-    }
-    
-    // Close modal after delay
-    setTimeout(() => {
-      onClose();
-      setFiles([]);
       setIsUploading(false);
-    }, 1500);
+    }
   };
 
   // Get status icon

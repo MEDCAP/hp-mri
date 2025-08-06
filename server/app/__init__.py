@@ -13,6 +13,12 @@ def create_app():
     # Initialize CORS to allow frontend localhost port 5173
     CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
     # Create mongodb client using aws-federated login IAM role credentials
+    if app.config.get('AWS_ACCESS_KEY_ID') and app.config.get('AWS_SECRET_ACCESS_KEY') and app.config.get('AWS_SESSION_TOKEN'):
+        # Set AWS credentials as environment variables for MongoDB AWS auth
+        os.environ['AWS_ACCESS_KEY_ID'] = app.config['AWS_ACCESS_KEY_ID']
+        os.environ['AWS_SECRET_ACCESS_KEY'] = app.config['AWS_SECRET_ACCESS_KEY']
+        os.environ['AWS_SESSION_TOKEN'] = app.config['AWS_SESSION_TOKEN']
+    
     app.mongo_client = MongoClient(app.config['MONGO_URI']) 
     # Register the mrds blueprint
     from app.mrds import mrds_bp
