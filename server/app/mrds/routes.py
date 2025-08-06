@@ -104,23 +104,23 @@ def upload_file():
             import time
             
             # Step 1: Extract metadata from MRD file (20% of progress)
-            time.sleep(0.8)  # Simulate metadata extraction time
+            time.sleep(0.3)  # Simulate metadata extraction time
             db_entry = read_mrdfile_header(temp_filepath)
             
             # Step 2: Insert metadata into MongoDB (40% of progress)
-            time.sleep(0.5)  # Simulate database operation
+            time.sleep(0.2)  # Simulate database operation
             inserted_id = insert_mrdfile_header(db_entry)
             
             # Step 3: Upload to S3 with MongoDB ObjectId as filename (80% of progress)
             # Simulate upload time based on file size (longer for larger files)
             file_size_mb = os.path.getsize(temp_filepath) / (1024 * 1024)
-            upload_time = min(2.0, max(0.5, file_size_mb * 0.3))  # 0.5-2.0 seconds based on file size
+            upload_time = min(1.0, max(0.3, file_size_mb * 0.2))  # 0.3-1.0 seconds based on file size
             time.sleep(upload_time)
             s3_key = f"mrd_files/{str(inserted_id)}"
             s3.upload_file(temp_filepath, BUCKET, s3_key)
             
             # Step 4: Update database with S3 key (100% of progress)
-            time.sleep(0.3)  # Simulate final database update
+            time.sleep(0.1)  # Simulate final database update
             from data import get_db
             db = get_db()
             db.mrdfiles.update_one(

@@ -238,33 +238,45 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
       ));
       onProgressUpdate?.(file.id, 0);
       
-      // Define processing steps with realistic timing
-      const steps = [
-        { progress: 5, step: 'Validating file...', duration: 300 },
-        { progress: 15, step: 'Extracting metadata...', duration: 800 },
-        { progress: 35, step: 'Storing in database...', duration: 500 },
-        { progress: 60, step: 'Uploading to cloud storage...', duration: 1500 },
-        { progress: 85, step: 'Finalizing...', duration: 300 },
-        { progress: 100, step: 'Completed!', duration: 0 }
+      // Define processing stages with smooth progress
+      const stages = [
+        { name: 'Validating file...', startProgress: 0, endProgress: 10 },
+        { name: 'Extracting metadata...', startProgress: 10, endProgress: 30 },
+        { name: 'Storing in database...', startProgress: 30, endProgress: 50 },
+        { name: 'Uploading to cloud storage...', startProgress: 50, endProgress: 85 },
+        { name: 'Finalizing...', startProgress: 85, endProgress: 100 },
+        { name: 'Completed!', startProgress: 100, endProgress: 100 }
       ];
       
-      let currentStepIndex = 0;
+      let currentStageIndex = 0;
+      let currentProgress = 0;
       
       const updateProgress = () => {
-        if (currentStepIndex < steps.length) {
-          const step = steps[currentStepIndex];
+        if (currentStageIndex < stages.length) {
+          const stage = stages[currentStageIndex];
+          
+          // Smooth progress within current stage
+          const progressIncrement = (stage.endProgress - stage.startProgress) / 20; // 20 steps per stage
+          currentProgress = Math.min(stage.endProgress, currentProgress + progressIncrement);
           
           setFiles(prev => prev.map(f => 
             f.id === file.id 
-              ? { ...f, progress: step.progress, currentStep: step.step }
+              ? { ...f, progress: currentProgress, currentStep: stage.name }
               : f
           ));
-          onProgressUpdate?.(file.id, step.progress);
+          onProgressUpdate?.(file.id, currentProgress);
           
-          currentStepIndex++;
+          // Move to next stage if we've reached the end of current stage
+          if (currentProgress >= stage.endProgress) {
+            currentStageIndex++;
+            if (currentStageIndex < stages.length) {
+              currentProgress = stages[currentStageIndex].startProgress;
+            }
+          }
           
-          if (currentStepIndex < steps.length) {
-            setTimeout(updateProgress, step.duration);
+          // Continue updating if not completed
+          if (currentStageIndex < stages.length) {
+            setTimeout(updateProgress, 100); // Update every 100ms for smooth animation
           }
         }
       };
@@ -518,6 +530,18 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
                   }
                 }}
               />
+              
+              {/* Current Stage Display */}
+              {isUploadingState && (
+                <Box sx={{ mt: 1.5, p: 1, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1 }}>
+                  <Typography variant="caption" fontWeight="medium" color="primary.contrastText" sx={{ opacity: 0.9 }}>
+                    Current Stage:
+                  </Typography>
+                  <Typography variant="body2" color="primary.contrastText" sx={{ mt: 0.5 }}>
+                    {files.find(f => f.status === 'uploading')?.currentStep || 'Processing files...'}
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </Fade>
         )}
@@ -550,6 +574,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
                       <Typography variant="caption" color="textSecondary">
                         {(file.file.size / 1024 / 1024).toFixed(2)} MB
                       </Typography>
+                      {file.currentStep && (
+                        <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+                          {file.currentStep}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
 

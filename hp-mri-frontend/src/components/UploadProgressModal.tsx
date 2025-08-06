@@ -34,6 +34,20 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
     width: '100%',
     margin: 16,
   },
+  '@keyframes pulse': {
+    '0%': {
+      opacity: 1,
+      transform: 'scale(1)',
+    },
+    '50%': {
+      opacity: 0.5,
+      transform: 'scale(1.1)',
+    },
+    '100%': {
+      opacity: 1,
+      transform: 'scale(1)',
+    },
+  },
 }));
 
 const FileProgressItem = styled(Paper)(({ theme }) => ({
@@ -54,10 +68,11 @@ const FileProgressItem = styled(Paper)(({ theme }) => ({
 
 const OverallProgressContainer = styled(Box)(({ theme }) => ({
   padding: theme.spacing(3),
-  backgroundColor: theme.palette.primary.light,
+  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
   borderRadius: 12,
   marginBottom: theme.spacing(2),
   color: theme.palette.primary.contrastText,
+  boxShadow: theme.shadows[4],
 }));
 
 // Transition component
@@ -168,7 +183,10 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
           <Fade in={true} timeout={500}>
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight="bold">
+                <Typography variant="h6" fontWeight="bold" sx={{ 
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  letterSpacing: '0.5px'
+                }}>
                   {getStatusText()}
                 </Typography>
                 <Chip 
@@ -183,24 +201,85 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                 variant="determinate" 
                 value={overallProgress} 
                 sx={{ 
-                  height: 8, 
-                  borderRadius: 4,
-                  backgroundColor: 'rgba(255,255,255,0.3)',
+                  height: 10, 
+                  borderRadius: 5,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
                   '& .MuiLinearProgress-bar': {
-                    backgroundColor: theme.palette.primary.contrastText,
+                    background: `linear-gradient(90deg, ${theme.palette.secondary.light} 0%, ${theme.palette.secondary.main} 100%)`,
+                    borderRadius: 5,
                   }
                 }}
               />
               
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+              {/* Stage Progress Indicator */}
+              {isUploading && (
+                <Box sx={{ mt: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                      Stage Progress
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                      {Math.round(overallProgress)}%
+                    </Typography>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={overallProgress} 
+                    sx={{ 
+                      height: 6, 
+                      borderRadius: 3,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      '& .MuiLinearProgress-bar': {
+                        background: `linear-gradient(90deg, ${theme.palette.success.light} 0%, ${theme.palette.success.main} 100%)`,
+                        borderRadius: 3,
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+              
+              <Typography variant="body2" sx={{ 
+                mt: 1.5, 
+                opacity: 0.95, 
+                fontWeight: 500,
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
                 {Math.round(overallProgress)}% complete
               </Typography>
               
-              {/* Show current step for uploading files */}
+              {/* Show current stage for uploading files */}
               {isUploading && (
-                <Typography variant="caption" sx={{ mt: 1, opacity: 0.8, display: 'block' }}>
-                  {files.find(f => f.status === 'uploading')?.currentStep || 'Processing files...'}
-                </Typography>
+                <Box sx={{ 
+                  mt: 2, 
+                  p: 2, 
+                  background: `linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)`,
+                  borderRadius: 2,
+                  border: `1px solid rgba(255,255,255,0.2)`,
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ 
+                      width: 10, 
+                      height: 10, 
+                      borderRadius: '50%', 
+                      background: `linear-gradient(135deg, ${theme.palette.success.light} 0%, ${theme.palette.success.main} 100%)`,
+                      mr: 1.5,
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      boxShadow: `0 0 10px ${theme.palette.success.main}40`
+                    }} />
+                    <Typography variant="body2" fontWeight="bold" sx={{ color: theme.palette.primary.contrastText }}>
+                      Current Stage:
+                    </Typography>
+                  </Box>
+                  <Typography variant="body1" sx={{ 
+                    opacity: 0.95, 
+                    pl: 3.5,
+                    color: theme.palette.primary.contrastText,
+                    fontWeight: 500
+                  }}>
+                    {files.find(f => f.status === 'uploading')?.currentStep || 'Processing files...'}
+                  </Typography>
+                </Box>
               )}
             </Box>
           </Fade>
@@ -225,9 +304,17 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                       {(file.file.size / 1024 / 1024).toFixed(2)} MB
                     </Typography>
                     {file.currentStep && (
-                      <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
-                        {file.currentStep}
-                      </Typography>
+                      <Box sx={{ 
+                        mt: 1, 
+                        p: 1.5, 
+                        background: `linear-gradient(135deg, ${theme.palette.info.light}20 0%, ${theme.palette.info.main}20 100%)`,
+                        borderRadius: 1,
+                        border: `1px solid ${theme.palette.info.main}30`
+                      }}>
+                        <Typography variant="caption" color="info.main" fontWeight="bold">
+                          {file.currentStep}
+                        </Typography>
+                      </Box>
                     )}
                   </Box>
                 </Box>
