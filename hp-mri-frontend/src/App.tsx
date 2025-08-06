@@ -27,19 +27,13 @@ import PublicationPage from './pages/homepages/PublicationPage';
 import ResearchPage from './pages/homepages/ResearchPage';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
-// MRD files
+// Feature pages
 import UploadPage from './pages/mrdpages/UploadPage';
 import RetrievePage from './pages/mrdpages/RetrievePage';
 import MRDFileDetails from './pages/mrdpages/MRDFileDetails';
-
-// Viewer
-import ImagesPage from './pages/imagepages/ImagesPage';
-import ImagesDetails from './pages/imagepages/ImagesDetails';
-
-// Simulator
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
-import VisualizationPage from './pages/viewerpages/VisualizationPage';
+import ViewerPage from './pages/viewerpages/ViewerPage';
 
 const APP_VERSION = 'BY: ' + 'v2.0.5';
 
@@ -87,15 +81,9 @@ const AppContent: React.FC = () => {
           <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/file-details/:fileId" element={<ProtectedRoute><MRDFileDetails /></ProtectedRoute>} />
-
-          {/* Viewer */}
-          <Route path="/images" element={<ImagesPage />} />
-          <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
-
-          {/* Simulator */}
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
-          <Route path="/visualize" element={<VisualizationPage />} />
+          <Route path="/viewer" element={<ViewerPage />} />
         </Routes>
       </div>
 
