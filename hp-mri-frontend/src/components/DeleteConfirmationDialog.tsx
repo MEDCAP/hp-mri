@@ -9,9 +9,10 @@ import {
   TextField,
   Box,
   Alert,
-  styled
+  styled,
+  CircularProgress
 } from '@mui/material';
-import { Warning, Delete } from '@mui/icons-material';
+import { Warning, Delete, CheckCircle, Cancel } from '@mui/icons-material';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -23,6 +24,12 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
   },
 }));
 
+interface FileDeleteStatus {
+  fileName: string;
+  status: 'pending' | 'deleting' | 'success' | 'error';
+  error?: string;
+}
+
 interface DeleteConfirmationDialogProps {
   open: boolean;
   onClose: () => void;
@@ -31,6 +38,8 @@ interface DeleteConfirmationDialogProps {
   message: string;
   confirmText?: string;
   filesToDelete?: string[];
+  fileStatuses?: FileDeleteStatus[];
+  isDeleting?: boolean;
 }
 
 const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
@@ -40,7 +49,9 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
   title,
   message,
   confirmText = "confirm",
-  filesToDelete = []
+  filesToDelete = [],
+  fileStatuses = [],
+  isDeleting = false
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
@@ -66,7 +77,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
     onClose();
   };
 
-  const isConfirmEnabled = inputValue.toLowerCase() === confirmText.toLowerCase();
+  const isConfirmEnabled = inputValue.toLowerCase() === confirmText.toLowerCase() && !isDeleting;
 
   return (
     <StyledDialog
@@ -105,11 +116,43 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
               Files to be deleted ({filesToDelete.length}):
             </Typography>
             <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
-              {filesToDelete.map((fileName, index) => (
-                <Typography key={index} variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  • {fileName}
-                </Typography>
-              ))}
+              {filesToDelete.map((fileName, index) => {
+                const fileStatus = fileStatuses.find(status => status.fileName === fileName);
+                const status = fileStatus?.status || 'pending';
+                
+                return (
+                  <Box key={index} sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1, 
+                    mb: 0.5,
+                    py: 0.5
+                  }}>
+                    {status === 'pending' && (
+                      <Box sx={{ width: 16, height: 16 }} />
+                    )}
+                    {status === 'deleting' && (
+                      <CircularProgress size={16} sx={{ color: 'primary.main' }} />
+                    )}
+                    {status === 'success' && (
+                      <CheckCircle sx={{ color: 'success.main', fontSize: 16 }} />
+                    )}
+                    {status === 'error' && (
+                      <Cancel sx={{ color: 'error.main', fontSize: 16 }} />
+                    )}
+                    <Typography 
+                      variant="body2" 
+                      color={status === 'error' ? 'error.main' : 'text.secondary'}
+                      sx={{ 
+                        textDecoration: status === 'error' ? 'line-through' : 'none',
+                        opacity: status === 'success' ? 0.7 : 1
+                      }}
+                    >
+                      {fileName}
+                    </Typography>
+                  </Box>
+                );
+              })}
             </Box>
           </Box>
         )}
@@ -131,19 +174,21 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button 
-          onClick={handleClose}
-          variant="outlined"
-          sx={{ minWidth: 100 }}
-        >
-          Cancel
-        </Button>
+        {!isDeleting && (
+          <Button 
+            onClick={handleClose}
+            variant="outlined"
+            sx={{ minWidth: 100 }}
+          >
+            Cancel
+          </Button>
+        )}
         <Button
           onClick={handleConfirm}
           variant="contained"
           color="error"
           disabled={!isConfirmEnabled}
-          startIcon={<Delete />}
+          startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : <Delete />}
           sx={{ 
             minWidth: 120,
             background: 'error.main',
@@ -156,7 +201,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
             }
           }}
         >
-          Delete Permanently
+          {isDeleting ? 'Deleting...' : 'Delete Permanently'}
         </Button>
       </DialogActions>
     </StyledDialog>
