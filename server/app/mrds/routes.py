@@ -1,7 +1,7 @@
 from flask import jsonify, request, current_app
 import os
 import boto3
-from bson import json_util
+from bson import json_util, ObjectId
 import json
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -185,12 +185,44 @@ def delete_files():
         if not file_ids:
             return jsonify({"error": "No file IDs provided"}), 400
 
-        from data import delete_mrdfiles_by_ids
-        deleted_count = delete_mrdfiles_by_ids(file_ids)
+        # Setup AWS S3 client
+        s3 = boto3.client("s3")
+        BUCKET = current_app.config['S3_BUCKET']
+        
+        # Get database connection
+        from data import get_db, delete_mrdfiles_by_ids
+        db = get_db()
+        
+        deleted_count = 0
+        s3_deleted_count = 0
+        
+        for file_id in file_ids:
+            try:
+                # First, get the file document to find the S3 key
+                file_doc = db.mrdfiles.find_one({"_id": ObjectId(file_id)})
+                
+                if file_doc:
+                    # Delete from S3 if s3_key exists
+                    if 's3_key' in file_doc:
+                        try:
+                            s3.delete_object(Bucket=BUCKET, Key=file_doc['s3_key'])
+                            s3_deleted_count += 1
+                        except Exception as s3_error:
+                            print(f"Error deleting from S3 for file {file_id}: {s3_error}")
+                    
+                    # Delete from MongoDB
+                    result = db.mrdfiles.delete_one({"_id": ObjectId(file_id)})
+                    if result.deleted_count > 0:
+                        deleted_count += 1
+                        
+            except Exception as file_error:
+                print(f"Error processing file {file_id}: {file_error}")
+                continue
         
         return jsonify({
-            "message": f"Successfully deleted {deleted_count} files",
-            "deleted_count": deleted_count
+            "message": f"Successfully deleted {deleted_count} files from database and {s3_deleted_count} files from S3",
+            "deleted_count": deleted_count,
+            "s3_deleted_count": s3_deleted_count
         }), 200
     except Exception as e:
         return jsonify({"error": "Failed to delete files", "details": str(e)}), 400

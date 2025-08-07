@@ -6,6 +6,7 @@ import UploadModal from '../../components/UploadModal';
 import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';
 import UploadCompletionModal from '../../components/UploadCompletionModal';
+import DeleteConfirmationDialog from '../../components/DeleteConfirmationDialog';
 import {
   Button,
   Checkbox,
@@ -73,6 +74,9 @@ const RetrievePage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
   const [isUploadCompleted, setIsUploadCompleted] = useState(false);
   const [uploadCompletionModalOpen, setUploadCompletionModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchFiles = () => {
@@ -139,18 +143,37 @@ const RetrievePage: React.FC = () => {
   const isAnyFileSelected = files.some((file) => file.isSelected);
 
   const handleDelete = () => {
-    // // API Call for delete, commented so that we don't accidentally delete during dev
-    // // TODO: Uncomment, eventually
-    // const selectedFileIds = files.filter(file => file.isSelected).map(file => file.id);
-    // if (selectedFileIds.length === 0) return;
+    const selectedFiles = files.filter(file => file.isSelected);
+    if (selectedFiles.length === 0) return;
+    
+    setDeleteDialogOpen(true);
+  };
 
-  //   axios
-  //     .delete(`http://127.0.0.1:5000/api/mrd-file/`, { data: { ids: selectedFileIds } })
-  //     .then(() => {
-  //       // Remove the deleted files from the local state
-  //       setFiles(files.filter(file => !file.isSelected));
-  //     })
-  //     .catch(error => console.error("Error deleting files:", error));
+  const handleConfirmDelete = async () => {
+    const selectedFileIds = files.filter(file => file.isSelected).map(file => file._id.$oid);
+    
+    try {
+      const response = await axios.delete('/api/mrd-file', { 
+        data: { ids: selectedFileIds } 
+      });
+      
+      setDeleteSuccess(response.data.message);
+      setDeleteDialogOpen(false);
+      
+      // Remove the deleted files from the local state
+      setFiles(files.filter(file => !file.isSelected));
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setDeleteSuccess(null), 5000);
+      
+    } catch (error: any) {
+      console.error("Error deleting files:", error);
+      setDeleteError(error.response?.data?.error || "Failed to delete files");
+      setDeleteDialogOpen(false);
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setDeleteError(null), 5000);
+    }
   };
 
   const handleUploadComplete = (uploadedFiles: any[]) => {
@@ -430,6 +453,17 @@ const RetrievePage: React.FC = () => {
         files={uploadFiles}
       />
 
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete MRD Files"
+        message={`Are you sure you want to permanently delete ${files.filter(f => f.isSelected).length} selected file(s)? This action will remove the files from both the database and cloud storage, and cannot be undone.`}
+        confirmText="confirm"
+        filesToDelete={files.filter(f => f.isSelected).map(f => f.fileName)}
+      />
+
       {/* Success Snackbar */}
       <Snackbar
         open={!!uploadSuccess}
@@ -443,6 +477,38 @@ const RetrievePage: React.FC = () => {
           sx={{ width: '100%' }}
         >
           {uploadSuccess}
+        </Alert>
+      </Snackbar>
+
+      {/* Delete Success Snackbar */}
+      <Snackbar
+        open={!!deleteSuccess}
+        autoHideDuration={6000}
+        onClose={() => setDeleteSuccess(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setDeleteSuccess(null)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          {deleteSuccess}
+        </Alert>
+      </Snackbar>
+
+      {/* Delete Error Snackbar */}
+      <Snackbar
+        open={!!deleteError}
+        autoHideDuration={6000}
+        onClose={() => setDeleteError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setDeleteError(null)}
+          severity="error"
+          sx={{ width: '100%' }}
+        >
+          {deleteError}
         </Alert>
       </Snackbar>
     </div>
