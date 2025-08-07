@@ -65,8 +65,8 @@ const HomePage: React.FC = () => {
         justifyContent: 'flex-start',
         textAlign: 'center',
         paddingY: 4,
-        paddingTop: 0, // Remove unnecessary padding
-        marginTop: '20px',
+        paddingTop: 2, // Reduced padding
+        marginTop: 0, // Remove margin
       }}
     >
 
@@ -78,7 +78,7 @@ const HomePage: React.FC = () => {
         target="_blank"
         rel="noopener noreferrer"
         sx={{
-          marginTop: 8,
+          marginTop: 2,
           display: 'block',
           textAlign: 'center',
         }}

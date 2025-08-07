@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Box, useTheme, Button } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
-import Medcap from './../assets/medcap.png';
 import { getCurrentUserName, signOutCognito } from '../pages/loginpages/cognitoUtils';
 
 const UnifiedHeader: React.FC = () => {
-  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState<string | null>(null);
@@ -37,7 +35,7 @@ const UnifiedHeader: React.FC = () => {
 
   return (
     <AppBar
-      position="fixed"
+      position={isHomepage ? "static" : "fixed"}
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
         backgroundColor: 'white',
@@ -47,166 +45,139 @@ const UnifiedHeader: React.FC = () => {
     >
       <Toolbar
         sx={{
-          justifyContent: 'space-between',
+          display: 'flex',
           alignItems: 'center',
-          paddingX: { xs: 2, sm: 4 },
-          minHeight: '64px',
+          paddingX: { xs: 3, sm: 6 },
+          minHeight: '72px',
         }}
       >
-        {/* Left Section: Logos */}
+        {/* Left Section: Logo and Navigation */}
         <Box sx={{ 
           display: 'flex', 
-          alignItems: 'center', 
-          gap: 1.5,
-          transition: 'transform 0.2s ease',
-          '&:hover': {
-            transform: 'scale(1.02)',
-          }
+          alignItems: 'center',
+          flexGrow: 1,
         }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            <img
-              src={PigiLogo}
-              alt="Pigi Logo"
-              style={{ 
-                height: 36, 
-                cursor: 'pointer',
-                filter: 'brightness(1.1)',
-              }}
-            />
-            <img 
-              src={Medcap} 
-              alt="The Medcap Logo" 
-              style={{ 
-                height: 36, 
-                marginLeft: 6,
-                filter: 'brightness(1.1)',
-              }} 
-            />
-          </Link>
-        </Box>
-
-        {/* Center Section: Title - only show when not on homepage */}
-        {!isHomepage && (
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 700,
-              color: '#011F5B',
-              textAlign: 'center',
-              flexGrow: 1,
-              letterSpacing: 2,
-              fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-            }}
-          >
-            HP-MRI
-          </Typography>
-        )}
-
-        {/* Center Section: Navigation Links - only show on homepage */}
-        {isHomepage && (
+          {/* Logo */}
           <Box sx={{ 
             display: 'flex', 
-            alignItems: 'center', 
-            gap: 1.5, 
-            flexGrow: 1, 
-            justifyContent: 'center' 
+            alignItems: 'center',
+            transition: 'opacity 0.2s ease',
+            '&:hover': {
+              opacity: 0.8,
+            }
           }}>
-            <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
-              <Button
-                variant="contained"
-                size="medium"
-                sx={{
-                  background: '#011F5B',
-                  color: 'white',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    background: '#001233',
-                    transform: 'translateY(-1px)',
-                  },
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+              <img
+                src={PigiLogo}
+                alt="Pigi Lab Logo"
+                style={{ 
+                  height: 32, 
+                  cursor: 'pointer',
                 }}
-              >
-                MR Coil Calculator
-              </Button>
-            </Link>
-            <Button
-              variant="contained"
-              size="medium"
-              href="https://github.com/MEDCAP"
-              target="_blank"
-              sx={{
-                background: '#011F5B',
-                color: 'white',
-                fontWeight: 500,
-                textTransform: 'none',
-                borderRadius: '6px',
-                padding: '8px 16px',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  background: '#001233',
-                  transform: 'translateY(-1px)',
-                },
-              }}
-            >
-              GitHub
-            </Button>
-            <Link to="/about-devs" style={{ textDecoration: 'none' }}>
-              <Button
-                variant="contained"
-                size="medium"
-                sx={{
-                  background: '#011F5B',
-                  color: 'white',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    background: '#001233',
-                    transform: 'translateY(-1px)',
-                  },
-                }}
-              >
-                About Devs
-              </Button>
-            </Link>
-            <Link to="/research" style={{ textDecoration: 'none' }}>
-              <Button
-                variant="contained"
-                size="medium"
-                sx={{
-                  background: '#011F5B',
-                  color: 'white',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    background: '#001233',
-                    transform: 'translateY(-1px)',
-                  },
-                }}
-              >
-                Research
-              </Button>
+              />
             </Link>
           </Box>
-        )}
+
+          {/* Navigation Links - only show on homepage */}
+          {isHomepage && (
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 3, 
+              marginLeft: 4
+            }}>
+              <Link to="/mr-coil-calculator" style={{ textDecoration: 'none' }}>
+                <Typography
+                  sx={{
+                    color: '#333333',
+                    fontWeight: 500,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    transition: 'color 0.2s ease',
+                    '&:hover': {
+                      color: '#011F5B',
+                    },
+                  }}
+                >
+                  MR Coil Calculator
+                </Typography>
+              </Link>
+              <Typography
+                component="a"
+                href="https://github.com/MEDCAP"
+                target="_blank"
+                sx={{
+                  color: '#333333',
+                  fontWeight: 500,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s ease',
+                  '&:hover': {
+                    color: '#011F5B',
+                  },
+                }}
+              >
+                GitHub
+              </Typography>
+              <Link to="/about-devs" style={{ textDecoration: 'none' }}>
+                <Typography
+                  sx={{
+                    color: '#333333',
+                    fontWeight: 500,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    transition: 'color 0.2s ease',
+                    '&:hover': {
+                      color: '#011F5B',
+                    },
+                  }}
+                >
+                  About Devs
+                </Typography>
+              </Link>
+              <Link to="/research" style={{ textDecoration: 'none' }}>
+                <Typography
+                  sx={{
+                    color: '#333333',
+                    fontWeight: 500,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    transition: 'color 0.2s ease',
+                    '&:hover': {
+                      color: '#011F5B',
+                    },
+                  }}
+                >
+                  Research
+                </Typography>
+              </Link>
+            </Box>
+          )}
+
+          {/* Center Section: Title - only show when not on homepage */}
+          {!isHomepage && (
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: '#011F5B',
+                textAlign: 'center',
+                flexGrow: 1,
+                letterSpacing: '-0.5px',
+                marginLeft: 4,
+              }}
+            >
+              HP-MRI
+            </Typography>
+          )}
+        </Box>
 
         {/* Right Section: Account */}
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
-          gap: 1.5,
-          background: '#f5f5f5',
-          borderRadius: '12px',
-          padding: '8px 12px',
-          border: '1px solid #e0e0e0',
+          gap: 2,
         }}>
           {/* Account Section */}
           {userName ? (
@@ -214,25 +185,20 @@ const UnifiedHeader: React.FC = () => {
               {/* Show MRD Files access on homepage when logged in */}
               {isHomepage && (
                 <Link to="/mrd-files" style={{ textDecoration: 'none' }}>
-                  <Button
-                    variant="contained"
-                    size="medium"
+                  <Typography
                     sx={{
-                      background: '#28a745',
-                      color: 'white',
+                      color: '#333333',
                       fontWeight: 500,
-                      textTransform: 'none',
-                      borderRadius: '6px',
-                      padding: '8px 16px',
-                      transition: 'all 0.2s ease',
+                      fontSize: '0.95rem',
+                      cursor: 'pointer',
+                      transition: 'color 0.2s ease',
                       '&:hover': {
-                        background: '#218838',
-                        transform: 'translateY(-1px)',
+                        color: '#011F5B',
                       },
                     }}
                   >
                     Go to Tool
-                  </Button>
+                  </Typography>
                 </Link>
               )}
               
@@ -240,55 +206,45 @@ const UnifiedHeader: React.FC = () => {
                 variant="subtitle2" 
                 sx={{ 
                   fontWeight: 500, 
-                  color: '#333',
-                  marginX: 1,
+                  color: '#333333',
+                  fontSize: '0.9rem',
                 }}
               >
                 Welcome, {userName}
               </Typography>
-              <Button
-                variant="contained"
-                size="medium"
+              <Typography
                 onClick={handleSignOut}
                 sx={{
-                  background: '#dc3545',
-                  color: 'white',
+                  color: '#d32f2f',
                   fontWeight: 500,
-                  textTransform: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  transition: 'all 0.2s ease',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  transition: 'color 0.2s ease',
                   '&:hover': {
-                    background: '#c82333',
-                    transform: 'translateY(-1px)',
+                    color: '#b71c1c',
                   },
                 }}
               >
                 Sign Out
-              </Button>
+              </Typography>
             </>
           ) : (
             // Show sign in button when not authenticated
             <Link to="/account" style={{ textDecoration: 'none' }}>
-              <Button
-                variant="contained"
-                size="medium"
+              <Typography
                 sx={{
-                  background: '#011F5B',
-                  color: 'white',
+                  color: '#333333',
                   fontWeight: 500,
-                  textTransform: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  transition: 'all 0.2s ease',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  transition: 'color 0.2s ease',
                   '&:hover': {
-                    background: '#001233',
-                    transform: 'translateY(-1px)',
+                    color: '#011F5B',
                   },
                 }}
               >
                 Sign In
-              </Button>
+              </Typography>
             </Link>
           )}
         </Box>
