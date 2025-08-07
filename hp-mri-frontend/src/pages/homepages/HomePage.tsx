@@ -104,7 +104,7 @@ const HomePage: React.FC = () => {
         sx={{
           marginTop: 4,
           fontWeight: 600,
-          color: 'primary.main',
+          color: '#4a4a4a',
         }}
       >
         Welcome to the MEDCAP
@@ -116,7 +116,7 @@ const HomePage: React.FC = () => {
         sx={{
           marginTop: 4,
           fontWeight: 600,
-          color: 'primary.main',
+          color: '#4a4a4a',
         }}
       >
         HP-MRI Web Application
