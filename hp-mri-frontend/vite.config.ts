@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     
+    // Define global variables for Node.js compatibility
+    define: {
+      global: 'globalThis',
+    },
+    
     // Optimize dependencies for faster dev server
     optimizeDeps: {
       include: [
@@ -17,7 +22,8 @@ export default defineConfig(({ mode }) => {
         '@mui/material',
         '@mui/icons-material',
         'plotly.js',
-        'react-plotly.js'
+        'react-plotly.js',
+        'amazon-cognito-identity-js'
       ],
       // Force pre-bundling of large dependencies
       force: mode === 'development'
