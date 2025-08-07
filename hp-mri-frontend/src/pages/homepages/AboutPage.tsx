@@ -29,7 +29,7 @@ const AboutPage: React.FC = () => {
         },
         {
             name: 'Zihao',
-            role: 'Backend Developer',
+            role: 'Full Stack Developer',
             bio: 'Zihao focuses on API development and database management to ensure seamless data handling.',
             image: '', // Replace with image
         },

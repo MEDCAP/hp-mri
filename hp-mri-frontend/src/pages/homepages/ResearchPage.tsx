@@ -1,7 +1,6 @@
-// src/pages/HomePage.tsx
+// src/pages/ResearchPage.tsx
 import React from 'react';
 import '../../styles/researchPage.css';
-import HeaderHomepage from '../../components/HeaderHomepage';
 import FooterHomepage from '../../components/FooterHomepage';
 import MRIRecon from '../../assets/mri_recon.png';
 import ImageAnalysis from '../../assets/image_analysis.png';
@@ -13,7 +12,6 @@ import MoleModel from '../../assets/molecular_model.png';
 const ResearchPage: React.FC = () => {
   return (
     <div className="research-container">
-      <HeaderHomepage />
       {/* MRI recon section */}
       <div className="container">
         <div className="image-section">

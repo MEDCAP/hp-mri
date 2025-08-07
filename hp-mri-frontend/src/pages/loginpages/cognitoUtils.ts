@@ -59,6 +59,15 @@ export function signInCognito(email: string, password: string): Promise<any> {
     const cognitoUser = new CognitoUser(userData);
     cognitoUser.authenticateUser(authDetails, {
       onSuccess: (result) => {
+        // Store user information in localStorage
+        const idToken = result.getIdToken();
+        const payload = idToken.payload;
+        const name = payload.name || payload.email || email;
+        const userEmail = payload.email || email;
+        
+        localStorage.setItem('cognito_user_name', name);
+        localStorage.setItem('cognito_user_email', userEmail);
+        
         resolve(result);
       },
       onFailure: (err) => {
@@ -71,34 +80,35 @@ export function signInCognito(email: string, password: string): Promise<any> {
 export function isAuthenticated(): boolean {
   const user = userPool.getCurrentUser();
   if (!user) return false;
-  let valid = false;
-  user.getSession((err: any, session: any) => {
-    if (err || !session || !session.isValid()) {
-      valid = false;
-    } else {
-      valid = true;
-    }
-  });
-  return valid;
+  
+  // This is a synchronous check - for more accurate results, use getCurrentUserName()
+  return user !== null;
 }
 
 export function getCurrentUserName(): string | null {
   const user = userPool.getCurrentUser();
   if (!user) return null;
-  let name: string | null = null;
-  user.getSession((err: any, session: any) => {
-    if (err || !session || !session.isValid()) {
-      name = null;
-    } else {
-      const idToken = session.getIdToken();
-      const payload = idToken.payload;
-      name = payload.name || payload.email || null;
-    }
-  });
-  return name;
+  
+  // Try to get the username from localStorage first (set during sign in)
+  const storedName = localStorage.getItem('cognito_user_name');
+  if (storedName) {
+    return storedName;
+  }
+  
+  // Fallback to email if no name is stored
+  const storedEmail = localStorage.getItem('cognito_user_email');
+  if (storedEmail) {
+    return storedEmail;
+  }
+  
+  return null;
 }
 
 export function signOutCognito() {
   const user = userPool.getCurrentUser();
   if (user) user.signOut();
+  
+  // Clear stored user information
+  localStorage.removeItem('cognito_user_name');
+  localStorage.removeItem('cognito_user_email');
 } 

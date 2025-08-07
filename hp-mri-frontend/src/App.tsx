@@ -7,70 +7,93 @@ import theme from './theme'; // './theme' exports MUI theme object
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// Components
 import HeaderAccount from './components/HeaderAccount';
-// All page imports
-import UploadPage from './pages/mrdpages/UploadPage';
-import RetrievePage from './pages/mrdpages/RetrievePage';
-import MRDFileDetails from './pages/mrdpages/MRDFileDetails';
+import UnifiedHeader from './components/UnifiedHeader';
+
+// Login Pages
+import AccountPage from './pages/loginpages/AccountPage';
+import SignUpPage from './pages/loginpages/SignUpPage';
+import ConfirmSignUpPage from './pages/loginpages/ConfirmSignUpPage';
+
+// Homepage
 import HomePage from './pages/homepages/HomePage';
 import AboutPage from './pages/homepages/AboutPage';
 import ConceptPage from './pages/homepages/ConceptPage';
 import ConvertStorePage from './pages/homepages/ConvertStorePage';
 import ReconstructionToolsPage from './pages/homepages/ReconstructionToolsPage';
 import SimulatePage from './pages/homepages/SimulatePage';
-import ImagesPage from './pages/imagepages/ImagesPage';
-import SimulatorPage from './pages/simulatorpages/SimulatorPage';
-import AccountPage from './pages/loginpages/AccountPage';
-import ImagesDetails from './pages/imagepages/ImagesDetails';
 import PublicationPage from './pages/homepages/PublicationPage';
 import ResearchPage from './pages/homepages/ResearchPage';
+import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
+
+// MRD files
+import UploadPage from './pages/mrdpages/UploadPage';
+import RetrievePage from './pages/mrdpages/RetrievePage';
+
+// Viewer
+import ImagesPage from './pages/imagepages/ImagesPage';
+import ImagesDetails from './pages/imagepages/ImagesDetails';
+
+// Simulator
+import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
 import VisualizationPage from './pages/viewerpages/VisualizationPage';
-import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
-import SignUpPage from './pages/loginpages/SignUpPage';
-import ConfirmSignUpPage from './pages/loginpages/ConfirmSignUpPage';
 
-const APP_VERSION = 'BY: ' + 'v2.0.5';
+const APP_VERSION = 'MEDCAP © 2025';
 
 const AppContent: React.FC = () => {
+
+  // Define pages where no header should appear
+  const hideHeaderRoutes = ['/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
+
+  // Define pages where HeaderAccount should be used (MRD files pages)
+  const mrdFileRoutes = ['/mrd-files', '/upload'];
+
+  // Determine which header should be shown
   const location = useLocation();
-
-  // Define pages where HeaderAccount should not appear
-  const hideHeaderRoutes = ['/', '/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
-
-  // Determine if header should be shown
   const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
+  const isMrdFilePage = mrdFileRoutes.some(route => location.pathname.startsWith(route));
 
   return (
     // Using a React Fragment to avoid adding an unnecessary extra div wrapper
     <>
       {/* Conditional Header rendering */}
-      {shouldShowHeader && <HeaderAccount />}
+      {shouldShowHeader && (
+        isMrdFilePage ? <HeaderAccount /> : <UnifiedHeader />
+      )}
 
       {/* Main content container */}
       <div style={{ display: 'flex', marginTop: location.pathname !== '/visualize' ? 74 : 0 }}>
         <Routes>
-          {/* Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
-          <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-          <Route path="/file-details/:fileId" element={<ProtectedRoute><MRDFileDetails /></ProtectedRoute>} />
-          <Route path="/about-devs" element={<AboutPage />} />
+          {/* Login Pages */}
           <Route path="/account" element={<AccountPage />} />
-          <Route path="/reconstruction-tools" element={<ReconstructionToolsPage />} />
-          <Route path="/concept" element={<ConceptPage />} />
-          <Route path="/convert-store" element={<ConvertStorePage />} />
-          <Route path="/simulate" element={<SimulatePage />} />
-          <Route path="/images" element={<ImagesPage />} />
-          <Route path="/simulator" element={<SimulatorPage />} />
-          <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
-          <Route path="/research" element={<ResearchPage />} />
-          <Route path="/publication" element={<PublicationPage />} />
-          <Route path="/new-simulator" element={<NewSimulatorPage />} />
-          <Route path="/visualize" element={<VisualizationPage />} />
-          <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/confirm-signup" element={<ConfirmSignUpPage />} />
+
+          {/* Homepage */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/about-devs" element={<AboutPage />} />
+          <Route path="/concept" element={<ConceptPage />} />
+          <Route path="/convert-store" element={<ConvertStorePage />} />
+          <Route path="/reconstruction-tools" element={<ReconstructionToolsPage />} />
+          <Route path="/simulate" element={<SimulatePage />} />
+          <Route path="/publication" element={<PublicationPage />} />
+          <Route path="/research" element={<ResearchPage />} />
+          <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
+          
+          {/* MRD files */}
+          <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
+          <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+
+          {/* Viewer */}
+          <Route path="/images" element={<ImagesPage />} />
+          <Route path="/images-details/:imageId/:fileId" element={<ImagesDetails />} />
+
+          {/* Simulator */}
+          <Route path="/simulator" element={<SimulatorPage />} />
+          <Route path="/new-simulator" element={<NewSimulatorPage />} />
+          <Route path="/visualize" element={<VisualizationPage />} />
         </Routes>
       </div>
 

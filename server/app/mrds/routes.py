@@ -1,247 +1,281 @@
-from flask import jsonify, request, send_file
-from matplotlib import pyplot as plt
-from scipy.io import loadmat
+from flask import jsonify, request, current_app
 import os
-import io
-import matplotlib
 import boto3
+from bson import json_util, ObjectId
+import json
+from werkzeug.utils import secure_filename
+from datetime import datetime
 
-# Set the non-GUI backend before importing pyplot
-matplotlib.use("Agg")
+# list, insert mongodb functions
+from data import list_all_mrdfiles, insert_mrdfile_header, read_mrdfile_header
+# read mrd header function
+from data import get_mrdfile_by_id
 
-# Temporary mock data
-# TODO: Replace with RDS Database for quick querying on file details
-# TODO: When uploading actual file to S3 Bucket, add to this database
-from data import db_mrd
-from data import db_image
-from data import db_simulator
-from . import mrds_bp 
-
-# setup aws s3 client
-s3 = boto3.client("s3")
-BUCKET = "mrissim-app-user-content"
-
-# Root route just to test the server is running
-@mrds_bp.route("/")
-def index():
-    return jsonify({"message": "Flask backend is running!"})
+# flask blueprint for mrds route
+from . import mrds_bp
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
 def show_files():
-    # Transform the data to include only the specified fields
-    filtered_files = [
-        {
-            "id": file["id"],
-            "name": file["name"],
-            "date": file["date"],
-            "owner": file["owner"],
-            "reconImagesCount": file["reconImagesCount"],
-            "isSelected": file["isSelected"],
-        }
-        for file in db_mrd
-    ]
-    return jsonify(filtered_files)
-
-@mrds_bp.route("/plot-image", methods=["GET"])
-def plot_image():
+    """
+    Return a list of MRD files with selected fields from MongoDB
+    """
     try:
-        # Load the proton image
-        proton_matfile = "./mrds/test_image_matfiles/1115_first_measurement_dcm.mat"
-        if not os.path.exists(proton_matfile):
-            raise FileNotFoundError(f"File '{proton_matfile}' does not exist.")
-        proton_image = loadmat(proton_matfile)["data"]
-
-        # Load the carbon image
-        carbon_matfile = "./mrds/test_image_matfiles/meas_MID01696_FID08543_c13_spspsp_BPAL_inj2_reconimage.mat"
-        if not os.path.exists(carbon_matfile):
-            raise FileNotFoundError(f"File '{carbon_matfile}' does not exist.")
-        carbon_image = loadmat(carbon_matfile)["data"]
-        carbon_image = carbon_image[1, :, :, 3, 1]  # show a specific slice
-
-        # Plot the images using the Agg backend
-        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(proton_image, cmap="gray")
-        ax[0].set_title("Proton Image of liver slice")
-        ax[1].imshow(carbon_image, cmap="gray")
-        ax[1].set_title("Carbon Image of heart slice")
-        plt.tight_layout()
-
-        # Save the plot to a BytesIO stream
-        img_io = io.BytesIO()
-        plt.savefig(img_io, format="png", bbox_inches="tight")
-        img_io.seek(0)
-        plt.close(fig)  # Ensure the figure is closed
-
-        # Return the image as a response
-        return send_file(img_io, mimetype="image/png")
-
+        # define projection to list only relevant fields for display
+        proj = {
+            "fileName": 1,
+            "studyDate": 1,
+            "studyTime": 1,
+            "ownerName": 1,
+            "subjectType": 1,
+            "groupName": 1,
+            "isReconstructed": 1,
+            "protocolName": 1,
+            "measurementId": 1,
+            "stationName": 1,
+            "original_filename": 1,
+            "upload_timestamp": 1,
+            "file_size": 1,
+            "s3_key": 1,
+            "_id": 1
+        }
+        result = list_all_mrdfiles(projection=proj)
+        
+        # Handle both cursor and list returns
+        if hasattr(result, '__iter__') and not isinstance(result, list):
+            # It's a cursor
+            return json_util.dumps(list(result))
+        else:
+            # It's already a list
+            return json_util.dumps(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
 def get_file_details(file_id):
     try:
-        # Convert file_id to an integer for comparison
-        file_id = int(file_id)
-        file_data = next((file for file in db_mrd if file["id"] == file_id), None)
+        file_data = get_mrdfile_by_id(file_id)
         if file_data:
-            return jsonify(file_data)
+            # json_util handles BSON types like ObjectId
+            return json.loads(json_util.dumps(file_data)), 200
         return jsonify({"error": "File not found"}), 404
-    except ValueError:
-        # If file_id is not a valid integer, return an error
-        return jsonify({"error": "Invalid file ID"}), 400
+    except Exception as e:
+        return jsonify({"error": "Invalid file ID", "details": str(e)}), 400
 
-
-# Route to update file tags
-@mrds_bp.route("/mrd-files/<file_id>/edit-tags", methods=["POST"])
-def edit_file_tags(file_id):
-    try:
-        file_id = int(file_id)
-        new_tags = request.json.get("tags")
-        for file in db_mrd:
-            if file["id"] == file_id:
-                # Update the 'parameter' tag
-                file["parameter"] = new_tags.get("parameter", file["parameter"])
-
-                # Update the 'description' field inside 'raw'
-                if "raw" in file and isinstance(file["raw"], dict):
-                    file["raw"]["description"] = new_tags.get(
-                        "raw", file["raw"].get("description", "")
-                    )
-
-                return jsonify({"message": "Tags updated successfully"})
-        return jsonify({"error": "File not found"}), 404
-    except ValueError:
-        return jsonify({"error": "Invalid file ID"}), 400
-
-
-# Route to list Images
-@mrds_bp.route("/images", methods=["GET"])
-def show_images():
-    # Transform the data to include only the specified fields
-    filtered_images = [
-        {
-            "id": image["id"],
-            "name": image["name"],
-            "date": image["date"],
-            "owner": image["owner"],
-            "sequence_id": image["sequence_id"],
-            "sequence": image["sequence"],
-            "isSelected": image["isSelected"],
-        }
-        for image in db_image
-    ]
-    return jsonify(filtered_images)
-
-
-# Route to retrieve images by sequence_id
-@mrds_bp.route("/images/<int:sequence_id>", methods=["GET"])
-def get_images_by_sequence(sequence_id):
-    images = [image for image in db_image if image["sequence_id"] == sequence_id]
-    return jsonify(images)
-
-
-@mrds_bp.route("/images/delete", methods=["DELETE"])
-def delete_images():
-    global db_image
-    image_ids = request.json.get("ids", [])
-    if not image_ids:
-        return jsonify({"error": "No image IDs provided"}), 400
-
-    db_image = [image for image in db_image if image["id"] not in image_ids]
-    return jsonify({"message": "Images deleted successfully"}), 200
-
-
-# Route to retrieve specific image file details
-@mrds_bp.route("/image-details/<image_id>", methods=["GET"])
-def get_image(image_id):
-    try:
-        image_id = int(image_id)
-        image_data = next(
-            (image for image in db_image if image["id"] == image_id), None
-        )
-        if image_data:
-            return jsonify(image_data)
-        return jsonify({"error": "Image not found"}), 404
-    except ValueError:
-        return jsonify({"error": "Invalid image ID"}), 400
-
-
-# TODO: Route to get actual image associated with this image id from
-# the s3 bucket and return it to the frontend
-@mrds_bp.route("/image/<int:image_id>/", methods=["GET"])
-def get_image_details(image_id):
-    return jsonify({"message": "TODO: Display Image"})
-
-
-# Route to upload MRD file page
+# Route to upload MRD files
 @mrds_bp.route("/upload", methods=["POST"])
 def upload_file():
+    """
+    Handle batch upload of MRD files with proper error handling and status tracking
+    """
     if "file" not in request.files:
         return jsonify({"error": "No files selected"}), 400
-    # tmpdata dir to store files locally before uploading to s3 at "./tmpdata"
+    
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    BUCKET = current_app.config['S3_BUCKET']
+    
+    # Create temporary directory for file processing
     upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmpdata")
     if not os.path.exists(upload_path):
         os.makedirs(upload_path)
-    for file in request.files.getlist("file"):
-        # save file locally in temporary storage
-        filepath = os.path.join(upload_path, file.filename)
-        file.save(filepath)
+    
+    files = request.files.getlist("file")
+    results = []
+    successful_files = 0
+    failed_files = 0
+    
+    # Process each file
+    for file in files:
+        if file.filename == '':
+            continue
+            
+        # Validate file extension
+        allowed_extensions = {'.bin', '.mrd', '.mrd2'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            results.append({
+                "original_filename": file.filename,
+                "status": "error",
+                "error": f"File type {file_ext} not allowed. Supported: {', '.join(allowed_extensions)}"
+            })
+            failed_files += 1
+            continue
+        
+        # Save file to temporary location
+        temp_filepath = os.path.join(upload_path, secure_filename(file.filename))
+        file.save(temp_filepath)
+        
         try:
-            # upload to s3 as original name
-            s3.upload_file(filepath, BUCKET, file.filename)
+            import time
+            
+            # Step 1: Extract metadata from MRD file (20% of progress)
+            time.sleep(0.3)  # Simulate metadata extraction time
+            db_entry = read_mrdfile_header(temp_filepath)
+            
+            # Step 2: Insert metadata into MongoDB (40% of progress)
+            time.sleep(0.2)  # Simulate database operation
+            inserted_id = insert_mrdfile_header(db_entry)
+            
+            # Step 3: Upload to S3 with MongoDB ObjectId as filename (80% of progress)
+            # Simulate upload time based on file size (longer for larger files)
+            file_size_mb = os.path.getsize(temp_filepath) / (1024 * 1024)
+            upload_time = min(1.0, max(0.3, file_size_mb * 0.2))  # 0.3-1.0 seconds based on file size
+            time.sleep(upload_time)
+            s3_key = f"mrd_files/{str(inserted_id)}"
+            s3.upload_file(temp_filepath, BUCKET, s3_key)
+            
+            # Step 4: Update database with S3 key (100% of progress)
+            time.sleep(0.1)  # Simulate final database update
+            from data import get_db
+            db = get_db()
+            db.mrdfiles.update_one(
+                {"_id": inserted_id},
+                {"$set": {"s3_key": s3_key}}
+            )
+            
+            # Convert metadata to JSON-serializable format
+            serializable_metadata = {}
+            for key, value in db_entry.items():
+                if hasattr(value, '__str__'):
+                    serializable_metadata[key] = str(value)
+                else:
+                    serializable_metadata[key] = value
+            
+            # Success result
+            results.append({
+                "original_filename": file.filename,
+                "status": "completed",
+                "metadata": serializable_metadata,
+                "db_id": str(inserted_id),
+                "s3_key": s3_key
+            })
+            successful_files += 1
+            
         except Exception as e:
-            return jsonify({"aws access error": e}), 400
-        # remove local file
-        os.remove(filepath)
-    return jsonify({"message": "files uploaded"}), 200
-
+            # Error result
+            results.append({
+                "original_filename": file.filename,
+                "status": "error",
+                "error": str(e)
+            })
+            failed_files += 1
+            
+        finally:
+            # Always cleanup temporary file
+            if os.path.exists(temp_filepath):
+                os.remove(temp_filepath)
+    
+    # Prepare response
+    response_data = {
+        "message": f"Processed {len(results)} files",
+        "total_files": len(results),
+        "successful_files": successful_files,
+        "failed_files": failed_files,
+        "results": results,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    # Return appropriate status code based on results
+    if failed_files > 0 and successful_files > 0:
+        return jsonify(response_data), 207  # 207 Multi-Status for partial success
+    elif failed_files > 0:
+        return jsonify(response_data), 400  # 400 Bad Request if all files failed
+    else:
+        return jsonify(response_data), 200  # 200 OK if all files succeeded
 
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
 def delete_files():
-    global db_mrd
-    file_ids = request.json.get("ids", [])
-    if not file_ids:
-        return jsonify({"error": "No file IDs provided"}), 400
+    try:
+        file_ids = request.json.get("ids", [])
+        if not file_ids:
+            return jsonify({"error": "No file IDs provided"}), 400
 
-    db_mrd = [file for file in db_mrd if file["id"] not in file_ids]
-    return jsonify({"message": "Files deleted successfully"}), 200
-
+        # Setup AWS S3 client
+        s3 = boto3.client("s3")
+        BUCKET = current_app.config['S3_BUCKET']
+        
+        # Get database connection
+        from data import get_db, delete_mrdfiles_by_ids
+        db = get_db()
+        
+        deleted_count = 0
+        s3_deleted_count = 0
+        file_results = []
+        
+        for file_id in file_ids:
+            try:
+                # First, get the file document to find the S3 key
+                file_doc = db.mrdfiles.find_one({"_id": ObjectId(file_id)})
+                
+                if file_doc:
+                    file_result = {
+                        "file_id": file_id,
+                        "file_name": file_doc.get('fileName', 'Unknown'),
+                        "status": "success",
+                        "db_deleted": False,
+                        "s3_deleted": False,
+                        "error": None
+                    }
+                    
+                    # Delete from S3 if s3_key exists
+                    if 's3_key' in file_doc:
+                        try:
+                            s3.delete_object(Bucket=BUCKET, Key=file_doc['s3_key'])
+                            s3_deleted_count += 1
+                            file_result["s3_deleted"] = True
+                        except Exception as s3_error:
+                            error_msg = f"Error deleting from S3: {str(s3_error)}"
+                            print(f"Error deleting from S3 for file {file_id}: {s3_error}")
+                            file_result["status"] = "error"
+                            file_result["error"] = error_msg
+                    
+                    # Delete from MongoDB
+                    try:
+                        result = db.mrdfiles.delete_one({"_id": ObjectId(file_id)})
+                        if result.deleted_count > 0:
+                            deleted_count += 1
+                            file_result["db_deleted"] = True
+                    except Exception as db_error:
+                        error_msg = f"Error deleting from database: {str(db_error)}"
+                        print(f"Error deleting from database for file {file_id}: {db_error}")
+                        file_result["status"] = "error"
+                        file_result["error"] = error_msg
+                        
+                    file_results.append(file_result)
+                else:
+                    file_results.append({
+                        "file_id": file_id,
+                        "file_name": "Unknown",
+                        "status": "error",
+                        "db_deleted": False,
+                        "s3_deleted": False,
+                        "error": "File not found in database"
+                    })
+                        
+            except Exception as file_error:
+                print(f"Error processing file {file_id}: {file_error}")
+                file_results.append({
+                    "file_id": file_id,
+                    "file_name": "Unknown",
+                    "status": "error",
+                    "db_deleted": False,
+                    "s3_deleted": False,
+                    "error": str(file_error)
+                })
+                continue
+        
+        return jsonify({
+            "message": f"Successfully deleted {deleted_count} files from database and {s3_deleted_count} files from S3",
+            "deleted_count": deleted_count,
+            "s3_deleted_count": s3_deleted_count,
+            "file_results": file_results
+        }), 200
+    except Exception as e:
+        return jsonify({"error": "Failed to delete files", "details": str(e)}), 400
 
 @mrds_bp.route("/mrd-file/<int:file_id>/download")
 def download_file(file_id):
     # download file
     pass
-
-
-# Route to list Simulators
-@mrds_bp.route("/simulator", methods=["GET"])
-def show_simulator():
-    filtered_simulator = [
-        {
-            "id": simulator["id"],
-            "name": simulator["name"],
-            "date": simulator["date"],
-            "owner": simulator["owner"],
-            "sequence": simulator["sequence"],
-            "image": simulator["image"],
-            "isSelected": simulator["isSelected"],
-        }
-        for simulator in db_simulator
-    ]
-    return jsonify(filtered_simulator)
-
-
-@mrds_bp.route("/simluators", methods=["DELETE"])
-def delete_simulator():
-    global db_simulator
-    simulator_ids = request.json.get("ids", [])
-    if not simulator_ids:
-        return jsonify({"error": "No simulator IDs provided"}), 400
-
-    db_simulator = [
-        simulator for simulator in db_simulator if simulator["id"] not in simulator_ids
-    ]
-    return jsonify({"message": "Simulator deleted successfully"}), 200

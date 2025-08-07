@@ -22,11 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.cursorrules
+.cursor/*
 
 # Environment variables
 .env
 .env.production
 .env.development
+.env.database
 
 # TypeScript build info
 tsconfig.app.tsbuildinfo
