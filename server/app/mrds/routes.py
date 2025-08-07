@@ -30,6 +30,13 @@ def show_files():
             "subjectType": 1,
             "groupName": 1,
             "isReconstructed": 1,
+            "protocolName": 1,
+            "measurementId": 1,
+            "stationName": 1,
+            "original_filename": 1,
+            "upload_timestamp": 1,
+            "file_size": 1,
+            "s3_key": 1,
             "_id": 1
         }
         result = list_all_mrdfiles(projection=proj)

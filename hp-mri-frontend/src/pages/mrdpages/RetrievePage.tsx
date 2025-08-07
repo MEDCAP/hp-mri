@@ -7,6 +7,7 @@ import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';
 import UploadCompletionModal from '../../components/UploadCompletionModal';
 import DeleteConfirmationDialog from '../../components/DeleteConfirmationDialog';
+import FileDetailsPanel from '../../components/FileDetailsPanel';
 import {
   Button,
   Checkbox,
@@ -45,6 +46,13 @@ interface MRDFile {
   subjectType: string;
   groupName: string;
   isReconstructed: boolean;
+  protocolName?: string;
+  measurementId?: string;
+  stationName?: string;
+  original_filename?: string;
+  upload_timestamp?: string;
+  file_size?: string;
+  s3_key?: string;
   isSelected?: boolean;
 }
 
@@ -79,6 +87,8 @@ const RetrievePage: React.FC = () => {
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [fileDeleteStatuses, setFileDeleteStatuses] = useState<Array<{fileName: string; status: 'pending' | 'deleting' | 'success' | 'error'; error?: string}>>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
   const navigate = useNavigate();
 
   const fetchFiles = () => {
@@ -139,7 +149,8 @@ const RetrievePage: React.FC = () => {
   };
 
   const goToDetails = (file: MRDFile) => {
-    navigate(`/file-details/${file._id.$oid}`);
+    setSelectedFile(file);
+    setFileDetailsPanelOpen(true);
   };
 
   const isAnyFileSelected = files.some((file) => file.isSelected);
@@ -288,8 +299,12 @@ const RetrievePage: React.FC = () => {
     <div
       style={{
         marginLeft: isSidebarOpen ? '260px' : '80px',
-        width: isSidebarOpen ? 'calc(100% - 260px)' : 'calc(100% - 80px)',
-        transition: 'margin-left 0.3s, width 0.3s',
+        width: isSidebarOpen 
+          ? `calc(100% - 260px - ${fileDetailsPanelOpen ? '400px' : '0px'})` 
+          : `calc(100% - 80px - ${fileDetailsPanelOpen ? '400px' : '0px'})`,
+        marginRight: fileDetailsPanelOpen ? '400px' : '0px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        minHeight: 'calc(100vh - 74px)', // Account for header
       }}
     >
       <HeaderAccount />
@@ -568,6 +583,16 @@ const RetrievePage: React.FC = () => {
           {deleteError}
         </Alert>
       </Snackbar>
+
+      {/* File Details Panel */}
+      <FileDetailsPanel
+        open={fileDetailsPanelOpen}
+        onClose={() => {
+          setFileDetailsPanelOpen(false);
+          setSelectedFile(null);
+        }}
+        file={selectedFile}
+      />
     </div>
   );
 };
