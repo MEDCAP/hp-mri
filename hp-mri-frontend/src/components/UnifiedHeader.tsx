@@ -39,8 +39,8 @@ const UnifiedHeader: React.FC = () => {
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
         backgroundColor: 'white',
-        borderBottom: '1px solid #e0e0e0',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+        borderBottom: 'none',
+        boxShadow: 'none',
       }}
     >
       <Toolbar
