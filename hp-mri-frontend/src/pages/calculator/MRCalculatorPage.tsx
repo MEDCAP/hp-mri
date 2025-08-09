@@ -112,9 +112,14 @@ const MRCalculatorPage: React.FC = () => {
       >
         MR Coil Component Calculator
       </Typography>
-      <Typography paragraph>
+      <Typography component="p" sx={{ mb: 2 }}>
         Welcome! This calculator helps you design heteronuclear MR coils for
-        small-animal imaging.
+        small-animal imaging. If you use this calculator or data in your project, please cite the work found at-   
+        <Link 
+          href="https://doi.org/10.1016/j.jmro.2025.100206" 
+          target="_blank"
+          rel="noopener noreferrer"
+          color="secondary">https://doi.org/10.1016/j.jmro.2025.100206</Link>.
       </Typography>
 
       {/* “How to use calculator” section */}
@@ -122,7 +127,7 @@ const MRCalculatorPage: React.FC = () => {
         <Typography variant="h5" gutterBottom fontWeight={700}>
           How to use calculator
         </Typography>
-        <Typography paragraph align="left">
+        <Typography component="p" align="left" sx={{ mb: 2 }}>
           1. <strong>Choose the inductor radius</strong> based on the size and
           depth of the structure you want to image. (Note: penetration depth is
           roughly equal to one inductor radius). <br />

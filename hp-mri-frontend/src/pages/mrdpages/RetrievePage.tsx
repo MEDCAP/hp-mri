@@ -6,6 +6,8 @@ import UploadModal from '../../components/UploadModal';
 import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';
 import UploadCompletionModal from '../../components/UploadCompletionModal';
+import DeleteConfirmationDialog from '../../components/DeleteConfirmationDialog';
+import FileDetailsPanel from '../../components/FileDetailsPanel';
 import {
   Button,
   Checkbox,
@@ -44,6 +46,13 @@ interface MRDFile {
   subjectType: string;
   groupName: string;
   isReconstructed: boolean;
+  protocolName?: string;
+  measurementId?: string;
+  stationName?: string;
+  original_filename?: string;
+  upload_timestamp?: string;
+  file_size?: string;
+  s3_key?: string;
   isSelected?: boolean;
 }
 
@@ -73,6 +82,13 @@ const RetrievePage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
   const [isUploadCompleted, setIsUploadCompleted] = useState(false);
   const [uploadCompletionModalOpen, setUploadCompletionModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+  const [fileDeleteStatuses, setFileDeleteStatuses] = useState<Array<{fileName: string; status: 'pending' | 'deleting' | 'success' | 'error'; error?: string}>>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
   const navigate = useNavigate();
 
   const fetchFiles = () => {
@@ -133,24 +149,97 @@ const RetrievePage: React.FC = () => {
   };
 
   const goToDetails = (file: MRDFile) => {
-    navigate(`/file-details/${file._id.$oid}`);
+    setSelectedFile(file);
+    setFileDetailsPanelOpen(true);
   };
 
   const isAnyFileSelected = files.some((file) => file.isSelected);
 
   const handleDelete = () => {
-    // // API Call for delete, commented so that we don't accidentally delete during dev
-    // // TODO: Uncomment, eventually
-    // const selectedFileIds = files.filter(file => file.isSelected).map(file => file.id);
-    // if (selectedFileIds.length === 0) return;
+    const selectedFiles = files.filter(file => file.isSelected);
+    if (selectedFiles.length === 0) return;
+    
+    // Initialize file statuses
+    const initialStatuses = selectedFiles.map(file => ({
+      fileName: file.fileName,
+      status: 'pending' as const,
+      error: undefined
+    }));
+    setFileDeleteStatuses(initialStatuses);
+    setIsDeleting(false);
+    setDeleteDialogOpen(true);
+  };
 
-  //   axios
-  //     .delete(`http://127.0.0.1:5000/api/mrd-file/`, { data: { ids: selectedFileIds } })
-  //     .then(() => {
-  //       // Remove the deleted files from the local state
-  //       setFiles(files.filter(file => !file.isSelected));
-  //     })
-  //     .catch(error => console.error("Error deleting files:", error));
+  const handleConfirmDelete = async () => {
+    const selectedFileIds = files.filter(file => file.isSelected).map(file => file._id.$oid);
+    const selectedFiles = files.filter(file => file.isSelected);
+    
+    setIsDeleting(true);
+    
+    // Set all files to deleting status
+    setFileDeleteStatuses(prev => prev.map(status => ({
+      ...status,
+      status: 'deleting' as const
+    })));
+    
+    try {
+      const response = await axios.delete('/api/mrd-file', { 
+        data: { ids: selectedFileIds } 
+      });
+      
+              // Update file statuses based on backend response
+        if (response.data.file_results) {
+          const updatedStatuses = fileDeleteStatuses.map(status => {
+            const selectedFile = selectedFiles.find(f => f.fileName === status.fileName);
+            const fileResult = response.data.file_results.find((fr: any) => 
+              selectedFile && fr.file_name === selectedFile.fileName
+            );
+            
+            if (fileResult) {
+              return {
+                fileName: status.fileName,
+                status: (fileResult.status === 'success' ? 'success' : 'error') as 'success' | 'error',
+                error: fileResult.error
+              };
+            }
+            return status;
+          });
+          
+          setFileDeleteStatuses(updatedStatuses);
+        }
+      
+      // Wait a moment to show the final statuses, then close dialog
+      setTimeout(() => {
+        setDeleteSuccess(response.data.message);
+        setDeleteDialogOpen(false);
+        setIsDeleting(false);
+        
+        // Remove the deleted files from the local state
+        setFiles(files.filter(file => !file.isSelected));
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => setDeleteSuccess(null), 5000);
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error("Error deleting files:", error);
+      
+      // Set all files to error status
+      setFileDeleteStatuses(prev => prev.map(status => ({
+        ...status,
+        status: 'error' as const,
+        error: error.response?.data?.error || "Failed to delete files"
+      })));
+      
+      setTimeout(() => {
+        setDeleteError(error.response?.data?.error || "Failed to delete files");
+        setDeleteDialogOpen(false);
+        setIsDeleting(false);
+        
+        // Clear error message after 5 seconds
+        setTimeout(() => setDeleteError(null), 5000);
+      }, 1500);
+    }
   };
 
   const handleUploadComplete = (uploadedFiles: any[]) => {
@@ -210,8 +299,12 @@ const RetrievePage: React.FC = () => {
     <div
       style={{
         marginLeft: isSidebarOpen ? '260px' : '80px',
-        width: isSidebarOpen ? 'calc(100% - 260px)' : 'calc(100% - 80px)',
-        transition: 'margin-left 0.3s, width 0.3s',
+        width: isSidebarOpen 
+          ? `calc(100% - 260px - ${fileDetailsPanelOpen ? '400px' : '0px'})` 
+          : `calc(100% - 80px - ${fileDetailsPanelOpen ? '400px' : '0px'})`,
+        marginRight: fileDetailsPanelOpen ? '400px' : '0px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        minHeight: 'calc(100vh - 74px)', // Account for header
       }}
     >
       <HeaderAccount />
@@ -430,6 +523,19 @@ const RetrievePage: React.FC = () => {
         files={uploadFiles}
       />
 
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete MRD Files"
+        message={`Are you sure you want to permanently delete ${files.filter(f => f.isSelected).length} selected file(s)? This action will remove the files from both the database and cloud storage, and cannot be undone.`}
+        confirmText="confirm"
+        filesToDelete={files.filter(f => f.isSelected).map(f => f.fileName)}
+        fileStatuses={fileDeleteStatuses}
+        isDeleting={isDeleting}
+      />
+
       {/* Success Snackbar */}
       <Snackbar
         open={!!uploadSuccess}
@@ -445,6 +551,48 @@ const RetrievePage: React.FC = () => {
           {uploadSuccess}
         </Alert>
       </Snackbar>
+
+      {/* Delete Success Snackbar */}
+      <Snackbar
+        open={!!deleteSuccess}
+        autoHideDuration={6000}
+        onClose={() => setDeleteSuccess(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setDeleteSuccess(null)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          {deleteSuccess}
+        </Alert>
+      </Snackbar>
+
+      {/* Delete Error Snackbar */}
+      <Snackbar
+        open={!!deleteError}
+        autoHideDuration={6000}
+        onClose={() => setDeleteError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setDeleteError(null)}
+          severity="error"
+          sx={{ width: '100%' }}
+        >
+          {deleteError}
+        </Alert>
+      </Snackbar>
+
+      {/* File Details Panel */}
+      <FileDetailsPanel
+        open={fileDetailsPanelOpen}
+        onClose={() => {
+          setFileDetailsPanelOpen(false);
+          setSelectedFile(null);
+        }}
+        file={selectedFile}
+      />
     </div>
   );
 };

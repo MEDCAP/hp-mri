@@ -35,7 +35,7 @@ import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
 
-const APP_VERSION = 'BY: ' + 'v2.0.5';
+const APP_VERSION = 'MEDCAP © 2025';
 
 const AppContent: React.FC = () => {
 
@@ -43,7 +43,7 @@ const AppContent: React.FC = () => {
   const hideHeaderRoutes = ['/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
   // Define pages where HeaderAccount should be used (MRD files pages)
-  const mrdFileRoutes = ['/mrd-files', '/upload', '/file-details'];
+  const mrdFileRoutes = ['/mrd-files', '/upload'];
 
   // Determine which header should be shown
   const location = useLocation();
@@ -80,7 +80,8 @@ const AppContent: React.FC = () => {
           {/* MRD files */}
           <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-          <Route path="/file-details/:fileId" element={<ProtectedRoute><MRDFileDetails /></ProtectedRoute>} />
+
+          {/* Simulator */}
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/viewer" element={<ViewerPage />} />
