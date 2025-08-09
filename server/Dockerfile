@@ -38,7 +38,8 @@ COPY run.py config.py data.py ./
 
 # vite api url set to alb public ip
 ENV PATH="/home/appuser/.local/bin:${PATH}" \
-    FLASK_CONFIG=production \
+    FLASK_CONFIG=development \
+    # FLASK_CONFIG=production \
     GUNICORN_CMD_ARGS="--bind=0.0.0.0:5177 --workers=2 --timeout 60"
 # Expose port and set CMD
 EXPOSE 5177

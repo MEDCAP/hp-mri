@@ -43,7 +43,7 @@ const SimulatorPage: React.FC = () => {
 
   const fetchSimulators = () => {
     axios
-      .get('http://127.0.0.1:5000/api/simulator')
+      .get('/api/simulator')
       .then((response) => setSimulators(response.data))
       .catch((error) => console.error('Error fetching simulators:', error));
   };

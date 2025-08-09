@@ -23,4 +23,4 @@ class DevelopmentConfig(Config):
         MONGO_URI = os.getenv('MONGO_URI')
 
 class ProductionConfig(Config):
-    DEBUG=False
+    DEBUG=False    
