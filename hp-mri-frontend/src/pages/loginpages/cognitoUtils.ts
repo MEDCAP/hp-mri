@@ -104,6 +104,21 @@ export function getCurrentUserName(): string | null {
   return null;
 }
 
+export const getCurrentUserId = () => {
+  const session = localStorage.getItem('amplify-authenticator-authState');
+  if (session) {
+    try {
+      const parsedSession = JSON.parse(session);
+      // Cognito stores the sub (subject) as the unique user ID
+      return parsedSession.tokens?.idToken?.payload?.sub || null;
+    } catch (err) {
+      console.error('Error parsing auth session:', err);
+      return null;
+    }
+  }
+  return null;
+};
+
 export function signOutCognito() {
   const user = userPool.getCurrentUser();
   if (user) user.signOut();

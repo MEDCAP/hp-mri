@@ -9,10 +9,11 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG=True    
     # parse environment variables
-    load_dotenv('.env.development')
-    AWS_ACCESS_KEY_ID = os.getenv('aws_access_key_id')
-    AWS_SECRET_ACCESS_KEY = os.getenv('aws_secret_access_key')
-    AWS_SESSION_TOKEN = os.getenv('aws_session_token')
+    if os.path.exists('.env.development'):
+        load_dotenv('.env.development')
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_SESSION_TOKEN = os.getenv('AWS_SESSION_TOKEN')
     CORS_ORIGINS = ['http://localhost:5173']    # frontend serve dist folder
     
     # Build MongoDB URI using AWS credentials for authentication
@@ -21,6 +22,7 @@ class DevelopmentConfig(Config):
     else:
         # Fallback to direct URI if AWS credentials are not available
         MONGO_URI = os.getenv('MONGO_URI')
+    
 
 class ProductionConfig(Config):
     DEBUG=False    

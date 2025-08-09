@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         <ListItem disablePadding>
           <ListItemButton
             component={Link}
-            to="/images"
+            to="/viewer"
             sx={{
               padding: '10px 16px',
               '&:hover': {
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             </ListItemIcon>
             {isOpen && (
               <ListItemText
-                primary="Images"
+                primary="Viewer"
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
