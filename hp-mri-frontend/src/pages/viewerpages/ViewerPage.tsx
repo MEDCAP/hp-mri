@@ -1,16 +1,11 @@
 /**
- * @fileoverview HomePage.tsx serves as the central interface for the HP-MRI Web Application Visualization,
- * providing functionalities such as displaying proton images, adjusting HP-MRI plots,
- * and offering navigation to the About page.
+ * @fileoverview ViewerPage.tsx to display mrd files as plot
  *
- * @version 2.0.3
- * @author Ben Yoon
- * @date 2025-05-09
  */
 
 import GIF from 'gif.js.optimized';
 import React, { useState, useEffect, useRef } from 'react';
-import './Visualization.css';
+import '../../styles/viewerPage.css';
 import ControlPanel from '../../components/visualize/ControlPanel';
 import ButtonPanel from '../../components/visualize/ButtonPanel';
 import PlotComponent from '../../components/visualize/PlotComponent';
@@ -18,6 +13,7 @@ import { Link } from 'react-router-dom';
 import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponent';
 import PlotShiftPanel from '../../components/visualize/PlotShiftPanel';
 import html2canvas from 'html2canvas';
+import HeaderAccount from '../../components/HeaderAccount'; // Import HeaderAccount
 
 const VisualizationPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
@@ -38,7 +34,7 @@ const VisualizationPage: React.FC = () => {
   // const plotContainerRef = useRef(null);
   const plotContainerRef = useRef<HTMLDivElement | null>(null);
   const [threshold, setThreshold] = useState(0.2); // Initial threshold value for HP MRI data filtering
-  const [mode, setMode] = useState<"spectral" | "imaging" | null>(null);
+  const mode = "imaging";
   const [imagingData, setImagingData] = useState<number[][][][] | null>(null); // 4D: [rows][cols][metabolites][images]
   const [selectedMetabolite, setSelectedMetabolite] = useState(0);
   const [alpha, setAlpha] = useState(0.6);
@@ -265,153 +261,144 @@ const VisualizationPage: React.FC = () => {
   };
 
   return (
-    <div className="App">
-      {mode === null && (
-        <div className="mode-modal">
-          <div className="modal-content">
-            <h2>Select Imaging Mode</h2>
-            <button onClick={() => setMode('spectral')}>Spectral Imaging</button>
-            <button onClick={() => {
-              setMode('imaging');
-              fetchImagingMetadata();
-              fetchImagingData();
-            }}>Imaging</button>
-
-          </div>
-        </div>
-      )}
-      {mode && (
-        <ButtonPanel
-          toggleHpMriData={toggleHpMriData}
-          onFileUpload={handleFileUpload}
-          onThresholdChange={handleThresholdChange}
-          threshold={threshold}
-          onMagnetTypeChange={handleMagnetTypeChange}
-          mode={mode}
-          alpha={alpha}
-          onAlphaChange={setAlpha}
-          colorScale={colorScale}
-          onColorScaleChange={setColorScale}
-          scaleByIntensity={scaleByIntensity}
-          onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
-          openDrawer={openDrawer}
-          selectedTool={selectedTool}
-          onOpenDrawer={handleOpenDrawer}
-          onContrastChange={handleContrastChange}
-          imageSlice={imageSlice}
-          contrast={contrast}
-          setContrast={setContrast}
-          gifStart={gifStart}
-          setGifStart={setGifStart}
-          gifEnd={gifEnd}
-          setGifEnd={setGifEnd}
-          gifFps={gifFps}
-          setGifFps={setGifFps}
-          gifFilename={gifFilename}
-          setGifFilename={setGifFilename}
-          setImageSlice={setImageSlice}
-          onExportGif={handleExportGif}
-        />
-      )}
-
-      <div
-        className="content-wrapper"
-        style={{
-          marginLeft: openDrawer ? 140 : 0,
-          transition: 'margin-left 0.3s ease', // smooth transition
-        }}
-      >
-        <div className="visualization-container">
-          <div className="image-and-plot-container" id="visualization-root">
-            <img
-              src={imageUrl}
-              alt="Proton"
-              className={`proton-image-${magnetType.toLowerCase().replace(" ", "-")}`}
-            />
-
-            <div className="plot-container" ref={plotContainerRef}>
-              {mode === 'spectral' && (
-                <PlotComponent
-                  xValues={hpMriData.xValues}
-                  data={hpMriData.data}
-                  columns={hpMriData.columns}
-                  spectralData={hpMriData.spectralData}
-                  rows={hpMriData.rows}
-                  longitudinalScale={hpMriData.longitudinalScale}
-                  perpendicularScale={hpMriData.perpendicularScale}
-                  longitudinalMeasurement={hpMriData.longitudinalMeasurement}
-                  perpendicularMeasurement={hpMriData.perpendicularMeasurement}
-                  plotShift={hpMriData.plotShift}
-                  windowSize={windowSize}
-                  showHpMriData={showHpMriData}
-                  offsetX={offsetX}
-                  offsetY={offsetY}
-                  onRendered={handleFrameRendered}
-                />
-              )}
-
-              {mode === 'imaging' && imagingData && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: `calc(50% + ${offsetY + 7 * 10}px)`,  // Adjust vertical shift
-                    left: `calc(50% + ${offsetX - 30 * 10}px)`, // Adjust horizontal shift
-                    transform: 'translate(-50%, -50%)',
-                    width: '63vw',
-                    height: '49vw',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <ImagingPlotComponent
-                    data={imagingData}
-                    imageIndex={datasetIndex}
-                    metaboliteIndex={selectedMetabolite}
-                    alpha={showHpMriData ? alpha : 0}
-                    colorScale={colorScale}
-                    scaleByIntensity={scaleByIntensity}
-                    showHpMriData={showHpMriData}
-                    onRendered={handleFrameRendered}
-                  />
-                </div>
-              )}
-
-            </div>
-          </div>
-
-          {/* Image Slice + Contrast Sliders */}
+    <>
+      <HeaderAccount background_black />
+      <div className="viewer-page-container" style={{ paddingTop: '64px' }}>
+        <div className="App">
           {mode && (
-            <ControlPanel
-              onSliderChange={handleSliderChange}
-              onDatasetChange={handleDatasetChange}
-              datasetIndex={datasetIndex}
-              numDatasets={numDatasets}
-              numSliderValues={numSliderValues}
+            <ButtonPanel
+              toggleHpMriData={toggleHpMriData}
+              onFileUpload={handleFileUpload}
+              onThresholdChange={handleThresholdChange}
+              threshold={threshold}
+              onMagnetTypeChange={handleMagnetTypeChange}
+              mode={mode}
+              alpha={alpha}
+              onAlphaChange={setAlpha}
+              colorScale={colorScale}
+              onColorScaleChange={setColorScale}
+              scaleByIntensity={scaleByIntensity}
+              onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
+              openDrawer={openDrawer}
+              selectedTool={selectedTool}
+              onOpenDrawer={handleOpenDrawer}
+              onContrastChange={handleContrastChange}
               imageSlice={imageSlice}
               contrast={contrast}
+              setContrast={setContrast}
+              gifStart={gifStart}
+              setGifStart={setGifStart}
+              gifEnd={gifEnd}
+              setGifEnd={setGifEnd}
+              gifFps={gifFps}
+              setGifFps={setGifFps}
+              gifFilename={gifFilename}
+              setGifFilename={setGifFilename}
               setImageSlice={setImageSlice}
-              openDrawer={openDrawer}
+              onExportGif={handleExportGif}
             />
           )}
 
-        </div>
+          <div
+            className="content-wrapper"
+            style={{
+              marginLeft: openDrawer ? 140 : 0,
+              transition: 'margin-left 0.3s ease', // smooth transition
+            }}
+          >
+            <div className="visualization-container">
+              <div className="image-and-plot-container" id="visualization-root">
+                <img
+                  src={imageUrl}
+                  alt="Proton"
+                  className={`proton-image-${magnetType.toLowerCase().replace(" ", "-")}`}
+                />
 
-        <footer>
-          <Link to="/visualize-about">About</Link> • 2024 University of Pennsylvania The MEDCAP
-        </footer>
-        {mode && (
-          <PlotShiftPanel
-            onMoveUp={moveUp}
-            onMoveDown={moveDown}
-            onMoveLeft={moveLeft}
-            onMoveRight={moveRight}
-            onReset={resetPlotShift}
-            mode={mode}
-            metabolite={selectedMetabolite}
-            onMetaboliteChange={setSelectedMetabolite}
-          />
-        )}
+                <div className="plot-container" ref={plotContainerRef}>
+                  {mode === 'spectral' && (
+                    <PlotComponent
+                      xValues={hpMriData.xValues}
+                      data={hpMriData.data}
+                      columns={hpMriData.columns}
+                      spectralData={hpMriData.spectralData}
+                      rows={hpMriData.rows}
+                      longitudinalScale={hpMriData.longitudinalScale}
+                      perpendicularScale={hpMriData.perpendicularScale}
+                      longitudinalMeasurement={hpMriData.longitudinalMeasurement}
+                      perpendicularMeasurement={hpMriData.perpendicularMeasurement}
+                      plotShift={hpMriData.plotShift}
+                      windowSize={windowSize}
+                      showHpMriData={showHpMriData}
+                      offsetX={offsetX}
+                      offsetY={offsetY}
+                      onRendered={handleFrameRendered}
+                    />
+                  )}
+
+                  {mode === 'imaging' && imagingData && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: `calc(50% + ${offsetY + 7 * 10}px)`,  // Adjust vertical shift
+                        left: `calc(50% + ${offsetX - 30 * 10}px)`, // Adjust horizontal shift
+                        transform: 'translate(-50%, -50%)',
+                        width: '63vw',
+                        height: '49vw',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <ImagingPlotComponent
+                        data={imagingData}
+                        imageIndex={datasetIndex}
+                        metaboliteIndex={selectedMetabolite}
+                        alpha={showHpMriData ? alpha : 0}
+                        colorScale={colorScale}
+                        scaleByIntensity={scaleByIntensity}
+                        showHpMriData={showHpMriData}
+                        onRendered={handleFrameRendered}
+                      />
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+              {/* Image Slice + Contrast Sliders */}
+              {mode && (
+                <ControlPanel
+                  onSliderChange={handleSliderChange}
+                  onDatasetChange={handleDatasetChange}
+                  datasetIndex={datasetIndex}
+                  numDatasets={numDatasets}
+                  numSliderValues={numSliderValues}
+                  imageSlice={imageSlice}
+                  contrast={contrast}
+                  setImageSlice={setImageSlice}
+                  openDrawer={openDrawer}
+                />
+              )}
+
+            </div>
+
+            <footer>
+              <Link to="/visualize-about">About</Link> • 2024 University of Pennsylvania The MEDCAP
+            </footer>
+            {mode && (
+              <PlotShiftPanel
+                onMoveUp={moveUp}
+                onMoveDown={moveDown}
+                onMoveLeft={moveLeft}
+                onMoveRight={moveRight}
+                onReset={resetPlotShift}
+                mode={mode}
+                metabolite={selectedMetabolite}
+                onMetaboliteChange={setSelectedMetabolite}
+              />
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 
 }
