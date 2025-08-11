@@ -36,25 +36,7 @@ import {
   Refresh
 } from '@mui/icons-material';
 import axios from 'axios';
-
-interface MRDFile {
-  _id: { $oid: string };
-  fileName: string;
-  studyDate: string;
-  studyTime: string;
-  ownerName: string;
-  subjectType: string;
-  groupName: string;
-  isReconstructed: boolean;
-  protocolName?: string;
-  measurementId?: string;
-  stationName?: string;
-  original_filename?: string;
-  upload_timestamp?: string;
-  file_size?: string;
-  s3_key?: string;
-  isSelected?: boolean;
-}
+import { MRDFile } from '../../types/mrd';
 
 const formatStudyTime = (timeString: string) => {
   if (!timeString || !timeString.includes(':')) return '';
@@ -96,7 +78,17 @@ const RetrievePage: React.FC = () => {
       .get('/api/mrd-files')
       .then((response) => {
         console.log('mrd-files response: ', response.data);
-        setFiles(response.data);
+        
+        // Filter out files with invalid _id before setting the state
+        const validFiles = response.data.filter((file: MRDFile) => {
+          if (file && file._id) {
+            return true;
+          }
+          console.warn('Filtering out invalid file object:', file);
+          return false;
+        });
+
+        setFiles(validFiles);
       })
       .catch((error) => console.error('Error fetching MRD files:', error));
   };
@@ -143,7 +135,7 @@ const RetrievePage: React.FC = () => {
   const handleSelection = (fileId: string) => {
     setFiles((prevFiles) =>
       prevFiles.map((file) =>
-        file._id.$oid === fileId ? { ...file, isSelected: !file.isSelected } : file
+        file._id === fileId ? { ...file, isSelected: !file.isSelected } : file
       )
     );
   };
@@ -171,7 +163,7 @@ const RetrievePage: React.FC = () => {
   };
 
   const handleConfirmDelete = async () => {
-    const selectedFileIds = files.filter(file => file.isSelected).map(file => file._id.$oid);
+    const selectedFileIds = files.filter(file => file.isSelected).map(file => file._id);
     const selectedFiles = files.filter(file => file.isSelected);
     
     setIsDeleting(true);
@@ -436,7 +428,7 @@ const RetrievePage: React.FC = () => {
             <TableBody>
               {sortedFiles.map((file) => (
                 <TableRow
-                  key={file._id.$oid}
+                  key={file._id}
                   sx={{
                     '&:hover': {
                       backgroundColor: '#f1f1f1',
@@ -446,7 +438,7 @@ const RetrievePage: React.FC = () => {
                   <TableCell>
                     <Checkbox
                       checked={file.isSelected}
-                      onChange={() => handleSelection(file._id.$oid)}
+                      onChange={() => handleSelection(file._id)}
                       color="primary"
                     />
                   </TableCell>
@@ -473,7 +465,7 @@ const RetrievePage: React.FC = () => {
                         color: '#011F5B',
                         '&:hover': { textDecoration: 'underline' },
                       }}
-                      onClick={() => navigate(`/viewer/${file._id.$oid}`)}
+                      onClick={() => navigate(`/viewer/${file._id}`)}
                     >
                       View
                     </Typography>

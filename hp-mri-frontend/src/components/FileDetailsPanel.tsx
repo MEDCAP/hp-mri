@@ -26,6 +26,7 @@ import {
   Storage,
   Info
 } from '@mui/icons-material';
+import { MRDFile } from '../types/mrd';
 
 const drawerWidth = 400;
 
@@ -72,23 +73,6 @@ const DetailValue = styled(Typography)(({ theme }) => ({
   fontSize: '1rem',
   fontWeight: 400,
 }));
-
-interface MRDFile {
-  _id: { $oid: string };
-  fileName: string;
-  studyDate: string;
-  studyTime: string;
-  ownerName: string;
-  subjectType: string;
-  groupName: string;
-  isReconstructed: boolean;
-  protocolName?: string;
-  measurementId?: string;
-  stationName?: string;
-  file_size?: string;
-  upload_timestamp?: string;
-  s3_key?: string;
-}
 
 interface FileDetailsPanelProps {
   open: boolean;
@@ -329,7 +313,7 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ open, onClose, file
                     fontFamily: 'monospace', 
                     fontSize: '0.75rem'
                   }}>
-                    {file._id.$oid}
+                    {file._id}
                   </Typography>
                 }
               />

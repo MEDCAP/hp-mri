@@ -39,15 +39,9 @@ def show_files():
             "s3_key": 1,
             "_id": 1
         }
-        result = list_all_mrdfiles(projection=proj)
-        
-        # Handle both cursor and list returns
-        if hasattr(result, '__iter__') and not isinstance(result, list):
-            # It's a cursor
-            return json_util.dumps(list(result))
-        else:
-            # It's already a list
-            return json_util.dumps(result)
+        # list of cursor object 
+        cursor_list = list_all_mrdfiles(projection=proj)
+        return jsonify(cursor_list)
     except Exception as e:
         return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400
 

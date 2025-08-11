@@ -30,7 +30,6 @@ import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 // Feature pages
 import UploadPage from './pages/mrdpages/UploadPage';
 import RetrievePage from './pages/mrdpages/RetrievePage';
-import MRDFileDetails from './pages/mrdpages/MRDFileDetails';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
