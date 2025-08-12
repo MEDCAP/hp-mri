@@ -120,7 +120,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
             className={className}
             sx={{
                 width: 60,
-                height: '100vh',
+                height: 'calc(100vh - 74px)',
                 backgroundColor: '#1e1e1e',
                 display: 'flex',
                 flexDirection: 'column',
@@ -128,11 +128,11 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 paddingTop: 2,
                 position: 'fixed',
                 left: 0,
-                top: 0,
+                top: '74px',
                 zIndex: 10,
             }}
         >
-            <Box sx={{ width: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingY: 2 }}>
+            <Box sx={{ width: 60, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 <Tooltip title="Upload File" placement="right">
                     <IconButton sx={{ color: 'white' }} onClick={handleFileSelect}>
                         <CloudUpload />
@@ -174,6 +174,8 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         borderRadius: '0px 10px 10px 0px',
                         marginLeft: '60px',
                         boxShadow: '4px 0px 8px rgba(0,0,0,0.3)',
+                        top: '74px',
+                        height: 'calc(100vh - 74px)',
                     },
                 }}
                 ModalProps={{

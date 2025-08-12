@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaCube, FaFile, FaImages } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Drawer,
   List,
@@ -25,6 +25,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     setIsOpen(!isOpen);
   };
 
+  const location = useLocation();
+  const isMrdSelected = location.pathname.startsWith('/mrd-files');
+  const isViewerSelected = location.pathname.startsWith('/viewer');
+  const isSimulatorSelected = location.pathname.startsWith('/simulator');
+
   return (
     <Drawer
       variant="permanent"
@@ -48,16 +53,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           justifyContent: isOpen ? 'space-between' : 'center',
           padding: '16px',
           paddingTop: '74px',
-          backgroundColor: 'primary.main',
-          color: 'white',
+          backgroundColor: 'background.default',
         }}
       >
         {isOpen && (
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'white', marginTop: '5px' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', marginTop: '5px' }}>
             Menu
           </Typography>
         )}
-        <IconButton onClick={toggleSidebar} sx={{ color: 'white', top: '2.5px' }}>
+        <IconButton onClick={toggleSidebar} sx={{ color: 'primary.main', top: '2.5px' }}>
           <MenuIcon />
         </IconButton>
       </Box>
@@ -70,15 +74,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           <ListItemButton
             component={Link}
             to="/mrd-files"
+            selected={isMrdSelected}
             sx={{
               padding: '10px 16px',
               '&:hover': {
                 backgroundColor: 'background.light',
               },
+              '&.Mui-selected': {
+                backgroundColor: '#011F5B',
+                color: '#fff',
+              },
+              '&.Mui-selected:hover': {
+                backgroundColor: 'background.light',
+              },
+              '&.Mui-selected .MuiListItemText-primary': {
+                color: '#fff',
+              },
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaFile color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+              <FaFile color={isMrdSelected ? '#fff' : (isOpen ? '#011F5B' : 'inherit')} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -86,6 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
+                  sx: { color: isMrdSelected ? '#fff' : 'inherit' },
                 }}
               />
             )}
@@ -97,15 +113,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           <ListItemButton
             component={Link}
             to="/viewer"
+            selected={isViewerSelected}
             sx={{
               padding: '10px 16px',
               '&:hover': {
                 backgroundColor: 'background.light',
               },
+              '&.Mui-selected': {
+                backgroundColor: '#011F5B',
+                color: '#fff',
+              },
+              '&.Mui-selected:hover': {
+                backgroundColor: 'background.light',
+              },
+              '&.Mui-selected .MuiListItemText-primary': {
+                color: '#fff',
+              },
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaImages color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+              <FaImages color={isViewerSelected ? '#fff' : (isOpen ? '#011F5B' : 'inherit')} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -113,6 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
+                  sx: { color: isViewerSelected ? '#fff' : 'inherit' },
                 }}
               />
             )}
@@ -124,15 +152,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           <ListItemButton
             component={Link}
             to="/simulator"
+            selected={isSimulatorSelected}
             sx={{
               padding: '10px 16px',
               '&:hover': {
                 backgroundColor: 'background.light',
               },
+              '&.Mui-selected': {
+                backgroundColor: '#011F5B',
+                color: '#fff',
+              },
+              '&.Mui-selected:hover': {
+                backgroundColor: 'background.light',
+              },
+              '&.Mui-selected .MuiListItemText-primary': {
+                color: '#fff',
+              },
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaCube color={isOpen ? '#011F5B' : 'inherit'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+              <FaCube color={isSimulatorSelected ? '#fff' : (isOpen ? '#011F5B' : 'inherit')} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -140,6 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
+                  sx: { color: isSimulatorSelected ? '#fff' : 'inherit' },
                 }}
               />
             )}

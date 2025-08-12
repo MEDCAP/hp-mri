@@ -45,7 +45,7 @@ const ControlPanel: React.FC<ControlProps> = ({
             <Box
                 sx={{
                     position: 'absolute',
-                    top: 565,
+                    bottom: 32,
                     left: openDrawer ? 260 : 100,
                     width: 140,
                     height: 160,
