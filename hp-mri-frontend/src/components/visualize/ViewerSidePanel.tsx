@@ -1,11 +1,3 @@
-/**
- * @fileoverview ButtonPanel.tsx: Menu UI for HP-MRI Visualization.
- *
- * @version 2.0.3
- * @author Ben Yoon
- * @date 2025-05-09
- */
-
 import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import {
@@ -58,6 +50,7 @@ interface ButtonProps {
     setGifFilename: (value: string) => void;
     setImageSlice: (value: number) => void;
     onExportGif: () => void;
+    sidebarWidth: number;
 }
 
 const ButtonPanel: React.FC<ButtonProps> = ({
@@ -90,6 +83,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     gifFilename,
     setGifFilename,
     onExportGif,
+    sidebarWidth,
 }) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [screenshotTab, setScreenshotTab] = useState(0);
@@ -127,8 +121,8 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 alignItems: 'center',
                 paddingTop: 2,
                 position: 'fixed',
-                left: 0,
-                top: '74px',
+                left: sidebarWidth,
+                top: '60px',
                 zIndex: 10,
             }}
         >
@@ -172,10 +166,9 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         background: '#2b2b2b',
                         color: 'white',
                         borderRadius: '0px 10px 10px 0px',
-                        marginLeft: '60px',
+                        marginLeft: `${sidebarWidth + 60}px`,
                         boxShadow: '4px 0px 8px rgba(0,0,0,0.3)',
-                        top: '74px',
-                        height: 'calc(100vh - 74px)',
+                        height: '100%',
                     },
                 }}
                 ModalProps={{

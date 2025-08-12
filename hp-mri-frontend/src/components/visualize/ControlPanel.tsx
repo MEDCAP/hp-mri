@@ -42,59 +42,6 @@ const ControlPanel: React.FC<ControlProps> = ({
 
     return (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Box
-                sx={{
-                    position: 'absolute',
-                    bottom: 32,
-                    left: openDrawer ? 260 : 100,
-                    width: 140,
-                    height: 160,
-                    overflowY: 'auto',
-                    border: '1px solid #333',  // darker subtle border
-                    borderRadius: 2,
-                    backgroundColor: '#1e1e1e',  // match PlotShiftPanel
-                    color: 'white',              // white text
-                    padding: 1,
-                    zIndex: 5,
-                    boxShadow: 4,                // same boxShadow
-                }}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp' && datasetIndex > 1) {
-                        onDatasetChange(datasetIndex - 1);
-                    } else if (e.key === 'ArrowDown' && datasetIndex < numDatasets) {
-                        onDatasetChange(datasetIndex + 1);
-                    }
-                }}
-            >
-                <Typography align="center" sx={{ mb: 1, fontSize: 14, color: 'white' }}>
-                    Dataset
-                </Typography>
-                {Array.from({ length: numDatasets }, (_, i) => {
-                    const value = i + 1;
-                    return (
-                        <Box
-                            key={value}
-                            onClick={() => onDatasetChange(value)}
-                            sx={{
-                                paddingY: 0.5,
-                                paddingX: 1,
-                                cursor: 'pointer',
-                                fontSize: 13,
-                                backgroundColor: datasetIndex === value ? '#1976d2' : 'transparent',
-                                color: datasetIndex === value ? '#fff' : '#ddd',  // inactive entries slightly lighter
-                                borderRadius: 1,
-                                '&:hover': {
-                                    backgroundColor: datasetIndex === value ? '#1565c0' : '#2e2e2e', // hover for dark mode
-                                },
-                            }}
-                        >
-                            {value}
-                        </Box>
-                    );
-                })}
-            </Box>
-
             <Box className="slice-contrast-container">
                 <Box
                     sx={{
