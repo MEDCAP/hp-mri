@@ -5,6 +5,7 @@
 
 import GIF from 'gif.js.optimized';
 import React, { useState, useEffect, useRef } from 'react';
+import '../../styles/viewerPage.css';
 import ControlPanel from '../../components/visualize/ControlPanel';
 import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
 import PlotComponent from '../../components/visualize/PlotComponent';
@@ -13,13 +14,8 @@ import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponen
 import PlotShiftPanel from '../../components/visualize/PlotShiftPanel';
 import html2canvas from 'html2canvas';
 import HeaderAccount from '../../components/HeaderAccount'; // Import HeaderAccount
-import { Container, Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, Table, TableHead, TableRow, TableCell, TableBody, Checkbox } from '@mui/material';
-import Sidebar from '../../components/Sidebar';
-import Plot from 'react-plotly.js';
-import { useTheme } from '@mui/material/styles';
-import { useMemo } from 'react';
 
-const ViewerPage: React.FC = () => {
+const VisualizationPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [numSliderValues, setNumSliderValues] = useState(0);
   const [numDatasets, setNumDatasets] = useState(0);
@@ -38,7 +34,7 @@ const ViewerPage: React.FC = () => {
   // const plotContainerRef = useRef(null);
   const plotContainerRef = useRef<HTMLDivElement | null>(null);
   const [threshold, setThreshold] = useState(0.2); // Initial threshold value for HP MRI data filtering
-  const [mode] = useState<'imaging' | 'spectral'>('imaging');
+  const mode = "imaging";
   const [imagingData, setImagingData] = useState<number[][][][] | null>(null); // 4D: [rows][cols][metabolites][images]
   const [selectedMetabolite, setSelectedMetabolite] = useState(0);
   const [alpha, setAlpha] = useState(0.6);
@@ -53,11 +49,6 @@ const ViewerPage: React.FC = () => {
   const [gifEnd, setGifEnd] = useState(10);
   const [gifFps, setGifFps] = useState(2);
   const [gifFilename, setGifFilename] = useState("export.gif");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const sidebarWidth = isSidebarOpen ? 240 : 80;
-  const panelOffset = sidebarWidth + (openDrawer ? 380 : 60);
-  
-  const theme = useTheme();
 
   // Effect hook for initial data fetch and window resize event listener.
   useEffect(() => {
@@ -65,8 +56,6 @@ const ViewerPage: React.FC = () => {
     fetchNumSliderValues();
     fetchCountDatasets();
     fetchInitialData();
-    fetchImagingMetadata();
-    fetchImagingData();
 
     const handleResize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -152,7 +141,7 @@ const ViewerPage: React.FC = () => {
 
       gif.on('finished', (blob: Blob) => {
         if (blob.size === 0) {
-          console.error('Empty blob. GIF generation failed.');
+          console.error("Empty blob. GIF generation failed.");
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -181,12 +170,12 @@ const ViewerPage: React.FC = () => {
     const formData = new FormData();
     Array.from(files).forEach((file) => formData.append("files", file));
 
-    fetch('/api/viewer-upload', {
-      method: 'POST',
+    fetch("http://127.0.0.1:5000/visualize-api/upload", {
+      method: "POST",
       body: formData,
     })
       .then((response) => response.json())
-      .catch((error) => console.error('Error uploading files:', error));
+      .catch((error) => console.error("Error uploading files:", error));
   };
 
   // Handler for changing the threshold
@@ -204,16 +193,16 @@ const ViewerPage: React.FC = () => {
   };
 
   const fetchNumSliderValues = () => {
-    fetch(`/api/get_num_slider_values/${magnetType}`)
+    fetch(`http://127.0.0.1:5000/visualize-api/get_num_slider_values/${magnetType}`)
       .then(response => response.json())
       .then(data => {
         setNumSliderValues(data.numSliderValues);
       })
-        .catch(error => console.error('Failed to fetch number of slider values:', error));
+      .catch(error => console.error('Failed to fetch number of slider values:', error));
   };
 
   const fetchCountDatasets = () => {
-    fetch(`/api/get_count_datasets/${magnetType}`)
+    fetch(`http://127.0.0.1:5000/visualize-api/get_count_datasets/${magnetType}`)
       .then(response => response.json())
       .then(data => {
         setNumDatasets(data.numDatasets);
@@ -223,7 +212,7 @@ const ViewerPage: React.FC = () => {
 
   // Fetches and updates the proton image based on slider input.
   const sendSliderValueToBackend = (newValue: number, newContrastValue: number) => {
-    fetch(`/api/get_proton_picture/${newValue}`, {
+    fetch(`http://127.0.0.1:5000/visualize-api/get_proton_picture/${newValue}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contrast: newContrastValue, magnetType })
     }).then(response => response.blob()).then(imageBlob => setImageUrl(URL.createObjectURL(imageBlob)))
@@ -232,7 +221,7 @@ const ViewerPage: React.FC = () => {
 
   // Fetches and updates the HP MRI data plot based on slider input.
   const sendDatasetToBackend = (newDatasetIndex: React.SetStateAction<number>) => {
-    const url = `/api/get_hp_mri_data/${newDatasetIndex}?threshold=${threshold}&magnetType=${magnetType}`;
+    const url = `http://127.0.0.1:5000/visualize-api/get_hp_mri_data/${newDatasetIndex}?threshold=${threshold}&magnetType=${magnetType}`;
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -241,7 +230,7 @@ const ViewerPage: React.FC = () => {
       .catch(error => console.error('Error fetching HP MRI data:', error));
   };
   const fetchImagingMetadata = () => {
-    fetch(`/api/get_imaging_metadata`)
+    fetch("http://127.0.0.1:5000/visualize-api/get_imaging_metadata")
       .then(res => res.json())
       .then(data => {
         setNumDatasets(data.numImages - 1);         // updates datasetIndex slider
@@ -249,7 +238,7 @@ const ViewerPage: React.FC = () => {
       });
   };
   const fetchImagingData = () => {
-    fetch(`/api/get_imaging_matrix`)
+    fetch("http://127.0.0.1:5000/visualize-api/get_imaging_matrix")
       .then(res => res.json())
       .then(data => {
         setImagingData(data.matrix);
@@ -272,134 +261,146 @@ const ViewerPage: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        width: isSidebarOpen 
-          ? `calc(100% - 240px)` 
-          : `calc(100% - 80px)`,
-        marginLeft: isSidebarOpen ? '240px' : '80px',
-        marginTop: '64px',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        height: 'calc(100vh - 64px)',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
+    <>
       <HeaderAccount background_black />
-        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black/>
-        <Container
-          maxWidth={false}
-          disableGutters
-          sx={{ bgcolor: theme.palette.common.black, flex: 1, width: '100%', minHeight: 0, position: 'relative' }}
-        >
-          <ViewerSidePanel
-            toggleHpMriData={toggleHpMriData}
-            onFileUpload={handleFileUpload}
-            onThresholdChange={handleThresholdChange}
-            onAlphaChange={setAlpha}
-            threshold={threshold}
-            alpha={alpha}
-            onMagnetTypeChange={handleMagnetTypeChange}
-            mode="imaging"
-            colorScale={colorScale}
-            onColorScaleChange={setColorScale}
-            scaleByIntensity={scaleByIntensity}
-            onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
-            openDrawer={openDrawer}
-            selectedTool={selectedTool}
-            onOpenDrawer={handleOpenDrawer}
-            onContrastChange={handleContrastChange}
-            imageSlice={imageSlice}
-            contrast={contrast}
-            setContrast={setContrast}
-            gifStart={gifStart}
-            setGifStart={setGifStart}
-            gifEnd={gifEnd}
-            setGifEnd={setGifEnd}
-            gifFps={gifFps}
-            setGifFps={setGifFps}
-            gifFilename={gifFilename}
-            setGifFilename={setGifFilename}
-            setImageSlice={setImageSlice}
-            onExportGif={handleExportGif}
-            sidebarWidth={sidebarWidth}
-          />
+      <div className="viewer-page-container" style={{ paddingTop: '64px' }}>
+        <div className="App">
+          {mode && (
+            <ViewerSidePanel
+              toggleHpMriData={toggleHpMriData}
+              onFileUpload={handleFileUpload}
+              onThresholdChange={handleThresholdChange}
+              threshold={threshold}
+              onMagnetTypeChange={handleMagnetTypeChange}
+              mode={mode}
+              alpha={alpha}
+              onAlphaChange={setAlpha}
+              colorScale={colorScale}
+              onColorScaleChange={setColorScale}
+              scaleByIntensity={scaleByIntensity}
+              onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
+              openDrawer={openDrawer}
+              selectedTool={selectedTool}
+              onOpenDrawer={handleOpenDrawer}
+              onContrastChange={handleContrastChange}
+              imageSlice={imageSlice}
+              contrast={contrast}
+              setContrast={setContrast}
+              gifStart={gifStart}
+              setGifStart={setGifStart}
+              gifEnd={gifEnd}
+              setGifEnd={setGifEnd}
+              gifFps={gifFps}
+              setGifFps={setGifFps}
+              gifFilename={gifFilename}
+              setGifFilename={setGifFilename}
+              setImageSlice={setImageSlice}
+              onExportGif={handleExportGif}
+            />
+          )}
+
           <div
+            className="content-wrapper"
             style={{
-              position: 'relative',
-              height: '100%',
-              minHeight: 0,
-              width: `calc(100% - ${panelOffset}px)`,
-              marginLeft: `${panelOffset}px`,
-              transition: 'margin-left 0.3s ease, width 0.3s ease',
-              overflow: 'hidden',
+              marginLeft: openDrawer ? 140 : 0,
+              transition: 'margin-left 0.3s ease', // smooth transition
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100%',
-                position: 'relative',
-                width: '100%',
-              }}
-            >
-              <div
-                id="visualization-root"
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <div ref={plotContainerRef} style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  {imagingData ? (
-                    <ImagingPlotComponent
-                      data={imagingData}
-                      imageIndex={imageSlice}
-                      metaboliteIndex={selectedMetabolite}
-                      alpha={alpha}
-                      colorScale={colorScale}
-                      scaleByIntensity={scaleByIntensity}
+            <div className="visualization-container">
+              <div className="image-and-plot-container" id="visualization-root">
+                <img
+                  src={imageUrl}
+                  alt="Proton"
+                  className={`proton-image-${magnetType.toLowerCase().replace(" ", "-")}`}
+                />
+
+                <div className="plot-container" ref={plotContainerRef}>
+                  {mode === 'spectral' && (
+                    <PlotComponent
+                      xValues={hpMriData.xValues}
+                      data={hpMriData.data}
+                      columns={hpMriData.columns}
+                      spectralData={hpMriData.spectralData}
+                      rows={hpMriData.rows}
+                      longitudinalScale={hpMriData.longitudinalScale}
+                      perpendicularScale={hpMriData.perpendicularScale}
+                      longitudinalMeasurement={hpMriData.longitudinalMeasurement}
+                      perpendicularMeasurement={hpMriData.perpendicularMeasurement}
+                      plotShift={hpMriData.plotShift}
+                      windowSize={windowSize}
                       showHpMriData={showHpMriData}
+                      offsetX={offsetX}
+                      offsetY={offsetY}
                       onRendered={handleFrameRendered}
                     />
-                  ) : null}
+                  )}
+
+                  {mode === 'imaging' && imagingData && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: `calc(50% + ${offsetY + 7 * 10}px)`,  // Adjust vertical shift
+                        left: `calc(50% + ${offsetX - 30 * 10}px)`, // Adjust horizontal shift
+                        transform: 'translate(-50%, -50%)',
+                        width: '63vw',
+                        height: '49vw',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <ImagingPlotComponent
+                        data={imagingData}
+                        imageIndex={datasetIndex}
+                        metaboliteIndex={selectedMetabolite}
+                        alpha={showHpMriData ? alpha : 0}
+                        colorScale={colorScale}
+                        scaleByIntensity={scaleByIntensity}
+                        showHpMriData={showHpMriData}
+                        onRendered={handleFrameRendered}
+                      />
+                    </div>
+                  )}
+
                 </div>
               </div>
 
-              <ControlPanel
-                onSliderChange={handleSliderChange}
-                onDatasetChange={handleDatasetChange}
-                datasetIndex={datasetIndex}
-                numDatasets={numDatasets}
-                numSliderValues={numDatasets}
-                imageSlice={imageSlice}
-                contrast={contrast}
-                setImageSlice={setImageSlice}
-                openDrawer={openDrawer}
-              />
+              {/* Image Slice + Contrast Sliders */}
+              {mode && (
+                <ControlPanel
+                  onSliderChange={handleSliderChange}
+                  onDatasetChange={handleDatasetChange}
+                  datasetIndex={datasetIndex}
+                  numDatasets={numDatasets}
+                  numSliderValues={numSliderValues}
+                  imageSlice={imageSlice}
+                  contrast={contrast}
+                  setImageSlice={setImageSlice}
+                  openDrawer={openDrawer}
+                />
+              )}
+
             </div>
 
-            <PlotShiftPanel
-              onMoveUp={moveUp}
-              onMoveDown={moveDown}
-              onMoveLeft={moveLeft}
-              onMoveRight={moveRight}
-              onReset={resetPlotShift}
-              mode="imaging"
-              metabolite={selectedMetabolite}
-              onMetaboliteChange={setSelectedMetabolite}
-            />
+            <footer>
+              <Link to="/visualize-about">About</Link> • 2024 University of Pennsylvania The MEDCAP
+            </footer>
+            {mode && (
+              <PlotShiftPanel
+                onMoveUp={moveUp}
+                onMoveDown={moveDown}
+                onMoveLeft={moveLeft}
+                onMoveRight={moveRight}
+                onReset={resetPlotShift}
+                mode={mode}
+                metabolite={selectedMetabolite}
+                onMetaboliteChange={setSelectedMetabolite}
+              />
+            )}
           </div>
-        </Container>    
-    </div>
+        </div>
+      </div>
+    </>
   );
+
 }
 
-export default ViewerPage;
+export default VisualizationPage;
