@@ -19,7 +19,7 @@ import Plot from 'react-plotly.js';
 import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 
-const VisualizationPage: React.FC = () => {
+const ViewerPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [numSliderValues, setNumSliderValues] = useState(0);
   const [numDatasets, setNumDatasets] = useState(0);
@@ -56,9 +56,6 @@ const VisualizationPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarWidth = isSidebarOpen ? 240 : 80;
   const panelOffset = sidebarWidth + (openDrawer ? 380 : 60);
-  const placeholderContainerRef = useRef<HTMLDivElement | null>(null);
-  const [enlargedIndex, setEnlargedIndex] = useState<number | null>(null);
-  const [tileSize, setTileSize] = useState(0);
   
   const theme = useTheme();
 
@@ -212,7 +209,7 @@ const VisualizationPage: React.FC = () => {
       .then(data => {
         setNumSliderValues(data.numSliderValues);
       })
-      .catch(error => console.error('Failed to fetch number of slider values:', error));
+        .catch(error => console.error('Failed to fetch number of slider values:', error));
   };
 
   const fetchCountDatasets = () => {
@@ -289,392 +286,120 @@ const VisualizationPage: React.FC = () => {
       }}
     >
       <HeaderAccount background_black />
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black/>
-      <Container maxWidth={false} disableGutters sx={{ bgcolor: theme.palette.common.black, flex: 1, width: '100%' }}>
-        <Box
-          sx={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            p: 2,
-            boxSizing: 'border-box'
-          }}
+        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black/>
+        <Container
+          maxWidth={false}
+          disableGutters
+          sx={{ bgcolor: theme.palette.common.black, flex: 1, width: '100%', minHeight: 0, position: 'relative' }}
         >
-          {/* Three gray-framed image panels */}
-          <ThreeImageFrames
-            imagingData={imagingData}
-            metaboliteIndex={selectedMetabolite}
-            baseImageIndex={imageSlice}
+          <ViewerSidePanel
+            toggleHpMriData={toggleHpMriData}
+            onFileUpload={handleFileUpload}
+            onThresholdChange={handleThresholdChange}
+            onAlphaChange={setAlpha}
+            threshold={threshold}
+            alpha={alpha}
+            onMagnetTypeChange={handleMagnetTypeChange}
+            mode="imaging"
+            colorScale={colorScale}
+            onColorScaleChange={setColorScale}
+            scaleByIntensity={scaleByIntensity}
+            onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
+            openDrawer={openDrawer}
+            selectedTool={selectedTool}
+            onOpenDrawer={handleOpenDrawer}
+            onContrastChange={handleContrastChange}
+            imageSlice={imageSlice}
+            contrast={contrast}
+            setContrast={setContrast}
+            gifStart={gifStart}
+            setGifStart={setGifStart}
+            gifEnd={gifEnd}
+            setGifEnd={setGifEnd}
+            gifFps={gifFps}
+            setGifFps={setGifFps}
+            gifFilename={gifFilename}
+            setGifFilename={setGifFilename}
+            setImageSlice={setImageSlice}
+            onExportGif={handleExportGif}
+            sidebarWidth={sidebarWidth}
           />
-        </Box>
-      </Container>    
-    </div>
-  //     <Box sx={{ height: 'calc(100vh - 74px)', marginTop: '74px', display: 'flex', bgcolor: '#000', overflow: 'hidden', width: '100%' }}>
-  //       {mode && (
-  //         <ButtonPanel
-  //           toggleHpMriData={toggleHpMriData}
-  //           onFileUpload={handleFileUpload}
-  //           onThresholdChange={handleThresholdChange}
-  //           threshold={threshold}
-  //           onMagnetTypeChange={handleMagnetTypeChange}
-  //           mode={mode}
-  //           alpha={alpha}
-  //           onAlphaChange={setAlpha}
-  //           colorScale={colorScale}
-  //           onColorScaleChange={setColorScale}
-  //           scaleByIntensity={scaleByIntensity}
-  //           onToggleScaleByIntensity={() => setScaleByIntensity(prev => !prev)}
-  //           openDrawer={openDrawer}
-  //           selectedTool={selectedTool}
-  //           onOpenDrawer={handleOpenDrawer}
-  //           onContrastChange={handleContrastChange}
-  //           imageSlice={imageSlice}
-  //           contrast={contrast}
-  //           setContrast={setContrast}
-  //           gifStart={gifStart}
-  //           setGifStart={setGifStart}
-  //           gifEnd={gifEnd}
-  //           setGifEnd={setGifEnd}
-  //           gifFps={gifFps}
-  //           setGifFps={setGifFps}
-  //           gifFilename={gifFilename}
-  //           setGifFilename={setGifFilename}
-  //           setImageSlice={setImageSlice}
-  //           onExportGif={handleExportGif}
-  //           sidebarWidth={sidebarWidth}
-  //         />
-  //       )}
-
-  //       <Box
-  //         sx={{
-  //           position: 'relative',
-  //           height: '100%',
-  //           minHeight: 0,
-  //           width: `calc(100% - ${panelOffset}px)`,
-  //           marginLeft: `${panelOffset}px`,
-  //           transition: 'margin-left 0.3s ease, width 0.3s ease',
-  //           overflow: 'hidden',
-  //         }}
-  //       >
-  //         <Box
-  //           sx={{
-  //             display: 'flex',
-  //             flexDirection: 'column',
-  //             justifyContent: 'center',
-  //             alignItems: 'center',
-  //             height: '100%',
-  //             position: 'relative',
-  //             width: '100%',
-  //           }}
-  //         >
-  //           <Box id="visualization-root"
-  //             sx={{
-  //               position: 'relative',
-  //               width: '100%',
-  //               height: '100%',
-  //               display: 'flex',
-  //               justifyContent: 'center',
-  //               alignItems: 'center',
-  //             }}
-  //           >
-  //             {mode !== 'imaging' && (
-  //               <Box
-  //                 component="img"
-  //                 src={imageUrl}
-  //                 alt="Proton"
-  //                 sx={{
-  //                   width: '100%',
-  //                   height: '100%',
-  //                   objectFit: 'contain',
-  //                   userSelect: 'none',
-  //                   pointerEvents: 'none',
-  //                 }}
-  //               />
-  //             )}
-
-  //             <Box ref={plotContainerRef} sx={{ position: 'absolute', inset: 0 }}>
-  //               {mode === 'spectral' && (
-  //                 <PlotComponent
-  //                   xValues={hpMriData.xValues}
-  //                   data={hpMriData.data}
-  //                   columns={hpMriData.columns}
-  //                   spectralData={hpMriData.spectralData}
-  //                   rows={hpMriData.rows}
-  //                   longitudinalScale={hpMriData.longitudinalScale}
-  //                   perpendicularScale={hpMriData.perpendicularScale}
-  //                   longitudinalMeasurement={hpMriData.longitudinalMeasurement}
-  //                   perpendicularMeasurement={hpMriData.perpendicularMeasurement}
-  //                   plotShift={hpMriData.plotShift}
-  //                   windowSize={windowSize}
-  //                   showHpMriData={showHpMriData}
-  //                   offsetX={offsetX}
-  //                   offsetY={offsetY}
-  //                   onRendered={handleFrameRendered}
-  //                 />
-  //               )}
-
-  //               {mode === 'imaging' && imagingData && false && (
-  //                 <div />
-  //               )}
-
-  //             </Box>
-  //           </Box>
-
-  //           {mode && (
-  //             <ControlPanel
-  //               onSliderChange={handleSliderChange}
-  //               onDatasetChange={handleDatasetChange}
-  //               datasetIndex={datasetIndex}
-  //               numDatasets={numDatasets}
-  //               numSliderValues={numSliderValues}
-  //               imageSlice={imageSlice}
-  //               contrast={contrast}
-  //               setImageSlice={setImageSlice}
-  //               openDrawer={openDrawer}
-  //             />
-  //           )}
-
-  //         </Box>
-
-  //         <Box component="footer" sx={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', color: '#fff', opacity: 0.8 }}>
-  //           <Link to="/visualize-about">About</Link> • 2024 University of Pennsylvania The MEDCAP
-  //         </Box>
-  //         {mode && (
-  //           <PlotShiftPanel
-  //             onMoveUp={moveUp}
-  //             onMoveDown={moveDown}
-  //             onMoveLeft={moveLeft}
-  //             onMoveRight={moveRight}
-  //             onReset={resetPlotShift}
-  //             mode={mode}
-  //             metabolite={selectedMetabolite}
-  //             onMetaboliteChange={setSelectedMetabolite}
-  //           />
-  //         )}
-  //       </Box>
-  //     </Box>
-  //   </>
-  );
-}
-
-export default VisualizationPage;
-
-interface ThreeImageFramesProps {
-  imagingData: number[][][][] | null;
-  metaboliteIndex: number;
-  baseImageIndex: number;
-}
-
-const ThreeImageFrames: React.FC<ThreeImageFramesProps> = ({ imagingData, metaboliteIndex, baseImageIndex }) => {
-  const theme = useTheme();
-  const [fileLabels, setFileLabels] = React.useState<string[]>(['Select file', 'Select file', 'Select file']);
-  const [overrideMatrices, setOverrideMatrices] = React.useState<Array<number[][] | null>>([null, null, null]);
-  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
-
-  const matrices: Array<number[][] | null> = useMemo(() => {
-    if (!imagingData || imagingData.length === 0 || imagingData[0].length === 0) {
-      return [null, null, null];
-    }
-
-    const numRows = imagingData.length;
-    const numCols = imagingData[0].length;
-    const numMetabolites = imagingData[0][0]?.length ?? 0;
-    const numImages = imagingData[0][0]?.[0]?.length ?? 0;
-
-    const safeMetIdx = Math.max(0, Math.min(metaboliteIndex, Math.max(0, numMetabolites - 1)));
-
-    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(v, max));
-    const center = clamp(baseImageIndex, 0, Math.max(0, numImages - 1));
-    const indices = [clamp(center - 1, 0, Math.max(0, numImages - 1)), center, clamp(center + 1, 0, Math.max(0, numImages - 1))];
-
-    const extractMatrix = (imageIdx: number): number[][] | null => {
-      if (numImages === 0 || numMetabolites === 0) return null;
-      const out: number[][] = new Array(numRows);
-      for (let r = 0; r < numRows; r++) {
-        const row: number[] = new Array(numCols);
-        for (let c = 0; c < numCols; c++) {
-          const val = imagingData[r][c]?.[safeMetIdx]?.[imageIdx];
-          row[c] = typeof val === 'number' ? val : 0;
-        }
-        out[r] = row;
-      }
-      return out;
-    };
-
-    return indices.map(idx => extractMatrix(idx));
-  }, [imagingData, metaboliteIndex, baseImageIndex]);
-
-  const effectiveMatrices = useMemo(() => matrices.map((m, i) => overrideMatrices[i] ?? m), [matrices, overrideMatrices]);
-
-  const handleConfirmSelection = async (file: { id: string; name: string }) => {
-    try {
-      if (openIndex === null) return;
-      const res = await fetch(`/api/viewer/${file.id}`);
-      const json = await res.json();
-      const imageMatrix: number[][] | null = json?.image_array ?? null;
-      if (imageMatrix) {
-        setOverrideMatrices(prev => prev.map((mat, idx) => (idx === openIndex ? imageMatrix : mat)));
-        setFileLabels(prev => prev.map((label, idx) => (idx === openIndex ? file.name : label)));
-      }
-    } catch (e) {
-      console.error('Failed to load selected MRD file image:', e);
-    } finally {
-      setOpenIndex(null);
-    }
-  };
-
-  return (
-    <>
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          width: '100%',
-          alignItems: 'stretch',
-          justifyContent: 'center',
-          flexWrap: 'wrap'
-        }}
-      >
-        {effectiveMatrices.map((matrix, idx) => (
-          <Box key={idx} sx={{ flex: '1 1 320px', maxWidth: { xs: '100%', md: '33%' }, minWidth: 280 }}>
-            <Box
-              sx={{
-                aspectRatio: '1 / 1',
-                border: `2px solid ${theme.palette.grey[700]}`,
-                borderRadius: 1,
-                bgcolor: theme.palette.grey[900],
+          <div
+            style={{
+              position: 'relative',
+              height: '100%',
+              minHeight: 0,
+              width: `calc(100% - ${panelOffset}px)`,
+              marginLeft: `${panelOffset}px`,
+              transition: 'margin-left 0.3s ease, width 0.3s ease',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: 'column',
                 justifyContent: 'center',
-                p: 1
+                alignItems: 'center',
+                height: '100%',
+                position: 'relative',
+                width: '100%',
               }}
             >
-              {matrix ? (
-                <Plot
-                  data={[
-                    {
-                      z: matrix,
-                      type: 'heatmap',
-                      colorscale: 'Greys',
-                      showscale: false,
-                    } as any
-                  ]}
-                  layout={{
-                    autosize: true,
-                    margin: { l: 0, r: 0, t: 0, b: 0 },
-                    xaxis: { visible: false },
-                    yaxis: { visible: false },
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    plot_bgcolor: 'rgba(0,0,0,0)'
-                  }}
-                  config={{ displayModeBar: false, responsive: true }}
-                  style={{ width: '100%', height: '100%' }}
-                  useResizeHandler
-                />
-              ) : (
-                <Typography variant="body2" color={theme.palette.grey[500]}>No image</Typography>
-              )}
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-              <Button variant="outlined" size="small" onClick={() => setOpenIndex(idx)}>
-                {fileLabels[idx]}
-              </Button>
-            </Box>
-          </Box>
-        ))}
-      </Box>
-      <FilePickerDialog
-        open={openIndex !== null}
-        onClose={() => setOpenIndex(null)}
-        onConfirm={handleConfirmSelection}
-      />
-    </>
-  );
-};
+              <div
+                id="visualization-root"
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <div ref={plotContainerRef} style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  {imagingData ? (
+                    <ImagingPlotComponent
+                      data={imagingData}
+                      imageIndex={imageSlice}
+                      metaboliteIndex={selectedMetabolite}
+                      alpha={alpha}
+                      colorScale={colorScale}
+                      scaleByIntensity={scaleByIntensity}
+                      showHpMriData={showHpMriData}
+                      onRendered={handleFrameRendered}
+                    />
+                  ) : null}
+                </div>
+              </div>
 
-interface FilePickerDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: (file: { id: string; name: string }) => void;
+              <ControlPanel
+                onSliderChange={handleSliderChange}
+                onDatasetChange={handleDatasetChange}
+                datasetIndex={datasetIndex}
+                numDatasets={numDatasets}
+                numSliderValues={numDatasets}
+                imageSlice={imageSlice}
+                contrast={contrast}
+                setImageSlice={setImageSlice}
+                openDrawer={openDrawer}
+              />
+            </div>
+
+            <PlotShiftPanel
+              onMoveUp={moveUp}
+              onMoveDown={moveDown}
+              onMoveLeft={moveLeft}
+              onMoveRight={moveRight}
+              onReset={resetPlotShift}
+              mode="imaging"
+              metabolite={selectedMetabolite}
+              onMetaboliteChange={setSelectedMetabolite}
+            />
+          </div>
+        </Container>    
+    </div>
+  );
 }
 
-const FilePickerDialog: React.FC<FilePickerDialogProps> = ({ open, onClose, onConfirm }) => {
-  const [files, setFiles] = React.useState<Array<{ id: string; name: string }>>([]);
-  const [selectedId, setSelectedId] = React.useState<string>('');
-  const [selectedName, setSelectedName] = React.useState<string>('');
-
-  React.useEffect(() => {
-    if (!open) return;
-    const fetchFiles = async () => {
-      try {
-        const res = await fetch('/api/mrd-files');
-        const data = await res.json();
-        const mapped: Array<{ id: string; name: string }> = (Array.isArray(data) ? data : []).map((item: any) => {
-          const rawId = item?._id;
-          const id = typeof rawId === 'string' ? rawId : (rawId?.$oid ?? String(rawId));
-          const name = item?.fileName || item?.original_filename || id;
-          return { id, name };
-        });
-        setFiles(mapped);
-        setSelectedId('');
-        setSelectedName('');
-      } catch (e) {
-        console.error('Failed to fetch MRD files:', e);
-        setFiles([]);
-      }
-    };
-    fetchFiles();
-  }, [open]);
-
-  const handleRowToggle = (file: { id: string; name: string }) => {
-    if (selectedId === file.id) {
-      setSelectedId('');
-      setSelectedName('');
-    } else {
-      setSelectedId(file.id);
-      setSelectedName(file.name);
-    }
-  };
-
-  const handleConfirm = () => {
-    if (!selectedId) return;
-    onConfirm({ id: selectedId, name: selectedName || selectedId });
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>Select MRD File</DialogTitle>
-      <DialogContent dividers>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox"></TableCell>
-              <TableCell>Filename</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {files.map(file => (
-              <TableRow key={file.id} hover onClick={() => handleRowToggle(file)} sx={{ cursor: 'pointer' }}>
-                <TableCell padding="checkbox">
-                  <Checkbox checked={selectedId === file.id} onChange={() => handleRowToggle(file)} />
-                </TableCell>
-                <TableCell>{file.name}</TableCell>
-              </TableRow>
-            ))}
-            {files.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={2}>
-                  <Typography variant="body2" color="text.secondary">No files found.</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleConfirm} variant="contained" disabled={!selectedId}>Confirm</Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
+export default ViewerPage;

@@ -46,9 +46,11 @@ const ControlPanel: React.FC<ControlProps> = ({
                 <Box
                     sx={{
                         position: 'absolute',
-                        top: -48,
-                        left: openDrawer ? 0 : -30,
+                        bottom: 16,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
                         width: 590,
+                        zIndex: 2,
                     }}
                 >
                     <Typography

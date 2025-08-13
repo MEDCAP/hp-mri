@@ -114,7 +114,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
             className={className}
             sx={{
                 width: 60,
-                height: 'calc(100vh - 74px)',
+                height: '100%',
                 backgroundColor: '#1e1e1e',
                 display: 'flex',
                 flexDirection: 'column',
