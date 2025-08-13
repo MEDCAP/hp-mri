@@ -24,7 +24,7 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
       position="fixed"
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: background_black ? 'black' : theme.palette.background.default,
+        backgroundColor: background_black ? 'theme.palette.background.default' : theme.palette.background.default,
         color: theme.palette.text.primary,
         boxShadow: background_black ? 0 : 3,
         borderBottom: background_black ? 'none' : `1px solid ${theme.palette.divider}`,
@@ -39,7 +39,7 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
       >
         {/* Left Section: Logos */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: '5px', marginLeft: '-15px' }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
+          <Link to="/mrd-files" style={{ display: 'flex', alignItems: 'center' }}>
             <Box sx={{ 
               backgroundColor: background_black ? 'white' : 'transparent',
               display: 'flex',

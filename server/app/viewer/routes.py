@@ -9,19 +9,38 @@ from app.viewer.magnets import (
     clinical_processing,
     mr_solutions_processing,
 )
+from data import get_image_array_from_mrdfile
 from app.viewer import viewer_bp
 
+@viewer_bp.route("/viewer/<file_id>", methods=["GET"])
+def fetch_image_array_from_bucket(file_id: str):
+    """
+    Load image array from S3 bucket and return as JSON serializable nested lists.
+    """
+    try:
+        img_array = get_image_array_from_mrdfile(file_id)
+        if isinstance(img_array, np.ndarray):
+            payload = img_array.tolist()
+        else:
+            payload = img_array
+        return jsonify({"image_array": payload}), 200
+    except FileNotFoundError:
+        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 
 @viewer_bp.route("/get_num_slider_values/<magnet_type>", methods=["GET"])
 def fetch_num_slider_values(magnet_type):
     """
-    API endpoint to fetch the number of slider values.
-
-    Parameters:
-        magnet_type: The magnet type current selected.
+    Retrieve the number of slider values based on the selected magnet type.
 
     Returns:
-        JSON: Contains the number of slider values.
+        json: JSON with the number of slider values.
+
+    Author: Benjamin Yoon
+    Date: 2024-04-30
+    Version: 1.0.0
     """
     if magnet_type == "HUPC":
         num_values = hupc_processing.get_num_slider_values()
@@ -119,11 +138,11 @@ def get_hp_mri_data(hp_mri_dataset):
 
     return result
 
-
-@viewer_bp.route("/visualize-upload", methods=["POST"])
+# upload dicom files for comparison
+@viewer_bp.route("/viewer-upload", methods=["POST"])
 def file_upload():
     """
-    Handle file uploads by saving uploaded files to a predefined upload folder.
+    Upload dicom files from Viewer page to  to a predefined upload folder.
 
     Returns:
         json: A JSON object indicating the status of the file upload (success or error).
@@ -184,27 +203,23 @@ def get_imaging_metadata():
 @viewer_bp.route("/get_imaging_matrix", methods=["GET"])
 def get_imaging_matrix():
     """
-    Retrieve the full 4D mock MRI imaging matrix (rows x cols x metabolites x images).
+    Retrieve the full 4D imaging matrix as nested lists for frontend consumption.
 
     Returns:
-        json: JSON containing a nested list representing the 4D matrix.
+        json: { "matrix": number[rows][cols][metabolites][images] }
 
-    Author: Ben Yoon
+    Author: Ben Yoon (extended)
     Date: 2025-03-04
-    Version: 2.0.1
+    Version: 2.0.2
     """
     try:
         data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
-        data = np.load(data_path)
+        data = np.load(data_path)  # Expected shape: [rows, columns, metabolites, images]
 
         if data.ndim != 4:
             return jsonify({"error": "Imaging data must be 4-dimensional"}), 400
 
-        # Convert to list (costly for large data, but fine for dev)
-        matrix = data.tolist()
-
-        return jsonify({"matrix": matrix}), 200
-
+        return jsonify({"matrix": data.tolist()}), 200
     except FileNotFoundError:
         return jsonify({"error": "Mock imaging data file not found."}), 404
     except Exception as e:

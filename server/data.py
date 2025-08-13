@@ -142,3 +142,21 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
     result = db.mrdfiles.insert_many(header_data_list)
     # return the object ids of inserted mrd header documents
     return result.inserted_ids
+
+def get_image_array_from_mrdfile(file_id):
+    """
+    Read the mrd file image as numpy array
+    :param filepath: local path to the mrd file
+    """
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    BUCKET = current_app.config['S3_BUCKET']
+    s3_filekey = f'mrd_files/{file-id}'
+    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    with mrd.BinaryMrdReader(obj['Body']) as r:
+        h = r.read_header()
+        for item in r.read_data():
+            if isinstance(item, mrd.StreamItem.ImageFloat):
+                image_array = item.value
+                image_array *= 255 / image_array.max()
+        return image_array.astype(np.uint8) # channel, slice, x, y
