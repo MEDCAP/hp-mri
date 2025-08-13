@@ -42,7 +42,7 @@ const AppContent: React.FC = () => {
   const hideHeaderRoutes = ['/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
   // Define pages where HeaderAccount should be used (MRD files pages)
-  const mrdFileRoutes = ['/mrd-files', '/upload'];
+  const mrdFileRoutes = ['/mrd-files', '/upload', '/simulator'];
 
   // Determine which header should be shown
   const location = useLocation();
@@ -58,7 +58,7 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Main content container */}
-      <div style={{ display: 'flex', marginTop: location.pathname !== '/visualize' ? 74 : 0 }}>
+      <div style={{ display: 'flex' }}>
         <Routes>
           {/* Login Pages */}
           <Route path="/account" element={<AccountPage />} />
@@ -84,6 +84,7 @@ const AppContent: React.FC = () => {
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/viewer" element={<ViewerPage />} />
+
         </Routes>
       </div>
 

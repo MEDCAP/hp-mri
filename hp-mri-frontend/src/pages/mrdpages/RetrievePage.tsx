@@ -290,11 +290,12 @@ const RetrievePage: React.FC = () => {
   return (
     <div
       style={{
-        marginLeft: isSidebarOpen ? '260px' : '80px',
         width: isSidebarOpen 
           ? `calc(100% - 260px - ${fileDetailsPanelOpen ? '400px' : '0px'})` 
           : `calc(100% - 80px - ${fileDetailsPanelOpen ? '400px' : '0px'})`,
+        marginLeft: isSidebarOpen ? '260px' : '80px',
         marginRight: fileDetailsPanelOpen ? '400px' : '0px',
+        marginTop: '64px',  // margin top between the header and app 
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         minHeight: 'calc(100vh - 74px)', // Account for header
       }}

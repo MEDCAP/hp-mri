@@ -18,9 +18,10 @@ import { Menu as MenuIcon } from '@mui/icons-material';
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  background_black?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black = false }) => {
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
   };
@@ -41,7 +42,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           transition: 'width 0.3s ease',
           overflowX: 'hidden',
           boxShadow: 3,
-          backgroundColor: 'background.default',
+          backgroundColor: background_black ? '#000' : 'background.default',
+          color: background_black ? '#fff' : 'inherit',
         },
       }}
     >
@@ -49,19 +51,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       <Box
         sx={{
           display: 'flex',
+          marginTop: '14px',
           alignItems: 'center',
           justifyContent: isOpen ? 'space-between' : 'center',
           padding: '16px',
-          paddingTop: '74px',
-          backgroundColor: 'background.default',
+          paddingTop: '64px',
+          backgroundColor: background_black ? '#000' : 'background.default',
+          color: background_black ? '#fff' : 'inherit'
         }}
       >
         {isOpen && (
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', marginTop: '5px' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: background_black ? '#fff' : 'primary.main', marginTop: '5px' }}>
             Menu
           </Typography>
         )}
-        <IconButton onClick={toggleSidebar} sx={{ color: 'primary.main', top: '2.5px' }}>
+        <IconButton onClick={toggleSidebar} sx={{ color: background_black ? '#fff' : 'primary.main', top: '2.5px' }}>
           <MenuIcon />
         </IconButton>
       </Box>
@@ -87,13 +91,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               '&.Mui-selected:hover': {
                 backgroundColor: 'background.light',
               },
-              '&.Mui-selected .MuiListItemText-primary': {
-                color: '#fff',
+              '& .MuiListItemText-primary': {
+                color: isMrdSelected ? '#fff' : (background_black ? '#fff' : 'inherit'),
               },
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaFile color={isMrdSelected ? '#fff' : (isOpen ? '#011F5B' : 'inherit')} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+              <FaFile color={isMrdSelected ? '#fff' : (background_black ? '#fff' : (isOpen ? '#011F5B' : 'inherit'))} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -101,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
-                  sx: { color: isMrdSelected ? '#fff' : 'inherit' },
+                  sx: { color: isMrdSelected ? '#fff' : (background_black ? '#fff' : 'inherit') },
                 }}
               />
             )}
@@ -126,13 +130,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               '&.Mui-selected:hover': {
                 backgroundColor: 'background.light',
               },
-              '&.Mui-selected .MuiListItemText-primary': {
-                color: '#fff',
+              '& .MuiListItemText-primary': {
+                color: isViewerSelected ? '#fff' : (background_black ? '#fff' : 'inherit'),
               },
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaImages color={isViewerSelected ? '#fff' : (isOpen ? '#011F5B' : 'inherit')} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+              <FaImages color={isViewerSelected ? '#fff' : (background_black ? '#fff' : (isOpen ? '#011F5B' : 'inherit'))} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -140,7 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
-                  sx: { color: isViewerSelected ? '#fff' : 'inherit' },
+                  sx: { color: isViewerSelected ? '#fff' : (background_black ? '#fff' : 'inherit') },
                 }}
               />
             )}
@@ -165,13 +169,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               '&.Mui-selected:hover': {
                 backgroundColor: 'background.light',
               },
-              '&.Mui-selected .MuiListItemText-primary': {
-                color: '#fff',
+              '& .MuiListItemText-primary': {
+                color: isSimulatorSelected ? '#fff' : (background_black ? '#fff' : 'inherit'),
               },
             }}
           >
             <ListItemIcon sx={{ justifyContent: 'center' }}>
-              <FaCube color={isSimulatorSelected ? '#fff' : (isOpen ? '#011F5B' : 'inherit')} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+              <FaCube color={isSimulatorSelected ? '#fff' : (background_black ? '#fff' : (isOpen ? '#011F5B' : 'inherit'))} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
             </ListItemIcon>
             {isOpen && (
               <ListItemText
@@ -179,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 primaryTypographyProps={{
                   fontSize: '1rem',
                   fontWeight: '500',
-                  sx: { color: isSimulatorSelected ? '#fff' : 'inherit' },
+                  sx: { color: isSimulatorSelected ? '#fff' : (background_black ? '#fff' : 'inherit') },
                 }}
               />
             )}
