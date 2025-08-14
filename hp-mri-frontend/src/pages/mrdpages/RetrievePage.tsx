@@ -74,8 +74,7 @@ const RetrievePage: React.FC = () => {
   const navigate = useNavigate();
 
   const fetchFiles = () => {
-    axios
-      .get('/api/mrd-files')
+    axios.get('/api/mrd-files')
       .then((response) => {
         console.log('mrd-files response: ', response.data);
         

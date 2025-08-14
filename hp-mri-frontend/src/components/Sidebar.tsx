@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
-
+import '../styles/sidebar.css';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -42,13 +42,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
   return (
     <Drawer
       variant="permanent"
+      className="sidebar-drawer"
+      style={{ ['--sidebar-width' as any]: isOpen ? '240px' : '80px' }}
       sx={{
-        width: isOpen ? '240px' : '80px',
-        flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: isOpen ? '240px' : '80px',
-          transition: 'width 0.3s ease',
-          overflowX: 'hidden',
           boxShadow: 3,
           backgroundColor: background_black ? theme.palette.common.black : theme.palette.background.default,
           color: background_black ? theme.palette.common.white : 'inherit',

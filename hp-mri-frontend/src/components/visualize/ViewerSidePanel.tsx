@@ -28,7 +28,6 @@ interface ButtonProps {
     threshold: any;
     alpha: number;
     onMagnetTypeChange: any;
-    mode: 'spectral' | 'imaging';
     colorScale: 'Hot' | 'Jet' | 'B&W';
     onColorScaleChange: (value: 'Hot' | 'Jet' | 'B&W') => void;
     scaleByIntensity: boolean;
@@ -62,7 +61,6 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     threshold,
     alpha,
     onMagnetTypeChange,
-    mode,
     colorScale,
     onColorScaleChange,
     scaleByIntensity,
@@ -110,6 +108,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     };
 
     return (
+        // box viewer side bar whole
         <Box
             className={className}
             sx={{
@@ -126,6 +125,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 zIndex: 10,
             }}
         >
+            {/* Each button icon */}
             <Box sx={{ width: 60, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 <Tooltip title="Upload File" placement="right">
                     <IconButton sx={{ color: 'white' }} onClick={handleFileSelect}>
@@ -152,7 +152,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                     </IconButton>
                 </Tooltip>
             </Box>
-
+            {/* Open drawer when button is clicked */}
             <Drawer
                 anchor="left"
                 open={openDrawer}
@@ -404,6 +404,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                     </>
                 )}
 
+                {/* Image Adjustment button */}
                 {selectedTool === 'image' && (
                     <>
                         <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
@@ -430,61 +431,32 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                                 '& .MuiSlider-rail': { backgroundColor: '#555' },
                             }}
                         />
+                        {/* Contrast alpha slider */}
+                        <>
+                            <Divider sx={{ my: 2, background: 'white' }} />
 
-                        {mode === 'spectral' ? (
-                            <>
-                            </>
-                        ) : (
-                            <>
-                                <Divider sx={{ my: 2, background: 'white' }} />
-
-                                <Typography
-                                    variant="body1"
-                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
-                                >
-                                    Alpha: {alpha.toFixed(2)}</Typography>
-                                <Slider
-                                    value={alpha}
-                                    min={0.0}
-                                    max={1.0}
-                                    step={0.05}
-                                    onChange={(_e, newValue) => onAlphaChange(newValue as number)}
-                                    sx={{
-                                        color: 'white',
-                                        '& .MuiSlider-thumb': { backgroundColor: 'white' },
-                                        '& .MuiSlider-track': { backgroundColor: 'white' },
-                                        '& .MuiSlider-rail': { backgroundColor: '#555' },
-                                    }}
-                                />
-                            </>
-                        )}
-                        {/* <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
-                            Voxel Selection
-                        </Typography>
-                        <Button fullWidth variant="contained" color="primary" onClick={onToggleSelecting}>
-                            {onSelecting ? 'Stop Selecting' : 'Get Voxels'}
-                        </Button>
-                        <Button fullWidth variant="outlined" color="secondary" onClick={onResetVoxels} sx={{ mt: 1 }}>
-                            Reset
-                        </Button>
-                        <Box mt={2} sx={{ color: 'white', fontWeight: 'bold' }}>
                             <Typography
                                 variant="body1"
                                 sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
                             >
-                                Select Group:</Typography>
-                            <label>
-                                <input type="radio" checked={selectedGroup === 'A'} onChange={() => onSetSelectedGroup('A')} />
-                                Group A
-                            </label>
-                            <label>
-                                <input type="radio" checked={selectedGroup === 'B'} onChange={() => onSetSelectedGroup('B')} />
-                                Group B
-                            </label>
-                        </Box> */}
+                                Alpha: {alpha.toFixed(2)}</Typography>
+                            <Slider
+                                value={alpha}
+                                min={0.0}
+                                max={1.0}
+                                step={0.05}
+                                onChange={(_e, newValue) => onAlphaChange(newValue as number)}
+                                sx={{
+                                    color: 'white',
+                                    '& .MuiSlider-thumb': { backgroundColor: 'white' },
+                                    '& .MuiSlider-track': { backgroundColor: 'white' },
+                                    '& .MuiSlider-rail': { backgroundColor: '#555' },
+                                }}
+                            />
+                        </>
                     </>
                 )}
-
+                {/* Setting button */}
                 {selectedTool === 'settings' && (
                     <>
                         <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
@@ -534,100 +506,67 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                             '& .MuiSlider-track': { backgroundColor: 'white' },
                             '& .MuiSlider-rail': { backgroundColor: '#555' },
                         }} />
-
-                        {mode === 'spectral' ? (
-                            <>
-                            </>
-                        ) : (
-                            <>
-                                <Divider sx={{ my: 2, background: 'white' }} />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={scaleByIntensity}
-                                            onChange={onToggleScaleByIntensity}
-                                            color="primary"
-                                            sx={{
-                                                '& .MuiSwitch-switchBase': {
-                                                    color: 'white',
-                                                },
-                                                '& .Mui-checked': {
-                                                    color: '#00c7be',
-                                                },
-                                                '& .Mui-checked + .MuiSwitch-track': {
-                                                    backgroundColor: '#00c7be',
-                                                },
-                                            }}
-                                        />
-                                    }
-                                    label="Scale by Intensity"
-                                    sx={{
+                        <>
+                            <Divider sx={{ my: 2, background: 'white' }} />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={scaleByIntensity}
+                                        onChange={onToggleScaleByIntensity}
+                                        color="primary"
+                                        sx={{
+                                            '& .MuiSwitch-switchBase': {
+                                                color: 'white',
+                                            },
+                                            '& .Mui-checked': {
+                                                color: '#00c7be',
+                                            },
+                                            '& .Mui-checked + .MuiSwitch-track': {
+                                                backgroundColor: '#00c7be',
+                                            },
+                                        }}
+                                    />
+                                }
+                                label="Scale by Intensity"
+                                sx={{
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.95rem',
+                                    '& .MuiFormControlLabel-label': {
                                         color: 'white',
                                         fontWeight: 'bold',
-                                        fontSize: '0.95rem',
-                                        '& .MuiFormControlLabel-label': {
-                                            color: 'white',
-                                            fontWeight: 'bold',
-                                        },
-                                    }}
-                                />
-                                {/* <Typography
-                                    variant="body1"
-                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
-                                >
-                                    Metabolite</Typography>
-                                <Select
-                                    value={metabolite}
-                                    onChange={(e) => onMetaboliteChange(Number(e.target.value))} // cast string to number
-                                    fullWidth
-                                    size='small'
-                                    sx={{
-                                        mt: 1.5,
-                                        mb: 2,
-                                        fontSize: '0.85rem',
-                                        color: 'white',
-                                        '.MuiOutlinedInput-notchedOutline': {
-                                            borderColor: 'white',
-                                        },
-                                        '& .MuiSvgIcon-root': {
-                                            color: 'white',
-                                        },
-                                    }}
-                                >
-                                    <MenuItem value={0}>Lactate</MenuItem>
-                                    <MenuItem value={1}>Pyruvate</MenuItem>
-                                    <MenuItem value={2}>Threonine</MenuItem>
-                                </Select> */}
-                                <Typography
-                                    variant="body1"
-                                    sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
-                                >
-                                    Heatmap Color Scale</Typography>
-                                <Select
-                                    value={colorScale}
-                                    onChange={(e) => onColorScaleChange(e.target.value as 'Hot' | 'Jet' | 'B&W')}
-                                    fullWidth
-                                    size='small'
-                                    sx={{
-                                        mt: 1.5,
-                                        mb: 2,
-                                        fontSize: '0.85rem',
-                                        color: 'white',
-                                        '.MuiOutlinedInput-notchedOutline': {
-                                            borderColor: 'white',
-                                        },
-                                        '& .MuiSvgIcon-root': {
-                                            color: 'white',
-                                        },
-                                    }}
-                                >
-                                    <MenuItem value="Hot">Hot</MenuItem>
-                                    <MenuItem value="Jet">Jet</MenuItem>
-                                    <MenuItem value="B&W">Black & White</MenuItem>
-                                </Select>
+                                    },
+                                }}
+                            />
 
-                            </>
-                        )}
+                            <Typography
+                                variant="body1"
+                                sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}
+                            >
+                                Heatmap Color Scale</Typography>
+                            <Select
+                                value={colorScale}
+                                onChange={(e) => onColorScaleChange(e.target.value as 'Hot' | 'Jet' | 'B&W')}
+                                fullWidth
+                                size='small'
+                                sx={{
+                                    mt: 1.5,
+                                    mb: 2,
+                                    fontSize: '0.85rem',
+                                    color: 'white',
+                                    '.MuiOutlinedInput-notchedOutline': {
+                                        borderColor: 'white',
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                        color: 'white',
+                                    },
+                                }}
+                            >
+                                <MenuItem value="Hot">Hot</MenuItem>
+                                <MenuItem value="Jet">Jet</MenuItem>
+                                <MenuItem value="B&W">Black & White</MenuItem>
+                            </Select>
+                        </>
 
                         <Divider sx={{ my: 2, background: 'white' }} />
                         <Typography variant="h6" color='white'>Magnet Type</Typography>

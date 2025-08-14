@@ -90,9 +90,11 @@ const applyAlphaToColorscale = (
 // --- Component Definition ---
 
 interface Props {
-    data: number[][][][]; // [rows][cols][metabolites][images]
-    imageIndex: number;
+    data: number[][][][][][]; // [channel][slice][rows][cols][metabolites][measurements]
+    channelIndex: number[];   // list of multiple channels to plot
+    sliceIndex: number;
     metaboliteIndex: number;
+    measurementIndex: number;
     alpha: number; // Global alpha/opacity control (0.0 to 1.0)
     colorScale: 'Hot' | 'Jet' | 'B&W';
     scaleByIntensity: boolean; // Toggle for intensity-based scaling
@@ -102,8 +104,10 @@ interface Props {
 
 const ImagingPlotComponent: React.FC<Props> = ({
     data,
-    imageIndex,
+    channelIndex,
+    sliceIndex,
     metaboliteIndex,
+    measurementIndex,
     alpha,
     colorScale,
     scaleByIntensity,
@@ -114,14 +118,13 @@ const ImagingPlotComponent: React.FC<Props> = ({
         console.error("Invalid data structure provided to ImagingPlotComponent");
         return <div>Error: Invalid data.</div>;
     }
-    if (imageIndex < 0 || metaboliteIndex < 0 /* Add checks based on data dimensions */) {
+    if (sliceIndex < 0 || metaboliteIndex < 0 || measurementIndex < 0 /* Add checks based on data dimensions */) {
         console.error("Invalid index provided");
         return <div>Error: Invalid index.</div>;
     }
 
-
-    const rows = data.length;
-    const cols = data[0].length;
+    const rows = data[2].length;
+    const cols = data[3].length;
 
     const boxWidth = 55;
     const boxHeight = 45;
@@ -131,7 +134,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
             const timer = setTimeout(() => onRendered(), 50);
             return () => clearTimeout(timer);
         }
-    }, [data, imageIndex, metaboliteIndex]);
+    }, [data, channelIndex, sliceIndex, metaboliteIndex, measurementIndex]);
 
     // Extract z matrix for the selected metabolite and image
     const zMatrix = data.map(row =>
