@@ -5,6 +5,9 @@ from flask import current_app
 from bson import ObjectId
 from datetime import datetime
 import os
+import numpy as np
+import boto3
+import matplotlib.pyplot as plt
 
 import app.external.python.mrd as mrd
 
@@ -142,3 +145,36 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
     result = db.mrdfiles.insert_many(header_data_list)
     # return the object ids of inserted mrd header documents
     return result.inserted_ids
+
+def get_image_array_from_mrdfile(file_id):
+    """
+    Read the mrd file image as numpy array
+    :param filepath: local path to the mrd file
+    :return: np array float range from 0-1 in dimension of (channel, slice, y, x, metabolite, measurement)
+    """
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    # BUCKET = current_app.config['S3_BUCKET']
+    BUCKET = 'medcap-data'
+    s3_filekey = f'mrd_files/{file_id}'
+    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    with mrd.BinaryMrdReader(obj['Body']) as r:
+        h = r.read_header()
+        for item in r.read_data():
+            if isinstance(item, mrd.StreamItem.ImageFloat):
+                image = item.value
+                image_array = image.data
+                image_array = np.expand_dims(image_array, axis=(4,5))
+        return image_array
+
+
+# test function to check the plot of image_array
+def test_plot_image_array(image_array):
+    plt.imshow(image_array[0,0,:,:,0,0], cmap='gray')
+    plt.show()
+
+if __name__ == "__main__":
+    file_id = '689cb3741a8a4a66e314dc22'
+    image_array = get_image_array_from_mrdfile(file_id)
+    print(image_array.shape)
+    test_plot_image_array(image_array)
