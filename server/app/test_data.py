@@ -1,6 +1,7 @@
 import sys
 import os
 import boto3
+import io
 
 # add filepath of parent directory
 from pathlib import Path
@@ -12,12 +13,13 @@ import app.external.python.mrd as mrd
 
 def read_mrd():
     s3 = boto3.client('s3')
-    file_id = '689cb3741a8a4a66e314dc22'
+    file_id = '68a301436b08cd8ee0dd41ed'
     S3_BUCKET = 'medcap-data'
     obj = s3.get_object(Bucket=S3_BUCKET, Key=f'mrd_files/{file_id}')
 
-    # filename = "images.bin"
-    with mrd.BinaryMrdReader(obj['Body']) as r:
+    # Load S3 StreamingBody into memory to ensure readinto support
+    body_bytes = obj['Body'].read()
+    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         head = r.read_header()
         data_stream = r.read_data()
         acq_counter = 0

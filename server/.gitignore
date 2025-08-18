@@ -27,3 +27,4 @@ aws_lambda/*
 
 # ignore python virtual environments
 .medcap
+.medcap_venv

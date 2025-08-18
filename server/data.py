@@ -9,6 +9,7 @@ import boto3
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Union
+import io
 
 import app.external.python.mrd as mrd
 
@@ -66,7 +67,8 @@ def read_mrdfile_header(filepath):
     Read the mrd file header as dict in mongodb mrd-files collection format
     """
     try:
-        with mrd.BinaryMrdReader(filepath) as r:
+        body_bytes = obj['Body'].read()
+        with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
             h = r.read_header()
             image_exist = False
             for item in r.read_data():
@@ -170,7 +172,8 @@ def get_image_array_from_mrdfile(file_id):
     image_array = None
     nmr_labels = []
     
-    with mrd.BinaryMrdReader(obj['Body']) as r:
+    body_bytes = obj['Body'].read()
+    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         h = r.read_header()
         counter = 0
         for item in r.read_data():
