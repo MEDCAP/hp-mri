@@ -200,11 +200,34 @@ def get_image_array_from_mrdfile(file_id):
 
 def get_acquisition_array_from_mrdfile(file_id):
     """
-    Extract coils, 
+    Extract acquisition array from MRD file
+    @param file_id: file_id in mongodb of the mrd file
+    @return acquisition array of dimension (readouts, channels, lines, slices, measurements, frequencies)
     """
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    # BUCKET = current_app.config['S3_BUCKET']
+    BUCKET = 'medcap-data'
+    s3_filekey = f'mrd_files/{file_id}'
+    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
 
+    body_bytes = obj['Body'].read()
+    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
+        h = r.read_header()
+        counter = 0
+        for item in r.read_data():
+            if isinstance(item, mrd.StreamItem.Acquisition):
+                if counter == 0:
+                    acq_array = item.value.data[..., np.newaxis]     # float 2D (channels, samples)
+                    acq_phase = item.value.phase[..., np.newaxis]    # float 1D (samples)
+                    print(item.value.phase.shape)
+                else:
+                    acq_array = np.concatenate([acq_array, item.value.data[..., np.newaxis]], axis=-1)
+                    acq_phase = np.concatenate([acq_phase, item.value.phase[..., np.newaxis]], axis=-1)
+        return acq_array, acq_phase
 
 if __name__ == "__main__":
     file_id = '68a31686e69b077b4d68b9d9'
-    image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-    print(image_array.shape)
+    acq_array, acq_phase = get_acquisition_array_from_mrdfile(file_id)
+    print(acq_array.shape)
+    print(acq_phase.shape)
