@@ -32,7 +32,6 @@ def create_app():
     @app.route("/api/health", methods=["GET"])
     def health_check():
         return jsonify({"status": "flask endpoint healthy",
-                        "mode": FLASK_ENV,
-                        "MONGO_URI": app.config['MONGO_URI']}), 200
+                        "mode": FLASK_ENV}), 200
 
     return app
