@@ -10,16 +10,21 @@ from app.viewer.magnets import (
     mr_solutions_processing,
 )
 from data import get_image_array_from_mrdfile
+from data import get_acquisition_array_from_mrdfile
 from app.viewer import viewer_bp
 
 @viewer_bp.route("/viewer/<file_id>", methods=["GET"])
 def fetch_image_array_from_bucket(file_id: str):
     """
     Load image array from S3 bucket and return as JSON serializable nested lists.
+    @param file_id: file_id in mongodb of the mrd file
+    function: get_image_array_from_mrdfile
+        @return image_array: 6d nparray of dimension (channel, slice, rows, cols, frequencies, measurements)
+        @return nmr_labels: list of label of metabolites. If metabolite dimension is 0, return []
     """
     try:
         img_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-        return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels.tolist()}), 200
+        return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except Exception as e:
