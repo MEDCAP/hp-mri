@@ -123,11 +123,72 @@ const ImagingPlotComponent: React.FC<Props> = ({
         return <div>Error: Invalid index.</div>;
     }
 
-    const rows = data[2].length;
-    const cols = data[3].length;
+    // Extract z matrix for the selected metabolite and measurement
+    // Data structure: [channel][slice][rows][cols][metabolites][measurements]
+    const zMatrix: number[][] = [];
+    
+    // Get the number of rows and cols from the data dimensions
+    const numRows = data[0]?.[0]?.length || 0;
+    const numCols = data[0]?.[0]?.[0]?.length || 0;
+    
+    // Build the zMatrix by iterating through rows and cols
+    for (let row = 0; row < numRows; row++) {
+        const rowData: number[] = [];
+        for (let col = 0; col < numCols; col++) {
+            let combinedValue = 0;
+            let validChannelCount = 0;
+            
+            // Combine data from all selected channels
+            for (const channel of channelIndex) {
+                if (
+                    data[channel] &&
+                    data[channel][sliceIndex] &&
+                    data[channel][sliceIndex][row] &&
+                    data[channel][sliceIndex][row][col] &&
+                    data[channel][sliceIndex][row][col][metaboliteIndex] &&
+                    data[channel][sliceIndex][row][col][metaboliteIndex][measurementIndex] !== undefined
+                ) {
+                    const value = data[channel][sliceIndex][row][col][metaboliteIndex][measurementIndex];
+                    if (typeof value === 'number' && !isNaN(value)) {
+                        combinedValue += value;
+                        validChannelCount++;
+                    }
+                }
+            }
+            
+            // Calculate average if we have valid data, otherwise use 0
+            const finalValue = validChannelCount > 0 ? combinedValue / validChannelCount : 0;
+            // Clamp between 0 and 1
+            rowData.push(Math.max(0, Math.min(1, finalValue)));
+        }
+        zMatrix.push(rowData);
+    }
 
-    const boxWidth = 55;
-    const boxHeight = 45;
+    const rows = numRows;
+    const cols = numCols;
+
+    // Calculate responsive dimensions based on container
+    // Use a ref to get container dimensions, but for now use reasonable defaults
+    const containerMaxWidth = 800; // This could be made dynamic with useRef
+    const containerMaxHeight = 600;
+    
+    // Calculate box dimensions to fit the data within the container
+    const aspectRatio = cols / rows;
+    let plotWidth: number;
+    let plotHeight: number;
+    
+    if (aspectRatio > containerMaxWidth / containerMaxHeight) {
+        // Width-constrained
+        plotWidth = containerMaxWidth;
+        plotHeight = containerMaxWidth / aspectRatio;
+    } else {
+        // Height-constrained
+        plotHeight = containerMaxHeight;
+        plotWidth = containerMaxHeight * aspectRatio;
+    }
+    
+    const boxWidth = plotWidth / cols;
+    const boxHeight = plotHeight / rows;
 
     useEffect(() => {
         if (onRendered) {
@@ -136,26 +197,13 @@ const ImagingPlotComponent: React.FC<Props> = ({
         }
     }, [data, channelIndex, sliceIndex, metaboliteIndex, measurementIndex]);
 
-    // Extract z matrix for the selected metabolite and image
-    const zMatrix = data.map(row =>
-        row.map(cell => {
-            // Add safety checks for potentially undefined inner arrays/values
-            const metaboliteData = cell?.[metaboliteIndex];
-            const value = metaboliteData?.[imageIndex];
-            // Return 0 or NaN if data is missing/invalid, clamp between 0 and 1
-            return value === undefined || value === null || isNaN(value)
-                ? 0
-                : Math.max(0, Math.min(1, value)); // Ensure values are 0-1
-        })
-    );
-
 
     const gridShapes: Partial<Plotly.Shape>[] = [];
     // Vertical lines
     for (let i = 0; i <= cols; i++) {
         gridShapes.push({
             type: 'line', xref: 'x', yref: 'y',
-            x0: i * boxWidth, x1: i * boxWidth, y0: 0, y1: rows * boxHeight,
+            x0: i * boxWidth, x1: i * boxWidth, y0: 0, y1: plotHeight,
             line: { color: 'transparent', width: 0 },
         });
     }
@@ -163,7 +211,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
     for (let j = 0; j <= rows; j++) {
         gridShapes.push({
             type: 'line', xref: 'x', yref: 'y',
-            x0: 0, x1: cols * boxWidth, y0: j * boxHeight, y1: j * boxHeight,
+            x0: 0, x1: plotWidth, y0: j * boxHeight, y1: j * boxHeight,
             line: { color: 'transparent', width: 0 },
         });
     }
@@ -211,20 +259,20 @@ const ImagingPlotComponent: React.FC<Props> = ({
                 },
             ]}
             layout={{
-                width: cols * boxWidth,
-                height: rows * boxHeight,
+                width: plotWidth,
+                height: plotHeight,
                 margin: { t: 0, b: 0, l: 0, r: 0 }, // No margins
                 paper_bgcolor: 'rgba(0,0,0,0)',     // Transparent background
                 plot_bgcolor: 'rgba(0,0,0,0)',      // Transparent plot area
                 xaxis: {
-                    range: [0, cols * boxWidth], // Set x-axis range to fit cells
+                    range: [0, plotWidth], // Set x-axis range to fit cells
                     showgrid: false,
                     zeroline: false,
                     showticklabels: false,      // Hide axis ticks and labels
                     fixedrange: true,           // Prevent zooming/panning
                 },
                 yaxis: {
-                    range: [rows * boxHeight, 0],
+                    range: [plotHeight, 0],
                     showgrid: false,
                     zeroline: false,
                     showticklabels: false,      // Hide axis ticks and labels
@@ -237,6 +285,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
             config={{
                 staticPlot: true,
                 displayModeBar: false,
+                responsive: true, // Make plot responsive
             }}
         />
     );
