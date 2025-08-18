@@ -19,20 +19,24 @@ def fetch_image_array_from_bucket(file_id: str):
     """
     try:
         img_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-        if isinstance(img_array, np.ndarray):
-            payload = img_array.tolist()
-        else:
-            payload = img_array
-        if isinstance(nmr_labels, np.ndarray):
-            nmr_labels = nmr_labels.tolist()
-        else:
-            nmr_labels = []
-        return jsonify({"image_array": payload, "nmr_labels": nmr_labels}), 200
+        return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels.tolist()}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
+@viewer_bp.route("/viewer/get_acquisition_field/<file_id>", methods=["GET"])
+def fetch_acquisition_field(file_id):
+    """
+    Fetch acquisition_array=shape(channels, samples) and acquisition_phase=shape(samples) from MRD file
+    """
+    try:
+        acq_array, acq_phase = get_acquisition_array_from_mrdfile(file_id)
+        return jsonify({"acq_array": acq_array.tolist(), "acq_phase": acq_phase.tolist()}), 200
+    except FileNotFoundError:
+        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @viewer_bp.route("/get_num_slider_values/<magnet_type>", methods=["GET"])
 def fetch_num_slider_values(magnet_type):
