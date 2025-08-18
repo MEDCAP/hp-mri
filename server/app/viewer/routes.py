@@ -18,12 +18,16 @@ def fetch_image_array_from_bucket(file_id: str):
     Load image array from S3 bucket and return as JSON serializable nested lists.
     """
     try:
-        img_array = get_image_array_from_mrdfile(file_id)
+        img_array, nmr_labels = get_image_array_from_mrdfile(file_id)
         if isinstance(img_array, np.ndarray):
             payload = img_array.tolist()
         else:
             payload = img_array
-        return jsonify({"image_array": payload}), 200
+        if isinstance(nmr_labels, np.ndarray):
+            nmr_labels = nmr_labels.tolist()
+        else:
+            nmr_labels = []
+        return jsonify({"image_array": payload, "nmr_labels": nmr_labels}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except Exception as e:

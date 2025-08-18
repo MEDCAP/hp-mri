@@ -5,6 +5,10 @@ from flask import current_app
 from bson import ObjectId
 from datetime import datetime
 import os
+import boto3
+import numpy as np
+import matplotlib.pyplot as plt
+from typing import Union
 
 import app.external.python.mrd as mrd
 
@@ -145,18 +149,59 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
 
 def get_image_array_from_mrdfile(file_id):
     """
-    Read the mrd file image as numpy array
-    :param filepath: local path to the mrd file
+    Extracts 6D image array of dimension (channel, slice, rows, cols, frequencies, measurements) 
+    and header from mrd file in S3 bucket
+    -   MRDfile read_data is an iterable object, which you read by for loop one at a time
+    -   Each iteration yields item.value.data as 4D image array (channels, slice, rows, cols, frequencies) and 
+        item.value.head to specify metabolite label and measurement number
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - 6d nparray: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
+        - label: dict of label of metabolites. If metabolite dimension is 0 
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
-    BUCKET = current_app.config['S3_BUCKET']
-    s3_filekey = f'mrd_files/{file-id}'
+    # BUCKET = current_app.config['S3_BUCKET']
+    BUCKET = 'medcap-data'
+    s3_filekey = f'mrd_files/{file_id}'
     obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    
+    # Initialize variables to avoid scope issues
+    image_array = None
+    nmr_labels = []
+    
     with mrd.BinaryMrdReader(obj['Body']) as r:
         h = r.read_header()
+        counter = 0
         for item in r.read_data():
-            if isinstance(item, mrd.StreamItem.ImageFloat):
-                image_array = item.value
-                image_array *= 255 / image_array.max()
-        return image_array.astype(np.uint8) # channel, slice, x, y
+            if isinstance(item, Union[mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble]):
+                image = item.value
+                if counter == 0:
+                    # 4D image array (channels, slice, rows, cols) to 6D image array (channels, slice, rows, cols, metabolites, measurements)
+                    image_array = image.data[..., np.newaxis]
+                    meas_freq = image.head.measurement_freq
+                    repetition = image.head.repetition
+                    # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
+                    if image.head.measurement_freq_label is not None:
+                        # image.head.measurement_freq_label is in nparray, need to convert to list
+                        nmr_labels.append(image.head.measurement_freq_label)
+                    counter += 1
+                else:
+                    if image_array is not None:
+                        image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
+    
+    # Check if any image data was found
+    if image_array is None:
+        raise ValueError(f"No image data found in MRD file with id: {file_id}")
+    return image_array, nmr_labels
+
+def get_acquisition_array_from_mrdfile(file_id):
+    """
+    Extract coils, 
+    """
+
+
+if __name__ == "__main__":
+    file_id = '68a31686e69b077b4d68b9d9'
+    image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
+    print(image_array.shape)
