@@ -158,8 +158,8 @@ def get_image_array_from_mrdfile(file_id):
         item.value.head to specify metabolite label and measurement number
     @param file_id: file_id in mongodb of the mrd file
     @return
-        - 6d nparray: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
-        - label: dict of label of metabolites. If metabolite dimension is 0 
+        - image_array: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
+        - nmr_labels: list of label of metabolites. If metabolite dimension is 0, return []
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -171,7 +171,7 @@ def get_image_array_from_mrdfile(file_id):
     # Initialize variables to avoid scope issues
     image_array = None
     nmr_labels = []
-    
+
     body_bytes = obj['Body'].read()
     with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         h = r.read_header()
@@ -187,7 +187,7 @@ def get_image_array_from_mrdfile(file_id):
                     # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
                     if image.head.measurement_freq_label is not None:
                         # image.head.measurement_freq_label is in nparray, need to convert to list
-                        nmr_labels.append(image.head.measurement_freq_label)
+                        nmr_labels = image.head.measurement_freq_label.tolist()
                     counter += 1
                 else:
                     if image_array is not None:
@@ -202,7 +202,8 @@ def get_acquisition_array_from_mrdfile(file_id):
     """
     Extract acquisition array from MRD file
     @param file_id: file_id in mongodb of the mrd file
-    @return acquisition array of dimension (readouts, channels, lines, slices, measurements, frequencies)
+    @return 
+        - acq_array: acquisition of complex float (readouts, channels, lines, slices, measurements, frequencies)
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -227,7 +228,11 @@ def get_acquisition_array_from_mrdfile(file_id):
         return acq_array, acq_phase
 
 if __name__ == "__main__":
-    file_id = '68a31686e69b077b4d68b9d9'
-    acq_array, acq_phase = get_acquisition_array_from_mrdfile(file_id)
-    print(acq_array.shape)
-    print(acq_phase.shape)
+    # pig experiment data
+    # file_id = '68a31686e69b077b4d68b9d9'
+    # phantom data
+    file_id = '68a301436b08cd8ee0dd41ed'
+    image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
+    print(image_array.shape)
+    plt.imshow(image_array[0,0,:,:,0,0])
+    plt.show()
