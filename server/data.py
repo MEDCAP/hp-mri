@@ -181,7 +181,9 @@ def get_image_array_from_mrdfile(file_id):
                 image = item.value
                 if counter == 0:
                     # 4D image array (channels, slice, rows, cols) to 6D image array (channels, slice, rows, cols, metabolites, measurements)
+                    image.data *= 255 / image.data.max()
                     image_array = image.data[..., np.newaxis]
+                    
                     meas_freq = image.head.measurement_freq
                     repetition = image.head.repetition
                     # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
@@ -196,6 +198,11 @@ def get_image_array_from_mrdfile(file_id):
     # Check if any image data was found
     if image_array is None:
         raise ValueError(f"No image data found in MRD file with id: {file_id}")
+    
+    # Debug: Log the shape of the returned data
+    print(f"MRD file {file_id} data shape: {image_array.shape}")
+    print(f"MRD file {file_id} nmr_labels: {nmr_labels}")
+    
     return image_array, nmr_labels
 
 def get_acquisition_array_from_mrdfile(file_id):

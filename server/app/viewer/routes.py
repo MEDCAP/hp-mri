@@ -25,6 +25,12 @@ def fetch_image_array_from_bucket(file_id: str):
     """
     try:
         img_array, nmr_labels = get_image_array_from_mrdfile(file_id)
+        
+        # Debug: Log the data being sent
+        print(f"Route: Sending data for file {file_id}")
+        print(f"Route: img_array shape: {img_array.shape}")
+        print(f"Route: nmr_labels: {nmr_labels}")
+        
         return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404

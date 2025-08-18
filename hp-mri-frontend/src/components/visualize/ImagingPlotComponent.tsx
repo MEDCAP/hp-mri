@@ -183,9 +183,25 @@ const ImagingPlotComponent: React.FC<Props> = ({
     // Data structure: [channel][slice][rows][cols][metabolites][measurements]
     const zMatrix: number[][] = [];
     
+
+    
     // Get the number of rows and cols from the data dimensions
     const numRows = data[0]?.[0]?.length || 0;
     const numCols = data[0]?.[0]?.[0]?.length || 0;
+    
+    // Validate indices before proceeding
+    const maxChannels = data.length - 1;
+    const maxSlices = data[0]?.length - 1 || 0;
+    const maxMetabolites = data[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
+    const maxMeasurements = data[0]?.[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
+    
+
+    
+    // Clamp indices to valid ranges
+    const validChannelIndex = Math.max(0, Math.min(channelIndex[0], maxChannels));
+    const validSliceIndex = Math.max(0, Math.min(sliceIndex, maxSlices));
+    const validMetaboliteIndex = Math.max(0, Math.min(metaboliteIndex, maxMetabolites));
+    const validMeasurementIndex = Math.max(0, Math.min(measurementIndex, maxMeasurements));
     
     // Build the zMatrix by iterating through rows and cols
     for (let row = 0; row < numRows; row++) {
@@ -198,13 +214,13 @@ const ImagingPlotComponent: React.FC<Props> = ({
             for (const channel of channelIndex) {
                 if (
                     data[channel] &&
-                    data[channel][sliceIndex] &&
-                    data[channel][sliceIndex][row] &&
-                    data[channel][sliceIndex][row][col] &&
-                    data[channel][sliceIndex][row][col][metaboliteIndex] &&
-                    data[channel][sliceIndex][row][col][metaboliteIndex][measurementIndex] !== undefined
+                    data[channel][validSliceIndex] &&
+                    data[channel][validSliceIndex][row] &&
+                    data[channel][validSliceIndex][row][col] &&
+                    data[channel][validSliceIndex][row][col][validMetaboliteIndex] &&
+                    data[channel][validSliceIndex][row][col][validMetaboliteIndex][validMeasurementIndex] !== undefined
                 ) {
-                    const value = data[channel][sliceIndex][row][col][metaboliteIndex][measurementIndex];
+                    const value = data[channel][validSliceIndex][row][col][validMetaboliteIndex][validMeasurementIndex];
                     if (typeof value === 'number' && !isNaN(value)) {
                         combinedValue += value;
                         validChannelCount++;
@@ -214,14 +230,18 @@ const ImagingPlotComponent: React.FC<Props> = ({
             
             // Calculate average if we have valid data, otherwise use 0
             const finalValue = validChannelCount > 0 ? combinedValue / validChannelCount : 0;
-            // Clamp between 0 and 1
-            rowData.push(Math.max(0, Math.min(1, finalValue)));
+            
+
+            
+            rowData.push(finalValue);
         }
         zMatrix.push(rowData);
     }
 
     const rows = numRows;
     const cols = numCols;
+    
+
 
     // Calculate responsive dimensions based on actual container size
     const containerWidth = dimensions.width;
@@ -304,8 +324,9 @@ const ImagingPlotComponent: React.FC<Props> = ({
                         colorscale: plotColorscale,
                         opacity: plotOpacity,
                         showscale: showHpMriData,
-                        zmin: 0,
-                        zmax: 1,
+                        // Let Plotly auto-scale the data range
+                        // zmin: 0,
+                        // zmax: 1,
                         // Use simple array indices for x and y - Plotly will handle the scaling
                         x: Array.from({ length: cols }, (_, i) => i),
                         y: Array.from({ length: rows }, (_, j) => j),

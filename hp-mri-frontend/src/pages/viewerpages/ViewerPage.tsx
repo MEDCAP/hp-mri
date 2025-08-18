@@ -150,6 +150,12 @@ const ViewerPage: React.FC = () => {
     const setError = windowNumber === 1 ? setError1 : windowNumber === 2 ? setError2 : setError3;
     const setImageArray = windowNumber === 1 ? setImageArray1 : windowNumber === 2 ? setImageArray2 : setImageArray3;
     
+    // Get the setter functions for indices
+    const setChannelIndex = windowNumber === 1 ? setChannelIndex1 : windowNumber === 2 ? setChannelIndex2 : setChannelIndex3;
+    const setSliceIndex = windowNumber === 1 ? setSliceIndex1 : windowNumber === 2 ? setSliceIndex2 : setSliceIndex3;
+    const setMetaboliteIndex = windowNumber === 1 ? setMetaboliteIndex1 : windowNumber === 2 ? setMetaboliteIndex2 : setMetaboliteIndex3;
+    const setMeasurementIndex = windowNumber === 1 ? setMeasurementIndex1 : windowNumber === 2 ? setMeasurementIndex2 : setMeasurementIndex3;
+    
     try {
       setLoading(true);
       setError(null);
@@ -162,6 +168,26 @@ const ViewerPage: React.FC = () => {
       
       if (imageData && Array.isArray(imageData)) {
         setImageArray(imageData);
+        
+        // Update indices to valid ranges for the new data
+        const maxChannels = imageData.length - 1;
+        const maxSlices = imageData[0]?.length - 1 || 0;
+        const maxMetabolites = imageData[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
+        const maxMeasurements = imageData[0]?.[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
+        
+        // console.log(`Window ${windowNumber} data dimensions:`, {
+        //   channels: maxChannels + 1,
+        //   slices: maxSlices + 1,
+        //   metabolites: maxMetabolites + 1,
+        //   measurements: maxMeasurements + 1
+        // });
+        
+        // Reset indices to 0 if they're out of bounds
+        setChannelIndex([Math.min(0, maxChannels)]);
+        setSliceIndex(Math.min(0, maxSlices));
+        setMetaboliteIndex(Math.min(0, maxMetabolites));
+        setMeasurementIndex(Math.min(0, maxMeasurements));
+        
       } else {
         setError('Invalid image data format received from server');
       }
