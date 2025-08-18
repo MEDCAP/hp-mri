@@ -169,6 +169,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                         marginLeft: `${sidebarWidth + 60}px`,
                         boxShadow: '4px 0px 8px rgba(0,0,0,0.3)',
                         height: '100%',
+                        zIndex: 1200,
                     },
                 }}
                 ModalProps={{
