@@ -125,7 +125,6 @@ const ViewerPage: React.FC = () => {
     try {
       setFilesLoading(true);
       const response = await axios.get('/api/mrd-files');
-      console.log('mrd-files response: ', response.data);
       
       // Filter out files with invalid _id
       const validFiles = response.data.filter((file: MRDFile) => {
@@ -163,7 +162,7 @@ const ViewerPage: React.FC = () => {
       const response = await axios.get(`/api/viewer/${file_id}`);
       const imageData = response.data.image_array;
       const nmrLabels = response.data.nmr_labels;
-      console.log(`Window ${windowNumber} imageData`, imageData);
+      console.log(`Window ${windowNumber} imageData shape`, imageData.shape);
       console.log(`Window ${windowNumber} nmrLabels`, nmrLabels);
       
       if (imageData && Array.isArray(imageData)) {

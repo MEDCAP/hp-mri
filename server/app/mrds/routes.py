@@ -112,7 +112,6 @@ def upload_file():
             # Step 1: Extract metadata from MRD file (20% of progress)
             time.sleep(0.3)  # Simulate metadata extraction time
             db_entry = read_mrdfile_header(temp_filepath, owner_name=current_user_name)
-            print("db_entry at routes.py from mrd file header", db_entry)
             # Step 2: Insert metadata into MongoDB (40% of progress)
             time.sleep(0.2)  # Simulate database operation
             inserted_id = insert_mrdfile_header(db_entry)
