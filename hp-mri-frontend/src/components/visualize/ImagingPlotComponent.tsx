@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import * as Plotly from 'plotly.js';
 
@@ -31,6 +31,7 @@ const BW_COLORS: [number, string][] = [
     [0, 'rgb(0,0,0)'],          // Black
     [1, 'rgb(255,255,255)']     // White
 ];
+
 // --- Helper Functions ---
 
 /**
@@ -86,7 +87,6 @@ const applyAlphaToColorscale = (
     });
 };
 
-
 // --- Component Definition ---
 
 interface Props {
@@ -114,13 +114,69 @@ const ImagingPlotComponent: React.FC<Props> = ({
     showHpMriData,
     onRendered,
 }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    // Function to update dimensions based on container size
+    const updateDimensions = useCallback(() => {
+        if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setDimensions({
+                width: rect.width,
+                height: rect.height
+            });
+        }
+    }, []);
+
+    // Update dimensions on mount and window resize
+    useEffect(() => {
+        updateDimensions();
+        
+        const handleResize = () => {
+            updateDimensions();
+        };
+
+        window.addEventListener('resize', handleResize);
+        
+        // Use ResizeObserver for more precise container size changes
+        const resizeObserver = new ResizeObserver(() => {
+            updateDimensions();
+        });
+
+        if (containerRef.current) {
+            resizeObserver.observe(containerRef.current);
+        }
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
+        };
+    }, [updateDimensions]);
+
+    // Render callback effect - must be after all other hooks
+    useEffect(() => {
+        if (onRendered) {
+            const timer = setTimeout(() => onRendered(), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [data, channelIndex, sliceIndex, metaboliteIndex, measurementIndex, onRendered]);
+
+    // Early returns for invalid data - must be after all hooks
     if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
         console.error("Invalid data structure provided to ImagingPlotComponent");
-        return <div>Error: Invalid data.</div>;
+        return (
+            <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>Error: Invalid data.</div>
+            </div>
+        );
     }
-    if (sliceIndex < 0 || metaboliteIndex < 0 || measurementIndex < 0 /* Add checks based on data dimensions */) {
+    if (sliceIndex < 0 || metaboliteIndex < 0 || measurementIndex < 0) {
         console.error("Invalid index provided");
-        return <div>Error: Invalid index.</div>;
+        return (
+            <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>Error: Invalid index.</div>
+            </div>
+        );
     }
 
     // Extract z matrix for the selected metabolite and measurement
@@ -167,54 +223,44 @@ const ImagingPlotComponent: React.FC<Props> = ({
     const rows = numRows;
     const cols = numCols;
 
-    // Calculate responsive dimensions based on container
-    // Use a ref to get container dimensions, but for now use reasonable defaults
-    const containerMaxWidth = 800; // This could be made dynamic with useRef
-    const containerMaxHeight = 600;
+    // Calculate responsive dimensions based on actual container size
+    const containerWidth = dimensions.width;
+    const containerHeight = dimensions.height;
     
-    // Calculate box dimensions to fit the data within the container
-    const aspectRatio = cols / rows;
+    // If container dimensions are not available yet, show loading
+    if (containerWidth === 0 || containerHeight === 0) {
+        return (
+            <div ref={containerRef} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>Loading...</div>
+            </div>
+        );
+    }
+
+    // Calculate plot dimensions maintaining aspect ratio
+    const dataAspectRatio = cols / rows;
+    const containerAspectRatio = containerWidth / containerHeight;
+    
     let plotWidth: number;
     let plotHeight: number;
     
-    if (aspectRatio > containerMaxWidth / containerMaxHeight) {
-        // Width-constrained
-        plotWidth = containerMaxWidth;
-        plotHeight = containerMaxWidth / aspectRatio;
+    if (dataAspectRatio > containerAspectRatio) {
+        // Data is wider than container - fit to width
+        plotWidth = containerWidth;
+        plotHeight = containerWidth / dataAspectRatio;
     } else {
-        // Height-constrained
-        plotHeight = containerMaxHeight;
-        plotWidth = containerMaxHeight * aspectRatio;
+        // Data is taller than container - fit to height
+        plotHeight = containerHeight;
+        plotWidth = containerHeight * dataAspectRatio;
     }
-    
-    const boxWidth = plotWidth / cols;
-    const boxHeight = plotHeight / rows;
 
-    useEffect(() => {
-        if (onRendered) {
-            const timer = setTimeout(() => onRendered(), 50);
-            return () => clearTimeout(timer);
-        }
-    }, [data, channelIndex, sliceIndex, metaboliteIndex, measurementIndex]);
+    // Ensure minimum dimensions and add some padding
+    const padding = 16;
+    plotWidth = Math.max(plotWidth - padding, 100);
+    plotHeight = Math.max(plotHeight - padding, 100);
 
-
-    const gridShapes: Partial<Plotly.Shape>[] = [];
-    // Vertical lines
-    for (let i = 0; i <= cols; i++) {
-        gridShapes.push({
-            type: 'line', xref: 'x', yref: 'y',
-            x0: i * boxWidth, x1: i * boxWidth, y0: 0, y1: plotHeight,
-            line: { color: 'transparent', width: 0 },
-        });
-    }
-    // Horizontal lines
-    for (let j = 0; j <= rows; j++) {
-        gridShapes.push({
-            type: 'line', xref: 'x', yref: 'y',
-            x0: 0, x1: plotWidth, y0: j * boxHeight, y1: j * boxHeight,
-            line: { color: 'transparent', width: 0 },
-        });
-    }
+    // Calculate cell dimensions
+    const cellWidth = plotWidth / cols;
+    const cellHeight = plotHeight / rows;
 
     // --- Determine Heatmap Trace Properties based on scaleByIntensity ---
     let plotColorscale: Plotly.ColorScale;
@@ -227,11 +273,9 @@ const ImagingPlotComponent: React.FC<Props> = ({
                 BW_COLORS; // Default to B&W
 
     if (scaleByIntensity) {
-
         plotColorscale = applyAlphaToColorscale(baseColorscaleArray, alpha);
         plotOpacity = 1.0; // Opacity is now baked into the colorscale
     } else {
-
         plotColorscale =
             colorScale === 'B&W'
                 ? BW_COLORS // Use array for B&W
@@ -241,53 +285,70 @@ const ImagingPlotComponent: React.FC<Props> = ({
 
     // --- Render the Plot ---
     return (
-        <Plot
-            data={[
-                {
-                    z: zMatrix,
-                    type: 'heatmap',
-                    colorscale: plotColorscale, // Use the determined colorscale
-                    opacity: plotOpacity,     // Use the determined opacity
-                    showscale: showHpMriData,          // Show color scale bar
-                    zmin: 0,                  // Explicitly set z range
-                    zmax: 1,
-                    // Map data indices to pixel coordinates for heatmap cells
-                    x: Array.from({ length: cols }, (_, i) => i * boxWidth + boxWidth / 2),
-                    y: Array.from({ length: rows }, (_, j) => j * boxHeight + boxHeight / 2),
-                    hoverongaps: false, // Don't show hover info for gaps if any
-                    hovertemplate: 'Row: %{y}<br>Col: %{x}<br>Value: %{z}<extra></extra>', // Customize hover
-                },
-            ]}
-            layout={{
-                width: plotWidth,
-                height: plotHeight,
-                margin: { t: 0, b: 0, l: 0, r: 0 }, // No margins
-                paper_bgcolor: 'rgba(0,0,0,0)',     // Transparent background
-                plot_bgcolor: 'rgba(0,0,0,0)',      // Transparent plot area
-                xaxis: {
-                    range: [0, plotWidth], // Set x-axis range to fit cells
-                    showgrid: false,
-                    zeroline: false,
-                    showticklabels: false,      // Hide axis ticks and labels
-                    fixedrange: true,           // Prevent zooming/panning
-                },
-                yaxis: {
-                    range: [plotHeight, 0],
-                    showgrid: false,
-                    zeroline: false,
-                    showticklabels: false,      // Hide axis ticks and labels
-                    fixedrange: true,
-                },
-                shapes: gridShapes,             // Add the grid lines
-
+        <div 
+            ref={containerRef} 
+            style={{ 
+                width: '100%', 
+                height: '100%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                position: 'relative'
             }}
-            // Configuration options for the plot
-            config={{
-                staticPlot: true,
-                displayModeBar: false,
-                responsive: true, // Make plot responsive
-            }}
-        />
+        >
+            <Plot
+                data={[
+                    {
+                        z: zMatrix,
+                        type: 'heatmap',
+                        colorscale: plotColorscale,
+                        opacity: plotOpacity,
+                        showscale: showHpMriData,
+                        zmin: 0,
+                        zmax: 1,
+                        // Use simple array indices for x and y - Plotly will handle the scaling
+                        x: Array.from({ length: cols }, (_, i) => i),
+                        y: Array.from({ length: rows }, (_, j) => j),
+                        hoverongaps: false,
+                        hovertemplate: 'Row: %{y}<br>Col: %{x}<br>Value: %{z}<extra></extra>',
+                    },
+                ]}
+                layout={{
+                    width: plotWidth,
+                    height: plotHeight,
+                    margin: { t: 0, b: 0, l: 0, r: 0 },
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    xaxis: {
+                        showgrid: false,
+                        zeroline: false,
+                        showticklabels: false,
+                        fixedrange: true,
+                        range: [-0.5, cols - 0.5], // Ensure full data range is visible
+                    },
+                    yaxis: {
+                        showgrid: false,
+                        zeroline: false,
+                        showticklabels: false,
+                        fixedrange: true,
+                        range: [rows - 0.5, -0.5], // Invert Y axis to match image coordinates
+                        scaleanchor: 'x',
+                        scaleratio: 1, // Maintain aspect ratio
+                    },
+                }}
+                config={{
+                    staticPlot: true,
+                    displayModeBar: false,
+                    responsive: false, // We handle responsiveness manually
+                }}
+                style={{
+                    width: plotWidth,
+                    height: plotHeight,
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                }}
+            />
+        </div>
     );
 };
 

@@ -11,6 +11,7 @@ from app.viewer.magnets import (
 )
 from data import get_image_array_from_mrdfile
 from data import get_acquisition_array_from_mrdfile
+
 from app.viewer import viewer_bp
 
 @viewer_bp.route("/viewer/<file_id>", methods=["GET"])

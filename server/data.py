@@ -229,9 +229,9 @@ def get_acquisition_array_from_mrdfile(file_id):
 
 if __name__ == "__main__":
     # pig experiment data
-    # file_id = '68a31686e69b077b4d68b9d9'
+    file_id = '68a31686e69b077b4d68b9d9'
     # phantom data
-    file_id = '68a301436b08cd8ee0dd41ed'
+    # file_id = '68a301436b08cd8ee0dd41ed'
     image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
     print(image_array.shape)
     plt.imshow(image_array[0,0,:,:,0,0])
