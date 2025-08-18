@@ -62,25 +62,30 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
-def read_mrdfile_header(filepath):
+def read_mrdfile_header(filepath, owner_name=None):
     """
     Read the mrd file header as dict in mongodb mrd-files collection format
+    
+    :param filepath: Path to the MRD file
+    :param owner_name: Optional owner name (e.g., from Cognito user), defaults to patient_name from MRD header
     """
     try:
-        body_bytes = obj['Body'].read()
-        with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
+        with mrd.BinaryMrdReader(filepath) as r:
             h = r.read_header()
             image_exist = False
             for item in r.read_data():
-                if isinstance(item, mrd.StreamItem.ImageFloat):
-                    image_exist = True                
+                if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
+                    image_exist = True
                 pass
 
+            # Use provided owner_name or fallback to patient_name from MRD header
+            effective_owner_name = owner_name if owner_name else h.subject_information.patient_name
+
             header_for_db = {
-                "fileName": h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
+                "fileName": 'MID' + h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
                 "studyDate": str(h.study_information.study_date) if h.study_information.study_date else "unknown",
                 "studyTime": str(h.study_information.study_time) if h.study_information.study_time else "unknown",
-                "ownerName": h.subject_information.patient_name,
+                "ownerName": effective_owner_name,
                 "subjectType": h.subject_information.patient_name,
                 "groupName": "public",
                 "isReconstructed": image_exist,
@@ -96,11 +101,13 @@ def read_mrdfile_header(filepath):
         print(f"MRD parsing failed for {filepath}: {str(e)}")
         # Create basic metadata for files that can't be parsed as MRD
         filename = os.path.basename(filepath)
+        # Use provided owner_name or "unknown" for failed parsing
+        effective_owner_name = owner_name if owner_name else "unknown"
         basic_metadata = {
             "fileName": filename,
             "studyDate": "unknown",
             "studyTime": "unknown",
-            "ownerName": "unknown",
+            "ownerName": effective_owner_name,
             "subjectType": "unknown",
             "groupName": "public",
             "isReconstructed": False,
@@ -159,7 +166,7 @@ def get_image_array_from_mrdfile(file_id):
     @param file_id: file_id in mongodb of the mrd file
     @return
         - image_array: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
-        - nmr_labels: list of label of metabolites. If metabolite dimension is 0, return []
+        - nmr_labels: list of label of frequencies converted from nparray of object. If frequencies dimension is 0, return an empty list
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -167,17 +174,15 @@ def get_image_array_from_mrdfile(file_id):
     BUCKET = 'medcap-data'
     s3_filekey = f'mrd_files/{file_id}'
     obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
-    
     # Initialize variables to avoid scope issues
     image_array = None
     nmr_labels = []
-
     body_bytes = obj['Body'].read()
     with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         h = r.read_header()
         counter = 0
         for item in r.read_data():
-            if isinstance(item, Union[mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble]):
+            if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
                 image = item.value
                 if counter == 0:
                     # 4D image array (channels, slice, rows, cols) to 6D image array (channels, slice, rows, cols, metabolites, measurements)
@@ -192,7 +197,6 @@ def get_image_array_from_mrdfile(file_id):
                 else:
                     if image_array is not None:
                         image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
-    
     # Check if any image data was found
     if image_array is None:
         raise ValueError(f"No image data found in MRD file with id: {file_id}")
