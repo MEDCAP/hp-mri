@@ -101,7 +101,8 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId, sidebarWi
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex' }}>
       {/* Main Plot Area */}
-      <Box sx={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+
         {loading ? (
           <Typography variant="body2" color="text.secondary">Loading pulse data...</Typography>
         ) : error ? (
@@ -118,11 +119,33 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId, sidebarWi
               margin: { l: 40, r: 5, t: 5, b: 25 },
               paper_bgcolor: 'white',
               plot_bgcolor: 'white',
-              xaxis: { title: 'Index', showgrid: true, zeroline: false },
-              yaxis: { title: 'Value', showgrid: true, zeroline: false },
+              xaxis: { 
+                title: 'Index', 
+                showgrid: true, 
+                zeroline: false,
+                fixedrange: false // Enable zoom on x-axis
+              },
+              yaxis: { 
+                title: 'Value', 
+                showgrid: true, 
+                zeroline: false,
+                fixedrange: false // Enable zoom on y-axis
+              },
               legend: { orientation: 'h', y: -0.1 },
             }}
-            config={{ displayModeBar: false, staticPlot: true, responsive: true }}
+            config={{ 
+              displayModeBar: true, 
+              staticPlot: false, 
+              responsive: true,
+              modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'], // Remove unnecessary buttons
+              toImageButtonOptions: {
+                format: 'png', // default image format
+                filename: 'pulse_plot',
+                height: undefined,
+                width: undefined,
+                scale: 1 // Multiply title/legend/axis/canvas sizes by this factor
+              }
+            }}
             style={{ width: '100%', height: '100%' }}
             useResizeHandler={true} // Enable resize handling
           />

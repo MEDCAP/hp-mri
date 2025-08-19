@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
-import * as Plotly from 'plotly.js';
+import { Box } from '@mui/material';
 
 const HOT_COLORS: [number, string][] = [
     [0.0, 'rgb(0,0,0)'],        // Black
@@ -115,6 +115,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
     onRendered,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const plotRef = useRef<Plot>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
     // Function to update dimensions based on container size
@@ -238,6 +239,8 @@ const ImagingPlotComponent: React.FC<Props> = ({
         zMatrix.push(rowData);
     }
 
+
+
     // Calculate responsive dimensions based on actual container size
     const containerWidth = dimensions.width;
     const containerHeight = dimensions.height;
@@ -312,6 +315,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
             }}
         >
             <Plot
+                ref={plotRef}
                 data={[
                     {
                         z: zMatrix,
@@ -339,23 +343,31 @@ const ImagingPlotComponent: React.FC<Props> = ({
                         showgrid: false,
                         zeroline: false,
                         showticklabels: false,
-                        fixedrange: true,
+                        fixedrange: false, // Enable zoom on x-axis
                         range: [-0.5, numCols - 0.5], // Ensure full data range is visible
                     },
                     yaxis: {
                         showgrid: false,
                         zeroline: false,
                         showticklabels: false,
-                        fixedrange: true,
+                        fixedrange: false, // Enable zoom on y-axis
                         range: [numRows - 0.5, -0.5], // Invert Y axis to match image coordinates
                         scaleanchor: 'x',
                         scaleratio: 1, // Maintain aspect ratio
                     },
                 }}
                 config={{
-                    staticPlot: true,
-                    displayModeBar: false,
+                    staticPlot: false, // Enable interactivity
+                    displayModeBar: true, // Show the mode bar with zoom tools
+                    modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'], // Remove unnecessary buttons
                     responsive: false, // We handle responsiveness manually
+                    toImageButtonOptions: {
+                        format: 'png', // default image format
+                        filename: 'plot',
+                        height: undefined,
+                        width: undefined,
+                        scale: 1 // Multiply title/legend/axis/canvas sizes by this factor
+                    }
                 }}
                 style={{
                     width: plotWidth,
