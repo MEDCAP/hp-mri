@@ -23,12 +23,10 @@ import {
   Grow,
   Zoom,
   Chip,
-  Divider,
   useTheme
 } from '@mui/material';
 
 import { 
-  ExpandMore, 
   Tune, 
   AddPhotoAlternate, 
   Settings,
@@ -40,6 +38,7 @@ import {
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../components/HeaderAccount';
 import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponent';
+import { PulsePlotComponent } from '../../components/visualize/PulsePlotComponent';
 import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
 import { MRDFile } from '../../types/mrd';
 
@@ -98,12 +97,12 @@ const ViewerPage: React.FC = () => {
   const [paramControlOpen2, setParamControlOpen2] = useState(false);
   const [paramControlOpen3, setParamControlOpen3] = useState(false);
 
-  const [imageMetadata, setImageMetadata] = useState<{
-    rows: number;
-    columns: number;
-    numMetabolites: number;
-    numImages: number;
-  } | null>(null);
+  // const [imageMetadata, setImageMetadata] = useState<{
+  //   rows: number;
+  //   columns: number;
+  //   numMetabolites: number;
+  //   numImages: number;
+  // } | null>(null);
 
   // Side panel / visualization controls
   const [showHpMriData, setShowHpMriData] = useState<boolean>(true);
@@ -119,6 +118,9 @@ const ViewerPage: React.FC = () => {
   const [gifEnd, setGifEnd] = useState<number>(0);
   const [gifFps, setGifFps] = useState<number>(10);
   const [gifFilename, setGifFilename] = useState<string>('animation.gif');
+
+  // Track which file the pulse plot is using
+  const [pulseSourceFileId, setPulseSourceFileId] = useState<string | null>(null);
 
   // Fetch available MRD files
   const fetchMRDFiles = async () => {
@@ -210,7 +212,19 @@ const ViewerPage: React.FC = () => {
     setSelectedFile(file);
     setFileSelectorOpen(false);
     fetchMRDImageArray(file._id, windowNumber);
+    // Initialize pulse source if not set
+    if (!pulseSourceFileId) {
+      setPulseSourceFileId(file._id);
+    }
   };
+
+  // Ensure pulse source defaults to the first available selected file
+  useEffect(() => {
+    if (!pulseSourceFileId) {
+      const f = selectedFile1 || selectedFile2 || selectedFile3;
+      if (f?._id) setPulseSourceFileId(f._id);
+    }
+  }, [pulseSourceFileId, selectedFile1, selectedFile2, selectedFile3]);
 
   // Fetch image data when component mounts
   useEffect(() => {
@@ -449,6 +463,7 @@ const ViewerPage: React.FC = () => {
     imageArray: number[][][][][][];
     onFileSelect: () => void;
     onParamControl: () => void;
+    onActivatePulseSource: (fileId: string) => void;
   }> = ({ 
     windowNumber, 
     selectedFile, 
@@ -456,7 +471,8 @@ const ViewerPage: React.FC = () => {
     error, 
     imageArray, 
     onFileSelect, 
-    onParamControl 
+    onParamControl,
+    onActivatePulseSource,
   }) => {
     const [isHovered, setIsHovered] = useState(false);
 
@@ -584,6 +600,14 @@ const ViewerPage: React.FC = () => {
       );
     };
 
+    const handleWindowClick = () => {
+      if (!selectedFile) {
+        onFileSelect();
+      } else {
+        onActivatePulseSource(selectedFile._id);
+      }
+    };
+
     return (
       <Box
         sx={{
@@ -594,7 +618,7 @@ const ViewerPage: React.FC = () => {
           borderRadius: 2,
           overflow: 'hidden',
           position: 'relative',
-          cursor: selectedFile ? 'default' : 'pointer',
+          cursor: selectedFile ? 'pointer' : 'pointer',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           '&:hover': {
             borderColor: theme.palette.primary.main,
@@ -604,7 +628,7 @@ const ViewerPage: React.FC = () => {
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onClick={!selectedFile ? onFileSelect : undefined}
+        onClick={handleWindowClick}
       >
         {/* Header with file info and controls */}
         <Box sx={{
@@ -792,6 +816,7 @@ const ViewerPage: React.FC = () => {
             imageArray={imageArray1}
             onFileSelect={() => setFileSelectorOpen1(true)}
             onParamControl={() => setParamControlOpen1(true)}
+            onActivatePulseSource={setPulseSourceFileId}
           />
           <ImageDisplayWindow
             windowNumber={2}
@@ -801,6 +826,7 @@ const ViewerPage: React.FC = () => {
             imageArray={imageArray2}
             onFileSelect={() => setFileSelectorOpen2(true)}
             onParamControl={() => setParamControlOpen2(true)}
+            onActivatePulseSource={setPulseSourceFileId}
           />
           <ImageDisplayWindow
             windowNumber={3}
@@ -810,24 +836,26 @@ const ViewerPage: React.FC = () => {
             imageArray={imageArray3}
             onFileSelect={() => setFileSelectorOpen3(true)}
             onParamControl={() => setParamControlOpen3(true)}
+            onActivatePulseSource={setPulseSourceFileId}
           />
         </Box>
 
-        {/* Bottom Section - Additional Content */}
+        {/* Bottom Section - Pulse Plot */}
         <Box sx={{
-          height: '200px',
+          height: '260px',
           backgroundColor: 'white',
           borderRadius: 2,
           m: 2,
-          p: 3,
+          p: 1.5,
           boxShadow: theme.shadows[1],
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
+          alignItems: 'stretch',
+          justifyContent: 'stretch',
+          overflow: 'hidden'
         }}>
-          <Typography variant="h6" color="text.secondary">
-            Bottom panel available for additional content
-          </Typography>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <PulsePlotComponent fileId={pulseSourceFileId} />
+          </Box>
         </Box>
 
         {/* File Selector Dialogs */}

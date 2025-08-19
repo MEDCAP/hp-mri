@@ -3,14 +3,16 @@ import numpy as np
 import os
 from werkzeug.utils import secure_filename
 
-# from magnets import hupc_processing, clinical_processing, mr_solutions_processing
 from app.viewer.magnets import (
     hupc_processing,
     clinical_processing,
     mr_solutions_processing,
 )
-from data import get_image_array_from_mrdfile
-from data import get_acquisition_array_from_mrdfile
+from data import (
+    get_image_array_from_mrdfile,
+    get_pulse_array_from_mrdfile)
+import app.external.python.mrd as mrd
+
 
 from app.viewer import viewer_bp
 
@@ -24,54 +26,31 @@ def fetch_image_array_from_bucket(file_id: str):
         @return nmr_labels: list of label of metabolites. If metabolite dimension is 0, return []
     """
     try:
-        img_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-        
-        # Debug: Log the data being sent
-        print(f"Route: Sending data for file {file_id}")
-        print(f"Route: img_array shape: {img_array.shape}")
-        print(f"Route: nmr_labels: {nmr_labels}")
-        
+        img_array, nmr_labels = get_image_array_from_mrdfile(file_id)        
         return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@viewer_bp.route("/viewer/get_acquisition_field/<file_id>", methods=["GET"])
-def fetch_acquisition_field(file_id):
+@viewer_bp.route("/viewer/get_pulse_array/<file_id>", methods=["GET"])
+def fetch_pulse_array_from_bucket(file_id: str):
     """
-    Fetch acquisition_array=shape(channels, samples) and acquisition_phase=shape(samples) from MRD file
+    Load pulse array from S3 bucket and return as JSON serializable nested lists.
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - pulse_data: pulse data of float32 (channels, samples)
+        - pulse_phase: pulse phase of float32 with 1D shape (samples,)
     """
     try:
-        acq_array, acq_phase = get_acquisition_array_from_mrdfile(file_id)
-        return jsonify({"acq_array": acq_array.tolist(), "acq_phase": acq_phase.tolist()}), 200
+        pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
+        return jsonify({
+            "pulse_data": pulse_data.tolist() if pulse_data is not None else [],
+            "pulse_phase": pulse_phase.tolist() if pulse_phase is not None else []}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@viewer_bp.route("/get_num_slider_values/<magnet_type>", methods=["GET"])
-def fetch_num_slider_values(magnet_type):
-    """
-    Retrieve the number of slider values based on the selected magnet type.
-
-    Returns:
-        json: JSON with the number of slider values.
-
-    Author: Benjamin Yoon
-    Date: 2024-04-30
-    Version: 1.0.0
-    """
-    if magnet_type == "HUPC":
-        num_values = hupc_processing.get_num_slider_values()
-    elif magnet_type == "Clinical":
-        num_values = 0
-    elif magnet_type == "MR Solutions":
-        num_values = mr_solutions_processing.get_num_slider_values()
-    else:
-        return jsonify({"error": "Invalid magnet type"}), 400
-
-    return jsonify({"numSliderValues": num_values})
 
 
 @viewer_bp.route("/get_count_datasets/<magnet_type>", methods=["GET"])

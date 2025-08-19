@@ -192,9 +192,8 @@ def get_image_array_from_mrdfile(file_id):
                 # fetch header information from the first image
                 if image_array is None:
                     # image.data is 5D image array (channels, slice, rows, cols, frequencies)
-                    print("image.data shape: ", image.data.shape)
                     image_array = image.data[..., np.newaxis]
-                    
+                    image_array *= 255 / image.data.max()
                     meas_freq = image.head.measurement_freq
                     repetition = image.head.repetition
                     # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
@@ -209,11 +208,6 @@ def get_image_array_from_mrdfile(file_id):
     # Check if any image data was found
     if image_array is None:
         raise ValueError(f"No image data found in MRD file with id: {file_id}")
-    
-    # Debug: Log the shape of the returned data
-    print(f"MRD file {file_id} data shape: {image_array.shape}")
-    print(f"MRD file {file_id} nmr_labels: {nmr_labels}")
-    
     return image_array, nmr_labels
 
 def get_pulse_array_from_mrdfile(file_id):
@@ -240,35 +234,35 @@ def get_pulse_array_from_mrdfile(file_id):
         pulse_phase = None
         for item in r.read_data():
             if isinstance(item, mrd.StreamItem.Pulse):
-                if pulse_data is None:
-                    pulse = item.value
+                pulse = item.value
+                if pulse_data is None: 
                     start_time = pulse.head.pulse_time_stamp_ns
-                    pulse_data = pulse.amplitude[:, :1000]  # float 2D (channels, samples)
-                    pulse_phase = pulse.phase[:1000]        # float 1D (samples)
+                    pulse_data = pulse.amplitude  # float 2D (channels, samples)
+                    pulse_phase = pulse.phase     # float 1D (samples)
                 else:
                     # if pulse is not continuous, pad with zeros for the missing time points
                     if start_time != pulse.head.pulse_time_stamp_ns:
                         zero_padding_data = np.zeros((pulse.coils(), pulse.head.pulse_time_stamp_ns - start_time))
                         zero_padding_phase = np.zeros((pulse.head.pulse_time_stamp_ns - start_time))
-                        pulse_data = np.stack(pulse_data, zero_padding_data, axis=-1)
-                        pulse_phase = np.stack(pulse_phase, zero_padding_phase, axis=-1)
                     # update start_time for the next pulse
                     start_time = pulse.head.pulse_time_stamp_ns
         return pulse_data, pulse_phase
 
 if __name__ == "__main__":
     # kidney data
-    # file_id = '68a38c2f03ef7b17a6338f27'
+    file_id = '68a38c2f03ef7b17a6338f27'
     # phantom data
     # file_id = '68a38bf603ef7b17a6338f26'
     # pig experiment data
-    file_id = '68a38bc903ef7b17a6338f25'
-    pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
-    print(pulse_data.shape)
-    print(pulse_phase.shape)
-    plt.plot(pulse_data[0, ], label='ch0')
-    plt.plot(pulse_data[1, ], label='ch1')
+    # file_id = '68a38bc903ef7b17a6338f25'
+    image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
+    print(image_array.shape)
+    print(nmr_labels)
+    plt.imshow(image_array[0,0,:,:,0,2])
     plt.show()
-    # image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-    # plt.imshow(image_array[0,0,:,:,0,0])
+    # pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
+    # print(pulse_data.shape)
+    # print(pulse_phase.shape)
+    # plt.plot(pulse_data[0, :], label='ch0')
+    # plt.plot(pulse_data[1, :], label='ch1')
     # plt.show()

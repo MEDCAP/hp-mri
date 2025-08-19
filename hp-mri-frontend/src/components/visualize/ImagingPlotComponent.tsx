@@ -238,11 +238,6 @@ const ImagingPlotComponent: React.FC<Props> = ({
         zMatrix.push(rowData);
     }
 
-    const rows = numRows;
-    const cols = numCols;
-    
-
-
     // Calculate responsive dimensions based on actual container size
     const containerWidth = dimensions.width;
     const containerHeight = dimensions.height;
@@ -257,7 +252,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
     }
 
     // Calculate plot dimensions maintaining aspect ratio
-    const dataAspectRatio = cols / rows;
+    const dataAspectRatio = numCols / numRows;
     const containerAspectRatio = containerWidth / containerHeight;
     
     let plotWidth: number;
@@ -279,8 +274,8 @@ const ImagingPlotComponent: React.FC<Props> = ({
     plotHeight = Math.max(plotHeight - padding, 100);
 
     // Calculate cell dimensions
-    const cellWidth = plotWidth / cols;
-    const cellHeight = plotHeight / rows;
+    // const cellWidth = plotWidth / numCols;
+    // const cellHeight = plotHeight / numRows;
 
     // --- Determine Heatmap Trace Properties based on scaleByIntensity ---
     let plotColorscale: Plotly.ColorScale;
@@ -328,8 +323,8 @@ const ImagingPlotComponent: React.FC<Props> = ({
                         // zmin: 0,
                         // zmax: 1,
                         // Use simple array indices for x and y - Plotly will handle the scaling
-                        x: Array.from({ length: cols }, (_, i) => i),
-                        y: Array.from({ length: rows }, (_, j) => j),
+                        x: Array.from({ length: numCols }, (_, i) => i),
+                        y: Array.from({ length: numRows }, (_, j) => j),
                         hoverongaps: false,
                         hovertemplate: 'Row: %{y}<br>Col: %{x}<br>Value: %{z}<extra></extra>',
                     },
@@ -345,14 +340,14 @@ const ImagingPlotComponent: React.FC<Props> = ({
                         zeroline: false,
                         showticklabels: false,
                         fixedrange: true,
-                        range: [-0.5, cols - 0.5], // Ensure full data range is visible
+                        range: [-0.5, numCols - 0.5], // Ensure full data range is visible
                     },
                     yaxis: {
                         showgrid: false,
                         zeroline: false,
                         showticklabels: false,
                         fixedrange: true,
-                        range: [rows - 0.5, -0.5], // Invert Y axis to match image coordinates
+                        range: [numRows - 0.5, -0.5], // Invert Y axis to match image coordinates
                         scaleanchor: 'x',
                         scaleratio: 1, // Maintain aspect ratio
                     },
