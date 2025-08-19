@@ -154,7 +154,7 @@ const ViewerPage: React.FC = () => {
       }}>
         {/* Top Section - Image Display Windows */}
         <Box sx={{
-          flex: 1,
+          flex: '3 1 0%', // Takes up 3/4 of available space for better proportion
           display: 'flex',
           gap: 0.5,
           p: 0.5,
@@ -230,12 +230,14 @@ const ViewerPage: React.FC = () => {
 
         {/* Bottom Section - Pulse Plot */}
         <Box sx={{
-          height: '300px', // Increased height to extend further down
+          flex: '1 1 0%', // Takes up 1/4 of available space for better proportion
+          minHeight: '100px', // Further reduced minimum height
+          maxHeight: '40vh', // Reduced max height to 30% of viewport
           m: 0, // Remove all margins
           p: 0 // Remove all padding
         }}>
           {viewerState.pulseSourceFileId ? (
-            <PulsePlotComponent fileId={viewerState.pulseSourceFileId} />
+            <PulsePlotComponent fileId={viewerState.pulseSourceFileId} sidebarWidth={sidebarWidth} />
           ) : (
             <Box sx={{
               height: '100%',
@@ -258,7 +260,7 @@ const ViewerPage: React.FC = () => {
               </Typography>
             </Box>
           )}
-          </Box>
+        </Box>
         </Box>
 
         {/* File Selector Dialogs */}

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Plot from 'react-plotly.js';
 import axios from 'axios';
-import { Box, FormControl, InputLabel, MenuItem, Typography } from '@mui/material';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { Box, Button, Typography } from '@mui/material';
 
 interface PulsePlotProps {
   fileId: string | null;
+  sidebarWidth?: number; // Add sidebar width prop to trigger re-renders
 }
 
 interface PulseApiResponse {
@@ -16,7 +16,7 @@ interface PulseApiResponse {
 // Simple in-memory cache: fileId -> response
 const pulseCache: Record<string, PulseApiResponse> = {};
 
-export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId }) => {
+export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId, sidebarWidth = 0 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [pulseData, setPulseData] = useState<number[][]>([]);
@@ -56,9 +56,8 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId }) => {
     fetchPulse();
   }, [fileId]);
 
-  const handleTypeChange = (e: SelectChangeEvent) => {
-    const val = e.target.value as 'pulse_data' | 'pulse_phase';
-    setSelectedType(val);
+  const handleTypeChange = (type: 'pulse_data' | 'pulse_phase') => {
+    setSelectedType(type);
   };
 
   const plotData = useMemo(() => {
@@ -100,25 +99,9 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId }) => {
   }, [selectedType, pulseData, pulsePhase]);
 
   return (
-    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Header Row */}
-      <Box sx={{ position: 'absolute', top: 8, right: 12, zIndex: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel id="pulse-type-label">Data Type</InputLabel>
-          <Select
-            labelId="pulse-type-label"
-            value={selectedType}
-            label="Data Type"
-            onChange={handleTypeChange}
-          >
-            <MenuItem value="pulse_data">Pulse Data</MenuItem>
-            <MenuItem value="pulse_phase">Pulse Phase</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      {/* Body */}
-      <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex' }}>
+      {/* Main Plot Area */}
+      <Box sx={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {loading ? (
           <Typography variant="body2" color="text.secondary">Loading pulse data...</Typography>
         ) : error ? (
@@ -129,19 +112,96 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId }) => {
           <Typography variant="body2" color="text.secondary">No data available</Typography>
         ) : (
           <Plot
+            key={`${fileId}-${sidebarWidth}`} // Force re-render when sidebar width changes
             data={plotData as any}
             layout={{
-              margin: { l: 40, r: 15, t: 5, b: 25 },
+              margin: { l: 40, r: 5, t: 5, b: 25 },
               paper_bgcolor: 'white',
               plot_bgcolor: 'white',
               xaxis: { title: 'Index', showgrid: true, zeroline: false },
               yaxis: { title: 'Value', showgrid: true, zeroline: false },
               legend: { orientation: 'h', y: -0.1 },
             }}
-            config={{ displayModeBar: false, staticPlot: true }}
+            config={{ displayModeBar: false, staticPlot: true, responsive: true }}
             style={{ width: '100%', height: '100%' }}
+            useResizeHandler={true} // Enable resize handling
           />
         )}
+      </Box>
+
+      {/* Right Sidebar */}
+      <Box sx={{ 
+        width: 160, 
+        height: '100%', 
+        borderLeft: '1px solid #e0e0e0',
+        backgroundColor: '#fafafa',
+        padding: 2,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2
+      }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#333' }}>
+          Controls
+        </Typography>
+        
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Button
+            variant={selectedType === 'pulse_data' ? 'contained' : 'outlined'}
+            onClick={() => handleTypeChange('pulse_data')}
+            size="small"
+            sx={{
+              minWidth: 'auto',
+              padding: '4px 6px',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              borderColor: '#1976d2',
+              color: selectedType === 'pulse_data' ? 'white' : '#1976d2',
+              backgroundColor: selectedType === 'pulse_data' ? '#1976d2' : 'white',
+              '&:hover': {
+                backgroundColor: selectedType === 'pulse_data' ? '#1565c0' : '#f3f8ff',
+                borderColor: '#1565c0',
+              },
+              textTransform: 'none',
+              borderRadius: '4px',
+              boxShadow: selectedType === 'pulse_data' ? '0 1px 3px rgba(0,0,0,0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
+              '&:active': {
+                transform: 'translateY(1px)',
+              }
+            }}
+          >
+            Pulse Data
+          </Button>
+          
+          <Button
+            variant={selectedType === 'pulse_phase' ? 'contained' : 'outlined'}
+            onClick={() => handleTypeChange('pulse_phase')}
+            size="small"
+            sx={{
+              minWidth: 'auto',
+              padding: '4px 6px',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              borderColor: '#1976d2',
+              color: selectedType === 'pulse_phase' ? 'white' : '#1976d2',
+              backgroundColor: selectedType === 'pulse_phase' ? '#1976d2' : 'white',
+              '&:hover': {
+                backgroundColor: selectedType === 'pulse_phase' ? '#1565c0' : '#f3f8ff',
+                borderColor: '#1565c0',
+              },
+              textTransform: 'none',
+              borderRadius: '4px',
+              boxShadow: selectedType === 'pulse_phase' ? '0 1px 3px rgba(0,0,0,0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
+              '&:active': {
+                transform: 'translateY(1px)',
+              }
+            }}
+          >
+            Pulse Phase
+          </Button>
+        </Box>
+
+        {/* Placeholder for future features */}
+        <Box sx={{ flex: 1 }} />
       </Box>
     </Box>
   );
