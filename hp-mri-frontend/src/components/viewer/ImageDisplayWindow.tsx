@@ -3,17 +3,20 @@ import {
   Box,
   Typography,
   IconButton,
-  Chip,
   Fade,
-  useTheme
+  useTheme,
+  Tooltip,
+  Chip
 } from '@mui/material';
 import { 
   AddPhotoAlternate, 
-  ShowChart
+  ShowChart,
+  SwapHoriz
 } from '@mui/icons-material';
 import ImagingPlotComponent from '../visualize/ImagingPlotComponent';
 import { MRDFile } from '../../types/mrd';
 import InlineControls from './InlineControls';
+import FileDetailsModal from './FileDetailsModal';
 
 interface ImageDisplayWindowProps {
   windowNumber: 1 | 2 | 3;
@@ -43,7 +46,6 @@ interface ImageDisplayWindowProps {
 }
 
 const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
-  windowNumber,
   selectedFile,
   loading,
   error,
@@ -67,6 +69,7 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
   const theme = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isPulseButtonHovered, setIsPulseButtonHovered] = useState(false);
+  const [fileDetailsOpen, setFileDetailsOpen] = useState(false);
 
   // Memoize the ImagingPlotComponent to prevent unnecessary re-renders
   const memoizedImagingPlot = useMemo(() => (
@@ -319,40 +322,84 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <Typography variant="caption" sx={{ color: 'white', fontWeight: 'medium' }}>
-          Window {windowNumber}
-        </Typography>
+        {/* Left side - File name and selector button */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+          {selectedFile ? (
+            <>
+              <Tooltip title="Click to view file details" placement="bottom" arrow>
+                <Chip
+                  label={selectedFile.fileName}
+                  onClick={() => setFileDetailsOpen(true)}
+                  size="small"
+                  sx={{ 
+                    backgroundColor: 'rgba(25, 118, 210, 0.8)',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.9)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                    },
+                    maxWidth: 'calc(100% - 32px)',
+                    '& .MuiChip-label': {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="Replace file in this window" placement="bottom" arrow>
+                <IconButton
+                  size="small"
+                  onClick={onFileSelect}
+                  sx={{ 
+                    color: 'white',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    width: 24,
+                    height: 24,
+                    minWidth: 24,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                      transform: 'translateY(-1px)',
+                    }
+                  }}
+                >
+                  <SwapHoriz fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <Typography variant="caption" sx={{ color: 'white', fontWeight: 'medium', opacity: 0.7 }}>
+              No file selected
+            </Typography>
+          )}
+        </Box>
+        
+        {/* Right side - Pulse button only */}
         {selectedFile && (
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-            <Chip
-              label={selectedFile.fileName.substring(0, 15) + '...'}
-              size="small"
-              sx={{ 
-                backgroundColor: 'rgba(25, 118, 210, 0.8)',
-                color: 'white',
-                fontSize: '0.7rem'
-              }}
-            />
-            <IconButton
-              size="small"
-              onClick={handlePulseButtonClick}
-              onMouseEnter={() => setIsPulseButtonHovered(true)}
-              onMouseLeave={() => setIsPulseButtonHovered(false)}
-              sx={{ 
-                color: 'white',
-                backgroundColor: 'rgba(255, 152, 0, 0.8)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 152, 0, 0.9)',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
-                }
-              }}
-              title="Show pulse data"
-            >
-              <ShowChart fontSize="small" />
-            </IconButton>
-          </Box>
+          <IconButton
+            size="small"
+            onClick={handlePulseButtonClick}
+            onMouseEnter={() => setIsPulseButtonHovered(true)}
+            onMouseLeave={() => setIsPulseButtonHovered(false)}
+            sx={{ 
+              color: 'white',
+              backgroundColor: 'rgba(255, 152, 0, 0.8)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 152, 0, 0.9)',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+              }
+            }}
+            title="Show pulse data"
+          >
+            <ShowChart fontSize="small" />
+          </IconButton>
         )}
       </Box>
 
@@ -401,6 +448,13 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
           </Box>
         </Fade>
       )}
+
+      {/* File Details Modal */}
+      <FileDetailsModal
+        open={fileDetailsOpen}
+        onClose={() => setFileDetailsOpen(false)}
+        file={selectedFile}
+      />
     </Box>
   );
 };
