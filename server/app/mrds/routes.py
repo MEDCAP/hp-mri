@@ -66,6 +66,11 @@ def upload_file():
     if "file" not in request.files:
         return jsonify({"error": "No files selected"}), 400
     
+    # Get the current user name from form data (sent from frontend)
+    if "ownerName" not in request.form:
+        return jsonify({"error": "current UserName not found"}), 400
+    current_user_name = request.form.get("ownerName")
+    
     # Setup AWS S3 client
     s3 = boto3.client("s3")
     BUCKET = current_app.config['S3_BUCKET']
@@ -106,8 +111,7 @@ def upload_file():
             
             # Step 1: Extract metadata from MRD file (20% of progress)
             time.sleep(0.3)  # Simulate metadata extraction time
-            db_entry = read_mrdfile_header(temp_filepath)
-            
+            db_entry = read_mrdfile_header(temp_filepath, owner_name=current_user_name)
             # Step 2: Insert metadata into MongoDB (40% of progress)
             time.sleep(0.2)  # Simulate database operation
             inserted_id = insert_mrdfile_header(db_entry)

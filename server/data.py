@@ -62,25 +62,30 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
-def read_mrdfile_header(filepath):
+def read_mrdfile_header(filepath, owner_name=None):
     """
     Read the mrd file header as dict in mongodb mrd-files collection format
+    
+    :param filepath: Path to the MRD file
+    :param owner_name: Optional owner name (e.g., from Cognito user), defaults to patient_name from MRD header
     """
     try:
-        body_bytes = obj['Body'].read()
-        with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
+        with mrd.BinaryMrdReader(filepath) as r:
             h = r.read_header()
             image_exist = False
             for item in r.read_data():
-                if isinstance(item, mrd.StreamItem.ImageFloat):
-                    image_exist = True                
+                if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
+                    image_exist = True
                 pass
 
+            # Use provided owner_name or fallback to patient_name from MRD header
+            effective_owner_name = owner_name if owner_name else h.subject_information.patient_name
+
             header_for_db = {
-                "fileName": h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
+                "fileName": 'MID' + h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
                 "studyDate": str(h.study_information.study_date) if h.study_information.study_date else "unknown",
                 "studyTime": str(h.study_information.study_time) if h.study_information.study_time else "unknown",
-                "ownerName": h.subject_information.patient_name,
+                "ownerName": effective_owner_name,
                 "subjectType": h.subject_information.patient_name,
                 "groupName": "public",
                 "isReconstructed": image_exist,
@@ -96,11 +101,13 @@ def read_mrdfile_header(filepath):
         print(f"MRD parsing failed for {filepath}: {str(e)}")
         # Create basic metadata for files that can't be parsed as MRD
         filename = os.path.basename(filepath)
+        # Use provided owner_name or "unknown" for failed parsing
+        effective_owner_name = owner_name if owner_name else "unknown"
         basic_metadata = {
             "fileName": filename,
             "studyDate": "unknown",
             "studyTime": "unknown",
-            "ownerName": "unknown",
+            "ownerName": effective_owner_name,
             "subjectType": "unknown",
             "groupName": "public",
             "isReconstructed": False,
@@ -154,12 +161,12 @@ def get_image_array_from_mrdfile(file_id):
     Extracts 6D image array of dimension (channel, slice, rows, cols, frequencies, measurements) 
     and header from mrd file in S3 bucket
     -   MRDfile read_data is an iterable object, which you read by for loop one at a time
-    -   Each iteration yields item.value.data as 4D image array (channels, slice, rows, cols, frequencies) and 
+    -   Each iteration yields item.value.data as 5D image array (channels, slice, rows, cols, frequencies) and 
         item.value.head to specify metabolite label and measurement number
     @param file_id: file_id in mongodb of the mrd file
     @return
         - image_array: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
-        - nmr_labels: list of label of metabolites. If metabolite dimension is 0, return []
+        - nmr_labels: list of label of frequencies converted from nparray of object. If frequencies dimension is 0, return an empty list
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -167,54 +174,55 @@ def get_image_array_from_mrdfile(file_id):
     BUCKET = 'medcap-data'
     s3_filekey = f'mrd_files/{file_id}'
     obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
-    
     # Initialize variables to avoid scope issues
     image_array = None
     nmr_labels = []
-
     body_bytes = obj['Body'].read()
     with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         h = r.read_header()
-        counter = 0
         for item in r.read_data():
-            if isinstance(item, Union[mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble]):
+            if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
                 image = item.value
-                if counter == 0:
-                    # 4D image array (channels, slice, rows, cols) to 6D image array (channels, slice, rows, cols, metabolites, measurements)
-                    image.data *= 255 / image.data.max()
+                # check if image.data has correct shape
+                if image.data.ndim != 5:
+                    raise ValueError(f"Invalid shape of image array: {image.data.shape}")
+                # if rows and cols are 1, then image.data is spectrum
+                if image.rows() == 1 or image.cols() == 1:
+                    raise Exception("Spectrum is displayed")
+                # fetch header information from the first image
+                if image_array is None:
+                    # image.data is 5D image array (channels, slice, rows, cols, frequencies)
                     image_array = image.data[..., np.newaxis]
-                    
+                    image_array *= 255 / image.data.max()
                     meas_freq = image.head.measurement_freq
                     repetition = image.head.repetition
                     # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
                     if image.head.measurement_freq_label is not None:
                         # image.head.measurement_freq_label is in nparray, need to convert to list
                         nmr_labels = image.head.measurement_freq_label.tolist()
-                    counter += 1
+                # if image_array is not None, there are image data to the existing image_array as 
                 else:
-                    if image_array is not None:
-                        image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
-    
+                    # image_array is 6D image array (channels, slice, rows, cols, frequencies, measurements)
+                    image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
+
     # Check if any image data was found
     if image_array is None:
         raise ValueError(f"No image data found in MRD file with id: {file_id}")
-    
-    # Debug: Log the shape of the returned data
-    print(f"MRD file {file_id} data shape: {image_array.shape}")
-    print(f"MRD file {file_id} nmr_labels: {nmr_labels}")
-    
     return image_array, nmr_labels
 
-def get_acquisition_array_from_mrdfile(file_id):
+def get_pulse_array_from_mrdfile(file_id):
     """
-    Extract acquisition array from MRD file
+    Extract pulse.data and pulse.phase from MRD file
     @param file_id: file_id in mongodb of the mrd file
     @return 
-        - acq_array: acquisition of complex float (readouts, channels, lines, slices, measurements, frequencies)
+        - pulse_data: pulse data of float32 (channels, samples)
+        - pulse_phase: pulse phase of float32 with 1D shape (samples,)
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
-    # BUCKET = current_app.config['S3_BUCKET']
+    # if current_app.config['S3_BUCKET']:
+    #     BUCKET = current_app.config['S3_BUCKET']
+    # else:
     BUCKET = 'medcap-data'
     s3_filekey = f'mrd_files/{file_id}'
     obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
@@ -222,24 +230,39 @@ def get_acquisition_array_from_mrdfile(file_id):
     body_bytes = obj['Body'].read()
     with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         h = r.read_header()
-        counter = 0
+        pulse_data = None
+        pulse_phase = None
         for item in r.read_data():
-            if isinstance(item, mrd.StreamItem.Acquisition):
-                if counter == 0:
-                    acq_array = item.value.data[..., np.newaxis]     # float 2D (channels, samples)
-                    acq_phase = item.value.phase[..., np.newaxis]    # float 1D (samples)
-                    print(item.value.phase.shape)
+            if isinstance(item, mrd.StreamItem.Pulse):
+                pulse = item.value
+                if pulse_data is None: 
+                    start_time = pulse.head.pulse_time_stamp_ns
+                    pulse_data = pulse.amplitude  # float 2D (channels, samples)
+                    pulse_phase = pulse.phase     # float 1D (samples)
                 else:
-                    acq_array = np.concatenate([acq_array, item.value.data[..., np.newaxis]], axis=-1)
-                    acq_phase = np.concatenate([acq_phase, item.value.phase[..., np.newaxis]], axis=-1)
-        return acq_array, acq_phase
+                    # if pulse is not continuous, pad with zeros for the missing time points
+                    if start_time != pulse.head.pulse_time_stamp_ns:
+                        zero_padding_data = np.zeros((pulse.coils(), pulse.head.pulse_time_stamp_ns - start_time))
+                        zero_padding_phase = np.zeros((pulse.head.pulse_time_stamp_ns - start_time))
+                    # update start_time for the next pulse
+                    start_time = pulse.head.pulse_time_stamp_ns
+        return pulse_data, pulse_phase
 
 if __name__ == "__main__":
-    # pig experiment data
-    file_id = '68a31686e69b077b4d68b9d9'
+    # kidney data
+    file_id = '68a38c2f03ef7b17a6338f27'
     # phantom data
-    # file_id = '68a301436b08cd8ee0dd41ed'
+    # file_id = '68a38bf603ef7b17a6338f26'
+    # pig experiment data
+    # file_id = '68a38bc903ef7b17a6338f25'
     image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
     print(image_array.shape)
-    plt.imshow(image_array[0,0,:,:,0,0])
+    print(nmr_labels)
+    plt.imshow(image_array[0,0,:,:,0,2])
     plt.show()
+    # pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
+    # print(pulse_data.shape)
+    # print(pulse_phase.shape)
+    # plt.plot(pulse_data[0, :], label='ch0')
+    # plt.plot(pulse_data[1, :], label='ch1')
+    # plt.show()
