@@ -23,12 +23,10 @@ import {
   Grow,
   Zoom,
   Chip,
-  Divider,
   useTheme
 } from '@mui/material';
 
 import { 
-  ExpandMore, 
   Tune, 
   AddPhotoAlternate, 
   Settings,
@@ -99,12 +97,12 @@ const ViewerPage: React.FC = () => {
   const [paramControlOpen2, setParamControlOpen2] = useState(false);
   const [paramControlOpen3, setParamControlOpen3] = useState(false);
 
-  const [imageMetadata, setImageMetadata] = useState<{
-    rows: number;
-    columns: number;
-    numMetabolites: number;
-    numImages: number;
-  } | null>(null);
+  // const [imageMetadata, setImageMetadata] = useState<{
+  //   rows: number;
+  //   columns: number;
+  //   numMetabolites: number;
+  //   numImages: number;
+  // } | null>(null);
 
   // Side panel / visualization controls
   const [showHpMriData, setShowHpMriData] = useState<boolean>(true);

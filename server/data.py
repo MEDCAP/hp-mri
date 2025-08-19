@@ -192,9 +192,8 @@ def get_image_array_from_mrdfile(file_id):
                 # fetch header information from the first image
                 if image_array is None:
                     # image.data is 5D image array (channels, slice, rows, cols, frequencies)
-                    print("image.data shape: ", image.data.shape)
                     image_array = image.data[..., np.newaxis]
-                    
+                    image_array *= 255 / image.data.max()
                     meas_freq = image.head.measurement_freq
                     repetition = image.head.repetition
                     # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
