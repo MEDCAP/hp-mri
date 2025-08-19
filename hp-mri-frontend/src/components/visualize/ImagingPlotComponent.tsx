@@ -190,7 +190,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
     const numCols = data[0]?.[0]?.[0]?.length || 0;
     
     // Validate indices before proceeding
-    const maxChannels = data.length - 1;
+
     const maxSlices = data[0]?.length - 1 || 0;
     const maxMetabolites = data[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
     const maxMeasurements = data[0]?.[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
@@ -198,7 +198,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
 
     
     // Clamp indices to valid ranges
-    const validChannelIndex = Math.max(0, Math.min(channelIndex[0], maxChannels));
+
     const validSliceIndex = Math.max(0, Math.min(sliceIndex, maxSlices));
     const validMetaboliteIndex = Math.max(0, Math.min(metaboliteIndex, maxMetabolites));
     const validMeasurementIndex = Math.max(0, Math.min(measurementIndex, maxMeasurements));
@@ -332,7 +332,7 @@ const ImagingPlotComponent: React.FC<Props> = ({
                 layout={{
                     width: plotWidth,
                     height: plotHeight,
-                    margin: { t: 0, b: 0, l: 0, r: 0 },
+                    margin: { t: 0, b: 0, l: 0, r: 0 }, // Reduced right margin for colorbar
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     xaxis: {

@@ -1,727 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import {
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
-  Paper,
-  Radio,
-  Typography,
-  IconButton,
-  Box,
-  TextField,
-  DialogActions,
-  Grid,
-  Fade,
-  Grow,
-  Zoom,
-  Chip,
-  useTheme
-} from '@mui/material';
-
-import { 
-  Tune, 
-  AddPhotoAlternate, 
-  Settings,
-  FileOpen,
-  Close,
-  CloudUpload
-} from '@mui/icons-material';
+import React, { useState } from 'react';
+import { Box, Typography } from '@mui/material';
 
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../components/HeaderAccount';
-import ImagingPlotComponent from '../../components/visualize/ImagingPlotComponent';
 import { PulsePlotComponent } from '../../components/visualize/PulsePlotComponent';
 import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
-import { MRDFile } from '../../types/mrd';
+import ImageDisplayWindow from '../../components/viewer/ImageDisplayWindow';
+import FileSelector from '../../components/viewer/FileSelector';
+import { useViewerState } from '../../hooks/useViewerState';
+
+// Add global styles to override any border styling
+const viewerStyles = `
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
+    overflow: hidden !important;
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+  
+  #root {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    display: block !important;
+    background: none !important;
+  }
+  
+  /* Override any parent flex container */
+  body > div {
+    display: block !important;
+  }
+  
+  /* Override root background */
+  :root {
+    background-color: transparent !important;
+  }
+  
+  /* Ensure viewer page fills entire viewport */
+  body {
+    background-color: #f5f5f5 !important;
+  }
+`;
 
 const ViewerPage: React.FC = () => {
-  const theme = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
-  // Image data state for each window
-  const [imageArray1, setImageArray1] = useState<number[][][][][][]>([]);
-  const [imageArray2, setImageArray2] = useState<number[][][][][][]>([]);
-  const [imageArray3, setImageArray3] = useState<number[][][][][][]>([]);
-  
-  // Selected file state for each window
-  const [selectedFile1, setSelectedFile1] = useState<MRDFile | null>(null);
-  const [selectedFile2, setSelectedFile2] = useState<MRDFile | null>(null);
-  const [selectedFile3, setSelectedFile3] = useState<MRDFile | null>(null);
-  
-  // Loading states for each window
-  const [loading1, setLoading1] = useState<boolean>(false);
-  const [loading2, setLoading2] = useState<boolean>(false);
-  const [loading3, setLoading3] = useState<boolean>(false);
-  
-  // Error states for each window
-  const [error1, setError1] = useState<string | null>(null);
-  const [error2, setError2] = useState<string | null>(null);
-  const [error3, setError3] = useState<string | null>(null);
-  
-  // File selector dialog states
-  const [fileSelectorOpen1, setFileSelectorOpen1] = useState(false);
-  const [fileSelectorOpen2, setFileSelectorOpen2] = useState(false);
-  const [fileSelectorOpen3, setFileSelectorOpen3] = useState(false);
-  
-  // Available MRD files
-  const [availableFiles, setAvailableFiles] = useState<MRDFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(false);
+  // Use the custom hook for viewer state management
+  const viewerState = useViewerState();
 
-  // Parameter control states for each window
-  const [channelIndex1, setChannelIndex1] = useState<number[]>([0]);
-  const [channelIndex2, setChannelIndex2] = useState<number[]>([0]);
-  const [channelIndex3, setChannelIndex3] = useState<number[]>([0]);
-  
-  const [sliceIndex1, setSliceIndex1] = useState<number>(0);
-  const [sliceIndex2, setSliceIndex2] = useState<number>(0);
-  const [sliceIndex3, setSliceIndex3] = useState<number>(0);
-  
-  const [metaboliteIndex1, setMetaboliteIndex1] = useState<number>(0);
-  const [metaboliteIndex2, setMetaboliteIndex2] = useState<number>(0);
-  const [metaboliteIndex3, setMetaboliteIndex3] = useState<number>(0);
-  
-  const [measurementIndex1, setMeasurementIndex1] = useState<number>(0);
-  const [measurementIndex2, setMeasurementIndex2] = useState<number>(0);
-  const [measurementIndex3, setMeasurementIndex3] = useState<number>(0);
-
-  // Parameter control dialog states
-  const [paramControlOpen1, setParamControlOpen1] = useState(false);
-  const [paramControlOpen2, setParamControlOpen2] = useState(false);
-  const [paramControlOpen3, setParamControlOpen3] = useState(false);
-
-  // const [imageMetadata, setImageMetadata] = useState<{
-  //   rows: number;
-  //   columns: number;
-  //   numMetabolites: number;
-  //   numImages: number;
-  // } | null>(null);
-
-  // Side panel / visualization controls
-  const [showHpMriData, setShowHpMriData] = useState<boolean>(true);
-  const [threshold, setThreshold] = useState<number>(0.5);
-  const [alpha, setAlpha] = useState<number>(0.7);
+  // Global settings state
+  const [showHpMriData, setShowHpMriData] = useState(true);
+  const [threshold, setThreshold] = useState(0.1);
+  const [alpha, setAlpha] = useState(1.0);
   const [colorScale, setColorScale] = useState<'Hot' | 'Jet' | 'B&W'>('Hot');
-  const [scaleByIntensity, setScaleByIntensity] = useState<boolean>(false);
-  const [openDrawer, setOpenDrawer] = useState<boolean>(false);
+  const [scaleByIntensity, setScaleByIntensity] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState(false);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
-  const [imageSlice, setImageSlice] = useState<number>(0);
-  const [contrast, setContrast] = useState<number>(1.0);
-  const [gifStart, setGifStart] = useState<number>(0);
-  const [gifEnd, setGifEnd] = useState<number>(0);
-  const [gifFps, setGifFps] = useState<number>(10);
-  const [gifFilename, setGifFilename] = useState<string>('animation.gif');
-
-  // Track which file the pulse plot is using
-  const [pulseSourceFileId, setPulseSourceFileId] = useState<string | null>(null);
-
-  // Fetch available MRD files
-  const fetchMRDFiles = async () => {
-    try {
-      setFilesLoading(true);
-      const response = await axios.get('/api/mrd-files');
-      
-      // Filter out files with invalid _id
-      const validFiles = response.data.filter((file: MRDFile) => {
-        if (file && file._id) {
-          return true;
-        }
-        console.warn('Filtering out invalid file object:', file);
-        return false;
-      });
-
-      setAvailableFiles(validFiles);
-    } catch (error) {
-      console.error('Error fetching MRD files:', error);
-    } finally {
-      setFilesLoading(false);
-    }
-  };
-
-  // Function to fetch MRD file data for a specific window
-  const fetchMRDImageArray = async (file_id: string, windowNumber: 1 | 2 | 3) => {
-    const setLoading = windowNumber === 1 ? setLoading1 : windowNumber === 2 ? setLoading2 : setLoading3;
-    const setError = windowNumber === 1 ? setError1 : windowNumber === 2 ? setError2 : setError3;
-    const setImageArray = windowNumber === 1 ? setImageArray1 : windowNumber === 2 ? setImageArray2 : setImageArray3;
-    
-    // Get the setter functions for indices
-    const setChannelIndex = windowNumber === 1 ? setChannelIndex1 : windowNumber === 2 ? setChannelIndex2 : setChannelIndex3;
-    const setSliceIndex = windowNumber === 1 ? setSliceIndex1 : windowNumber === 2 ? setSliceIndex2 : setSliceIndex3;
-    const setMetaboliteIndex = windowNumber === 1 ? setMetaboliteIndex1 : windowNumber === 2 ? setMetaboliteIndex2 : setMetaboliteIndex3;
-    const setMeasurementIndex = windowNumber === 1 ? setMeasurementIndex1 : windowNumber === 2 ? setMeasurementIndex2 : setMeasurementIndex3;
-    
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await axios.get(`/api/viewer/${file_id}`);
-      const imageData = response.data.image_array;
-      const nmrLabels = response.data.nmr_labels;
-      console.log(`Window ${windowNumber} imageData shape`, imageData.shape);
-      console.log(`Window ${windowNumber} nmrLabels`, nmrLabels);
-      
-      if (imageData && Array.isArray(imageData)) {
-        setImageArray(imageData);
-        
-        // Update indices to valid ranges for the new data
-        const maxChannels = imageData.length - 1;
-        const maxSlices = imageData[0]?.length - 1 || 0;
-        const maxMetabolites = imageData[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
-        const maxMeasurements = imageData[0]?.[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
-        
-        // console.log(`Window ${windowNumber} data dimensions:`, {
-        //   channels: maxChannels + 1,
-        //   slices: maxSlices + 1,
-        //   metabolites: maxMetabolites + 1,
-        //   measurements: maxMeasurements + 1
-        // });
-        
-        // Reset indices to 0 if they're out of bounds
-        setChannelIndex([Math.min(0, maxChannels)]);
-        setSliceIndex(Math.min(0, maxSlices));
-        setMetaboliteIndex(Math.min(0, maxMetabolites));
-        setMeasurementIndex(Math.min(0, maxMeasurements));
-        
-      } else {
-        setError('Invalid image data format received from server');
-      }
-    } catch (error) {
-      console.error(`Error fetching MRD image array for window ${windowNumber}:`, error);
-      if (axios.isAxiosError(error)) {
-        setError(`Failed to fetch image: ${error.response?.data?.error || error.message}`);
-      } else {
-        setError('An unexpected error occurred while fetching the image');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle file selection for each window
-  const handleFileSelect = (file: MRDFile, windowNumber: 1 | 2 | 3) => {
-    const setSelectedFile = windowNumber === 1 ? setSelectedFile1 : windowNumber === 2 ? setSelectedFile2 : setSelectedFile3;
-    const setFileSelectorOpen = windowNumber === 1 ? setFileSelectorOpen1 : windowNumber === 2 ? setFileSelectorOpen2 : setFileSelectorOpen3;
-    
-    setSelectedFile(file);
-    setFileSelectorOpen(false);
-    fetchMRDImageArray(file._id, windowNumber);
-    // Initialize pulse source if not set
-    if (!pulseSourceFileId) {
-      setPulseSourceFileId(file._id);
-    }
-  };
-
-  // Ensure pulse source defaults to the first available selected file
-  useEffect(() => {
-    if (!pulseSourceFileId) {
-      const f = selectedFile1 || selectedFile2 || selectedFile3;
-      if (f?._id) setPulseSourceFileId(f._id);
-    }
-  }, [pulseSourceFileId, selectedFile1, selectedFile2, selectedFile3]);
-
-  // Fetch image data when component mounts
-  useEffect(() => {
-    fetchMRDFiles();
-  }, []);
-
-  // File Selector Component
-  const FileSelector: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    onSelect: (file: MRDFile) => void;
-    windowNumber: number;
-  }> = ({ open, onClose, onSelect, windowNumber }) => (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
-      fullWidth
-      TransitionComponent={Grow}
-      transitionDuration={300}
-    >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        backgroundColor: theme.palette.primary.main,
-        color: theme.palette.primary.contrastText
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FileOpen />
-          <Typography variant="h6">Select MRD File for Window {windowNumber}</Typography>
-        </Box>
-        <IconButton onClick={onClose} sx={{ color: theme.palette.primary.contrastText }}>
-          <Close />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ p: 0 }}>
-        {filesLoading ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography>Loading files...</Typography>
-          </Box>
-        ) : (
-          <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell padding="checkbox"></TableCell>
-                  <TableCell>File Name</TableCell>
-                  <TableCell>Study Date</TableCell>
-                  <TableCell>Owner</TableCell>
-                  <TableCell>Size</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {availableFiles.map((file) => (
-                  <TableRow 
-                    key={file._id} 
-                    hover 
-                    sx={{ cursor: 'pointer' }}
-                    onClick={() => onSelect(file)}
-                  >
-                    <TableCell padding="checkbox">
-                      <Radio
-                        checked={false}
-                        value={file._id}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        {file.fileName}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{file.studyDate}</TableCell>
-                    <TableCell>{file.ownerName}</TableCell>
-                                         <TableCell>
-                       <Chip 
-                         label={file.file_size ? `${(Number(file.file_size) / (1024 * 1024)).toFixed(1)} MB` : 'Unknown'} 
-                         size="small" 
-                         variant="outlined"
-                       />
-                     </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-
-  // Parameter Control Component
-  const ParameterControl: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    windowNumber: 1 | 2 | 3;
-  }> = ({ open, onClose, windowNumber }) => {
-    const getStates = (windowNum: 1 | 2 | 3) => {
-      switch (windowNum) {
-        case 1:
-          return {
-            channelIndex: channelIndex1,
-            setChannelIndex: setChannelIndex1,
-            sliceIndex: sliceIndex1,
-            setSliceIndex: setSliceIndex1,
-            metaboliteIndex: metaboliteIndex1,
-            setMetaboliteIndex: setMetaboliteIndex1,
-            measurementIndex: measurementIndex1,
-            setMeasurementIndex: setMeasurementIndex1
-          };
-        case 2:
-          return {
-            channelIndex: channelIndex2,
-            setChannelIndex: setChannelIndex2,
-            sliceIndex: sliceIndex2,
-            setSliceIndex: setSliceIndex2,
-            metaboliteIndex: metaboliteIndex2,
-            setMetaboliteIndex: setMetaboliteIndex2,
-            measurementIndex: measurementIndex2,
-            setMeasurementIndex: setMeasurementIndex2
-          };
-        case 3:
-          return {
-            channelIndex: channelIndex3,
-            setChannelIndex: setChannelIndex3,
-            sliceIndex: sliceIndex3,
-            setSliceIndex: setSliceIndex3,
-            metaboliteIndex: metaboliteIndex3,
-            setMetaboliteIndex: setMetaboliteIndex3,
-            measurementIndex: measurementIndex3,
-            setMeasurementIndex: setMeasurementIndex3
-          };
-      }
-    };
-
-    const {
-      channelIndex,
-      setChannelIndex,
-      sliceIndex,
-      setSliceIndex,
-      metaboliteIndex,
-      setMetaboliteIndex,
-      measurementIndex,
-      setMeasurementIndex
-    } = getStates(windowNumber);
-
-    return (
-      <Dialog 
-        open={open} 
-        onClose={onClose} 
-        maxWidth="sm" 
-        fullWidth
-        TransitionComponent={Zoom}
-        transitionDuration={300}
-      >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1,
-          backgroundColor: theme.palette.secondary.main,
-          color: theme.palette.secondary.contrastText
-        }}>
-          <Settings />
-          <Typography variant="h6">Parameter Controls - Window {windowNumber}</Typography>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Channel Index"
-                type="number"
-                value={channelIndex[0]}
-                onChange={(e) => setChannelIndex([parseInt(e.target.value) || 0])}
-                inputProps={{ min: 0 }}
-                size="small"
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Slice Index"
-                type="number"
-                value={sliceIndex}
-                onChange={(e) => setSliceIndex(parseInt(e.target.value) || 0)}
-                inputProps={{ min: 0 }}
-                size="small"
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Metabolite Index"
-                type="number"
-                value={metaboliteIndex}
-                onChange={(e) => setMetaboliteIndex(parseInt(e.target.value) || 0)}
-                inputProps={{ min: 0 }}
-                size="small"
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Measurement Index"
-                type="number"
-                value={measurementIndex}
-                onChange={(e) => setMeasurementIndex(parseInt(e.target.value) || 0)}
-                inputProps={{ min: 0 }}
-                size="small"
-                variant="outlined"
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={onClose} variant="outlined">
-            Cancel
-          </Button>
-          <Button onClick={onClose} variant="contained">
-            Apply Changes
-          </Button>
-        </DialogActions>
-      </Dialog>
-    );
-  };
-
-  // Image Display Window Component
-  const ImageDisplayWindow: React.FC<{
-    windowNumber: 1 | 2 | 3;
-    selectedFile: MRDFile | null;
-    loading: boolean;
-    error: string | null;
-    imageArray: number[][][][][][];
-    onFileSelect: () => void;
-    onParamControl: () => void;
-    onActivatePulseSource: (fileId: string) => void;
-  }> = ({ 
-    windowNumber, 
-    selectedFile, 
-    loading, 
-    error, 
-    imageArray, 
-    onFileSelect, 
-    onParamControl,
-    onActivatePulseSource,
-  }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const getStates = (windowNum: 1 | 2 | 3) => {
-      switch (windowNum) {
-        case 1:
-          return {
-            channelIndex: channelIndex1,
-            sliceIndex: sliceIndex1,
-            metaboliteIndex: metaboliteIndex1,
-            measurementIndex: measurementIndex1
-          };
-        case 2:
-          return {
-            channelIndex: channelIndex2,
-            sliceIndex: sliceIndex2,
-            metaboliteIndex: metaboliteIndex2,
-            measurementIndex: measurementIndex2
-          };
-        case 3:
-          return {
-            channelIndex: channelIndex3,
-            sliceIndex: sliceIndex3,
-            metaboliteIndex: metaboliteIndex3,
-            measurementIndex: measurementIndex3
-          };
-      }
-    };
-
-    const { channelIndex, sliceIndex, metaboliteIndex, measurementIndex } = getStates(windowNumber);
-
-    const renderContent = () => {
-      if (loading) {
-        return (
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100%',
-            color: 'white',
-            gap: 2
-          }}>
-            <Box sx={{ 
-              width: 40, 
-              height: 40, 
-              border: '3px solid rgba(255,255,255,0.3)', 
-              borderTop: '3px solid white',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              '@keyframes spin': {
-                '0%': { transform: 'rotate(0deg)' },
-                '100%': { transform: 'rotate(360deg)' }
-              }
-            }} />
-            <Typography variant="body2">Loading image data...</Typography>
-          </Box>
-        );
-      }
-
-      if (error) {
-        return (
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100%',
-            color: '#ff6b6b',
-            gap: 2,
-            textAlign: 'center',
-            p: 2
-          }}>
-            <Typography variant="body2" fontWeight="medium">Error: {error}</Typography>
-            {selectedFile && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => fetchMRDImageArray(selectedFile._id, windowNumber)}
-                sx={{ color: 'white', borderColor: 'white' }}
-              >
-                Retry
-              </Button>
-            )}
-          </Box>
-        );
-      }
-
-      if (!imageArray || imageArray.length === 0) {
-        return (
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100%',
-            color: 'white',
-            gap: 2,
-            textAlign: 'center',
-            p: 2
-          }}>
-            <AddPhotoAlternate sx={{ fontSize: 48, opacity: 0.7 }} />
-            <Typography variant="h6" fontWeight="medium">
-              No image data loaded
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-              Click anywhere in this area to select an MRD file
-            </Typography>
-          </Box>
-        );
-      }
-
-      return (
-        <ImagingPlotComponent
-          data={imageArray}
-          channelIndex={channelIndex}
-          sliceIndex={sliceIndex}
-          metaboliteIndex={metaboliteIndex}
-          measurementIndex={measurementIndex}
-          alpha={alpha}
-          colorScale={colorScale}
-          scaleByIntensity={scaleByIntensity}
-          showHpMriData={showHpMriData}
-        />
-      );
-    };
-
-    const handleWindowClick = () => {
-      if (!selectedFile) {
-        onFileSelect();
-      } else {
-        onActivatePulseSource(selectedFile._id);
-      }
-    };
-
-    return (
-      <Box
-        sx={{
-          flex: 1,
-          height: '100%',
-          backgroundColor: '#000',
-          border: `2px solid ${isHovered ? theme.palette.primary.main : '#333'}`,
-          borderRadius: 2,
-          overflow: 'hidden',
-          position: 'relative',
-          cursor: selectedFile ? 'pointer' : 'pointer',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          '&:hover': {
-            borderColor: theme.palette.primary.main,
-            transform: 'translateY(-2px)',
-            boxShadow: '0 8px 25px rgba(25, 118, 210, 0.3)',
-          }
-        }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={handleWindowClick}
-      >
-        {/* Header with file info and controls */}
-        <Box sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 10,
-          background: `linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%)`,
-          p: 1,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <Typography variant="caption" sx={{ color: 'white', fontWeight: 'medium' }}>
-            Window {windowNumber}
-          </Typography>
-          {selectedFile && (
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              <Chip
-                label={selectedFile.fileName.substring(0, 15) + '...'}
-                size="small"
-                sx={{ 
-                  backgroundColor: 'rgba(25, 118, 210, 0.8)',
-                  color: 'white',
-                  fontSize: '0.7rem'
-                }}
-              />
-              <IconButton
-                size="small"
-                onClick={onParamControl}
-                sx={{ 
-                  color: 'white',
-                  backgroundColor: 'rgba(220, 0, 78, 0.8)',
-                  '&:hover': {
-                    backgroundColor: theme.palette.secondary.main,
-                  }
-                }}
-              >
-                <Tune fontSize="small" />
-              </IconButton>
-            </Box>
-          )}
-        </Box>
-
-        {/* Main content area */}
-        <Box sx={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          position: 'relative'
-        }}>
-          {renderContent()}
-        </Box>
-
-        {/* Hover overlay for file selection */}
-        {!selectedFile && isHovered && (
-          <Fade in={true}>
-            <Box sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(25, 118, 210, 0.1)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 5
-            }}>
-              <Box sx={{
-                backgroundColor: 'rgba(25, 118, 210, 0.9)',
-                color: 'white',
-                px: 3,
-                py: 1.5,
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <CloudUpload />
-                <Typography variant="body2" fontWeight="medium">
-                  Click to select file
-                </Typography>
-              </Box>
-            </Box>
-          </Fade>
-        )}
-      </Box>
-    );
-  };
+  const [imageSlice, setImageSlice] = useState(0);
+  const [contrast, setContrast] = useState(1.0);
+  const [gifStart, setGifStart] = useState(0);
+  const [gifEnd, setGifEnd] = useState(10);
+  const [gifFps, setGifFps] = useState(10);
+  const [gifFilename, setGifFilename] = useState('animation.gif');
 
   const sidebarWidth = isSidebarOpen ? 240 : 80;
 
@@ -755,6 +101,7 @@ const ViewerPage: React.FC = () => {
 
   return (
     <>
+      <style>{viewerStyles}</style>
       <HeaderAccount background_black />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black/>
       <ViewerSidePanel
@@ -791,112 +138,156 @@ const ViewerPage: React.FC = () => {
       
       {/* Main Content Area */}
       <Box sx={{ 
-        paddingTop: '64px',
-        paddingLeft: `${sidebarWidth + 60}px`, // Account for Sidebar + ViewerSidePanel
-        paddingRight: '8px',
-        height: 'calc(100vh - 64px)',
+        position: 'fixed',
+        top: '64px',
+        left: `${sidebarWidth + 60}px`,
+        right: 0,
+        bottom: 0,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#f5f5f5',
-        width: `calc(100vw - ${sidebarWidth + 60}px - 8px)` // Use full available width
+        margin: 0,
+        padding: 0,
+        border: 'none',
+        outline: 'none',
+        overflow: 'hidden'
       }}>
         {/* Top Section - Image Display Windows */}
         <Box sx={{
           flex: 1,
           display: 'flex',
-          gap: 1,
-          p: 1,
+          gap: 0.5,
+          p: 0.5,
           minHeight: 0 // Important for flex child
         }}>
           <ImageDisplayWindow
             windowNumber={1}
-            selectedFile={selectedFile1}
-            loading={loading1}
-            error={error1}
-            imageArray={imageArray1}
-            onFileSelect={() => setFileSelectorOpen1(true)}
-            onParamControl={() => setParamControlOpen1(true)}
-            onActivatePulseSource={setPulseSourceFileId}
+            selectedFile={viewerState.selectedFile1}
+            loading={viewerState.loading1}
+            error={viewerState.error1}
+            imageArray={viewerState.imageArray1}
+            onFileSelect={() => viewerState.setFileSelectorOpen1(true)}
+            onActivatePulseSource={viewerState.setPulseSourceFileId}
+            channelIndex={viewerState.channelIndex1}
+            sliceIndex={viewerState.sliceIndex1}
+            metaboliteIndex={viewerState.metaboliteIndex1}
+            measurementIndex={viewerState.measurementIndex1}
+            nmrLabels={viewerState.nmrLabels1}
+            setChannelIndex={viewerState.setChannelIndex1}
+            setSliceIndex={viewerState.setSliceIndex1}
+            setMetaboliteIndex={viewerState.setMetaboliteIndex1}
+            setMeasurementIndex={viewerState.setMeasurementIndex1}
+            alpha={alpha}
+            colorScale={colorScale}
+            scaleByIntensity={scaleByIntensity}
+            showHpMriData={showHpMriData}
           />
           <ImageDisplayWindow
             windowNumber={2}
-            selectedFile={selectedFile2}
-            loading={loading2}
-            error={error2}
-            imageArray={imageArray2}
-            onFileSelect={() => setFileSelectorOpen2(true)}
-            onParamControl={() => setParamControlOpen2(true)}
-            onActivatePulseSource={setPulseSourceFileId}
+            selectedFile={viewerState.selectedFile2}
+            loading={viewerState.loading2}
+            error={viewerState.error2}
+            imageArray={viewerState.imageArray2}
+            onFileSelect={() => viewerState.setFileSelectorOpen2(true)}
+            onActivatePulseSource={viewerState.setPulseSourceFileId}
+            channelIndex={viewerState.channelIndex2}
+            sliceIndex={viewerState.sliceIndex2}
+            metaboliteIndex={viewerState.metaboliteIndex2}
+            measurementIndex={viewerState.measurementIndex2}
+            nmrLabels={viewerState.nmrLabels2}
+            setChannelIndex={viewerState.setChannelIndex2}
+            setSliceIndex={viewerState.setSliceIndex2}
+            setMetaboliteIndex={viewerState.setMetaboliteIndex2}
+            setMeasurementIndex={viewerState.setMeasurementIndex2}
+            alpha={alpha}
+            colorScale={colorScale}
+            scaleByIntensity={scaleByIntensity}
+            showHpMriData={showHpMriData}
           />
           <ImageDisplayWindow
             windowNumber={3}
-            selectedFile={selectedFile3}
-            loading={loading3}
-            error={error3}
-            imageArray={imageArray3}
-            onFileSelect={() => setFileSelectorOpen3(true)}
-            onParamControl={() => setParamControlOpen3(true)}
-            onActivatePulseSource={setPulseSourceFileId}
+            selectedFile={viewerState.selectedFile3}
+            loading={viewerState.loading3}
+            error={viewerState.error3}
+            imageArray={viewerState.imageArray3}
+            onFileSelect={() => viewerState.setFileSelectorOpen3(true)}
+            onActivatePulseSource={viewerState.setPulseSourceFileId}
+            channelIndex={viewerState.channelIndex3}
+            sliceIndex={viewerState.sliceIndex3}
+            metaboliteIndex={viewerState.metaboliteIndex3}
+            measurementIndex={viewerState.measurementIndex3}
+            nmrLabels={viewerState.nmrLabels3}
+            setChannelIndex={viewerState.setChannelIndex3}
+            setSliceIndex={viewerState.setSliceIndex3}
+            setMetaboliteIndex={viewerState.setMetaboliteIndex3}
+            setMeasurementIndex={viewerState.setMeasurementIndex3}
+            alpha={alpha}
+            colorScale={colorScale}
+            scaleByIntensity={scaleByIntensity}
+            showHpMriData={showHpMriData}
           />
         </Box>
 
         {/* Bottom Section - Pulse Plot */}
         <Box sx={{
-          height: '260px',
-          backgroundColor: 'white',
-          borderRadius: 2,
-          m: 2,
-          p: 1.5,
-          boxShadow: theme.shadows[1],
-          display: 'flex',
-          alignItems: 'stretch',
-          justifyContent: 'stretch',
-          overflow: 'hidden'
+          height: '300px', // Increased height to extend further down
+          m: 0, // Remove all margins
+          p: 0 // Remove all padding
         }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <PulsePlotComponent fileId={pulseSourceFileId} />
+          {viewerState.pulseSourceFileId ? (
+            <PulsePlotComponent fileId={viewerState.pulseSourceFileId} />
+          ) : (
+            <Box sx={{
+              height: '100%',
+              backgroundColor: '#fff',
+              border: '1px solid #ddd',
+              borderRadius: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              color: '#666',
+              textAlign: 'center',
+              gap: 2
+            }}>
+              <Typography variant="h6" fontWeight="medium">
+                Pulse Data Plot
+              </Typography>
+              <Typography variant="body2" sx={{ maxWidth: 400 }}>
+                To view pulse data, load an image in any window and click the pulse button (⚡) in the top-right corner of that window.
+              </Typography>
+            </Box>
+          )}
           </Box>
         </Box>
 
         {/* File Selector Dialogs */}
         <FileSelector
-          open={fileSelectorOpen1}
-          onClose={() => setFileSelectorOpen1(false)}
-          onSelect={(file) => handleFileSelect(file, 1)}
+        open={viewerState.fileSelectorOpen1}
+        onClose={() => viewerState.setFileSelectorOpen1(false)}
+        onSelect={(file) => viewerState.handleFileSelect(file, 1)}
           windowNumber={1}
+        availableFiles={viewerState.availableFiles}
+        filesLoading={viewerState.filesLoading}
         />
         <FileSelector
-          open={fileSelectorOpen2}
-          onClose={() => setFileSelectorOpen2(false)}
-          onSelect={(file) => handleFileSelect(file, 2)}
+        open={viewerState.fileSelectorOpen2}
+        onClose={() => viewerState.setFileSelectorOpen2(false)}
+        onSelect={(file) => viewerState.handleFileSelect(file, 2)}
           windowNumber={2}
+        availableFiles={viewerState.availableFiles}
+        filesLoading={viewerState.filesLoading}
         />
         <FileSelector
-          open={fileSelectorOpen3}
-          onClose={() => setFileSelectorOpen3(false)}
-          onSelect={(file) => handleFileSelect(file, 3)}
+        open={viewerState.fileSelectorOpen3}
+        onClose={() => viewerState.setFileSelectorOpen3(false)}
+        onSelect={(file) => viewerState.handleFileSelect(file, 3)}
           windowNumber={3}
-        />
-
-        {/* Parameter Control Dialogs */}
-        <ParameterControl
-          open={paramControlOpen1}
-          onClose={() => setParamControlOpen1(false)}
-          windowNumber={1}
-        />
-        <ParameterControl
-          open={paramControlOpen2}
-          onClose={() => setParamControlOpen2(false)}
-          windowNumber={2}
-        />
-        <ParameterControl
-          open={paramControlOpen3}
-          onClose={() => setParamControlOpen3(false)}
-          windowNumber={3}
-        />
-      </Box>
+        availableFiles={viewerState.availableFiles}
+        filesLoading={viewerState.filesLoading}
+      />
     </>
   );
-}
+};
 
 export default ViewerPage;

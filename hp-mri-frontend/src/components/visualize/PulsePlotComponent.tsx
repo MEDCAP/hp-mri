@@ -131,12 +131,12 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId }) => {
           <Plot
             data={plotData as any}
             layout={{
-              margin: { l: 50, r: 20, t: 10, b: 40 },
+              margin: { l: 40, r: 15, t: 5, b: 25 },
               paper_bgcolor: 'white',
               plot_bgcolor: 'white',
               xaxis: { title: 'Index', showgrid: true, zeroline: false },
               yaxis: { title: 'Value', showgrid: true, zeroline: false },
-              legend: { orientation: 'h' },
+              legend: { orientation: 'h', y: -0.1 },
             }}
             config={{ displayModeBar: false, staticPlot: true }}
             style={{ width: '100%', height: '100%' }}

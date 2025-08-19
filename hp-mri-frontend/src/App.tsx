@@ -58,8 +58,7 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Main content container */}
-      <div style={{ display: 'flex' }}>
-        <Routes>
+      <Routes>
           {/* Login Pages */}
           <Route path="/account" element={<AccountPage />} />
           <Route path="/signup" element={<SignUpPage />} />
@@ -85,8 +84,7 @@ const AppContent: React.FC = () => {
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/viewer" element={<ViewerPage />} />
 
-        </Routes>
-      </div>
+      </Routes>
 
       {/* Version Display - Using Box component for the sx prop */}
       <Box
