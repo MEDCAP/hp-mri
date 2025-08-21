@@ -47,6 +47,34 @@ const formatStudyTime = (timeString: string) => {
   return `${h}:${minute}${suffix}`;
 };
 
+// Helper to format MongoDB upload_timestamp into a readable string
+const formatUploadTimestamp = (ts: any): string => {
+  if (!ts) return '';
+  let date: Date | null = null;
+  if (typeof ts === 'string' || typeof ts === 'number') {
+    const d = new Date(ts);
+    date = isNaN(d.valueOf()) ? null : d;
+  } else if (ts && ts.$date) {
+    const d = new Date(ts.$date);
+    date = isNaN(d.valueOf()) ? null : d;
+  }
+  return date ? date.toLocaleString() : '';
+};
+
+// Helper to extract Date for sorting
+const extractUploadDate = (ts: any): Date => {
+  if (!ts) return new Date(0);
+  if (typeof ts === 'string' || typeof ts === 'number') {
+    const d = new Date(ts);
+    return isNaN(d.valueOf()) ? new Date(0) : d;
+  }
+  if (ts.$date) {
+    const d = new Date(ts.$date);
+    return isNaN(d.valueOf()) ? new Date(0) : d;
+  }
+  return new Date(0);
+};
+
 const RetrievePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
@@ -71,7 +99,6 @@ const RetrievePage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
-  const navigate = useNavigate();
 
   const fetchFiles = () => {
     axios.get('/api/mrd-files')
@@ -113,8 +140,18 @@ const RetrievePage: React.FC = () => {
 
   const sortedFiles = filteredFiles.sort((a, b) => {
     const key = sortConfig.key;
-    const aValue = key === 'studyDate' ? new Date(a[key] || '') : (a[key] || '');
-    const bValue = key === 'studyDate' ? new Date(b[key] || '') : (b[key] || '');
+    const aValue =
+      key === 'studyDate'
+        ? new Date(a.studyDate || '')
+        : key === 'upload_timestamp'
+        ? extractUploadDate(a.upload_timestamp)
+        : (a as any)[key] || '';
+    const bValue =
+      key === 'studyDate'
+        ? new Date(b.studyDate || '')
+        : key === 'upload_timestamp'
+        ? extractUploadDate(b.upload_timestamp)
+        : (b as any)[key] || '';
     return aValue < bValue
       ? sortConfig.direction === 'asc'
         ? -1
@@ -399,11 +436,11 @@ const RetrievePage: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell />
-                {['fileName', 'studyDate', 'ownerName', 'Reconstruction'].map((key) => (
+                {[{ key: 'fileName', label: 'File Name' }, { key: 'studyDate', label: 'Study Date' }, { key: 'upload_timestamp', label: 'Upload Date' }, { key: 'ownerName', label: 'Owner Name' }].map(({ key, label }) => (
                   <TableCell key={key} onClick={() => handleSort(key as keyof MRDFile)} sx={{ cursor: 'pointer' }}>
                     <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {key.charAt(0).toUpperCase() + key.slice(1)}{' '}
-                      {sortConfig.key === key && (
+                      {label}{' '}
+                      {sortConfig.key === (key as keyof MRDFile) && (
                         <IconButton
                           size="small"
                           sx={{
@@ -456,20 +493,8 @@ const RetrievePage: React.FC = () => {
                     </Typography>
                   </TableCell>
                   <TableCell>{`${file.studyDate} ${formatStudyTime(file.studyTime)}`}</TableCell>
+                  <TableCell>{formatUploadTimestamp(file.upload_timestamp)}</TableCell>
                   <TableCell>{file.ownerName}</TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        cursor: 'pointer',
-                        color: '#011F5B',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                      onClick={() => navigate(`/viewer/${file._id}`)}
-                    >
-                      View
-                    </Typography>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

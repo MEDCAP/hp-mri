@@ -28,7 +28,6 @@ import ResearchPage from './pages/homepages/ResearchPage';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
 // Feature pages
-import UploadPage from './pages/mrdpages/UploadPage';
 import RetrievePage from './pages/mrdpages/RetrievePage';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
@@ -77,7 +76,6 @@ const AppContent: React.FC = () => {
           
           {/* MRD files */}
           <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
-          <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
 
           {/* Simulator */}
           <Route path="/simulator" element={<SimulatorPage />} />

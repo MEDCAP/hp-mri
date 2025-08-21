@@ -235,6 +235,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
       const currentUserName = getCurrentUserName();
       if (currentUserName) {
         formData.append('ownerName', currentUserName);
+      } else {
+        formData.append('ownerName', 'Unknown');
       }
       
       // Update status to uploading

@@ -10,7 +10,8 @@ from app.viewer.magnets import (
 )
 from data import (
     get_image_array_from_mrdfile,
-    get_pulse_array_from_mrdfile)
+    get_pulse_array_from_mrdfile,
+    get_gradient_from_mrdfile)
 import app.external.python.mrd as mrd
 
 
@@ -47,11 +48,30 @@ def fetch_pulse_array_from_bucket(file_id: str):
         return jsonify({
             "pulse_data": pulse_data.tolist() if pulse_data is not None else [],
             "pulse_phase": pulse_phase.tolist() if pulse_phase is not None else []}), 200
+            # "start_time": start_time if start_time is not None else [],
+            # "dt": dt if dt is not None else []}), 200
     except FileNotFoundError:
         return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@viewer_bp.route("/viewer/get_gradient_array/<file_id>", methods=["GET"])
+def fetch_gradient_array_from_bucket(file_id: str):
+    """
+    Load gradient array from S3 bucket and return as JSON serializable nested lists.
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - gradient_data: gradient data of float32 (channels, samples)
+    """
+    try:
+        gx, gy, gz = get_gradient_from_mrdfile(file_id)
+        return jsonify({"gx": gx.tolist() if gx is not None else [],
+                        "gy": gy.tolist() if gy is not None else [],
+                        "gz": gz.tolist() if gz is not None else []}), 200
+    except FileNotFoundError:
+        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @viewer_bp.route("/get_count_datasets/<magnet_type>", methods=["GET"])
 def fetch_count_datasets(magnet_type):

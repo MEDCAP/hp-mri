@@ -7,6 +7,7 @@ import { PulsePlotComponent } from '../../components/visualize/PulsePlotComponen
 import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
 import ImageDisplayWindow from '../../components/viewer/ImageDisplayWindow';
 import FileSelector from '../../components/viewer/FileSelector';
+import ConcatenationPanel from '../../components/viewer/ConcatenationPanel';
 import { useViewerState } from '../../hooks/useViewerState';
 
 // Add global styles to override any border styling
@@ -228,38 +229,57 @@ const ViewerPage: React.FC = () => {
           />
         </Box>
 
-        {/* Bottom Section - Pulse Plot */}
+        {/* Bottom Section - Split between Pulse Plot and Concatenation Panel */}
         <Box sx={{
           flex: '1 1 0%', // Takes up 1/4 of available space for better proportion
-          minHeight: '100px', // Further reduced minimum height
-          maxHeight: '40vh', // Reduced max height to 30% of viewport
-          m: 0, // Remove all margins
-          p: 0 // Remove all padding
+          minHeight: '100px',
+          maxHeight: '40vh',
+          m: 0,
+          p: 0,
+          display: 'flex',
+          gap: 0.5
         }}>
-          {viewerState.pulseSourceFileId ? (
-            <PulsePlotComponent fileId={viewerState.pulseSourceFileId} sidebarWidth={sidebarWidth} />
-          ) : (
-            <Box sx={{
-              height: '100%',
-              backgroundColor: '#fff',
-              border: '1px solid #ddd',
-              borderRadius: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              color: '#666',
-              textAlign: 'center',
-              gap: 2
-            }}>
-              <Typography variant="h6" fontWeight="medium">
-                Pulse Data Plot
-              </Typography>
-              <Typography variant="body2" sx={{ maxWidth: 400 }}>
-                To view pulse data, load an image in any window and click the pulse button (⚡) in the top-right corner of that window.
-              </Typography>
-            </Box>
-          )}
+          {/* Pulse Plot Section */}
+          <Box sx={{ flex: '2 1 0%' }}>
+            {viewerState.pulseSourceFileId ? (
+              <PulsePlotComponent fileId={viewerState.pulseSourceFileId} sidebarWidth={sidebarWidth} />
+            ) : (
+              <Box sx={{
+                height: '100%',
+                backgroundColor: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                color: '#666',
+                textAlign: 'center',
+                gap: 2
+              }}>
+                <Typography variant="h6" fontWeight="medium">
+                  Pulse Data Plot
+                </Typography>
+                <Typography variant="body2" sx={{ maxWidth: 400 }}>
+                  To view pulse data, load an image in any window and click the pulse button (⚡) in the top-right corner of that window.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Concatenation Panel Section */}
+          <Box sx={{ flex: '1 1 0%', minWidth: 300 }}>
+            <ConcatenationPanel
+              availableFiles={viewerState.availableFiles}
+              selectedFiles={viewerState.selectedFilesForConcatenation}
+              concatenatedData={viewerState.concatenatedData}
+              loading={viewerState.concatenationLoading}
+              error={viewerState.concatenationError}
+              onFileSelectionChange={viewerState.handleMultipleFileSelect}
+              onPerformConcatenation={viewerState.performConcatenation}
+              onLoadToWindow={viewerState.loadConcatenatedDataToWindow}
+            />
+          </Box>
         </Box>
         </Box>
 

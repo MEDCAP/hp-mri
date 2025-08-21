@@ -215,8 +215,10 @@ def get_pulse_array_from_mrdfile(file_id):
     Extract pulse.data and pulse.phase from MRD file
     @param file_id: file_id in mongodb of the mrd file
     @return 
-        - pulse_data: pulse data of float32 (channels, samples)
-        - pulse_phase: pulse phase of float32 with 1D shape (samples,)
+        - pulse_data: pulse data of float32 of 3D nparray(channels, samples, measurements)
+        - pulse_phase: pulse phase of float32 of 2D nparray(samples, measurements)
+        - start_time: pulse start time of float32 as list (measurements,)
+        - dt: pulse sample time of float32 in ns as single value
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -235,34 +237,86 @@ def get_pulse_array_from_mrdfile(file_id):
         for item in r.read_data():
             if isinstance(item, mrd.StreamItem.Pulse):
                 pulse = item.value
-                if pulse_data is None: 
-                    start_time = pulse.head.pulse_time_stamp_ns
-                    pulse_data = pulse.amplitude  # float 2D (channels, samples)
-                    pulse_phase = pulse.phase     # float 1D (samples)
+                if pulse_data is None:
+                    start_time = [pulse.head.pulse_time_stamp_ns]
+                    dt = pulse.head.sample_time_ns
+                    pulse_data = pulse.amplitude[..., np.newaxis]  # float 3D (channels, samples, measurements)
+                    pulse_phase = pulse.phase[..., np.newaxis]     # float 2D (samples, measurements)  
                 else:
-                    # if pulse is not continuous, pad with zeros for the missing time points
-                    if start_time != pulse.head.pulse_time_stamp_ns:
-                        zero_padding_data = np.zeros((pulse.coils(), pulse.head.pulse_time_stamp_ns - start_time))
-                        zero_padding_phase = np.zeros((pulse.head.pulse_time_stamp_ns - start_time))
-                    # update start_time for the next pulse
-                    start_time = pulse.head.pulse_time_stamp_ns
-        return pulse_data, pulse_phase
+                    start_time.append(pulse.head.pulse_time_stamp_ns)
+                    pulse_data = np.concatenate([pulse_data, pulse.amplitude[..., np.newaxis]], axis=-1)
+                    pulse_phase = np.concatenate([pulse_phase, pulse.phase[..., np.newaxis]], axis=-1)
+    # return pulse_data, pulse_phase, start_time, dt
+    return pulse_data, pulse_phase
+
+def get_gradient_from_mrdfile(file_id):
+    """
+    Extract gradient from MRD file
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - gradient: gradient of float32 with 1D shape (samples,)
+    """
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    # if current_app.config['S3_BUCKET']:
+    #     BUCKET = current_app.config['S3_BUCKET']
+    # else:
+    BUCKET = 'medcap-data'
+    s3_filekey = f'mrd_files/{file_id}'
+    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    body_bytes = obj['Body'].read()
+    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
+        h = r.read_header()
+        gx = None
+        gy = None
+        gz = None
+        for item in r.read_data():
+            if isinstance(item, mrd.StreamItem.Gradient):
+                if gx is None and gy is None and gz is None:
+                    gx = np.float32(item.value.rl)
+                    gy = np.float32(item.value.ap)
+                    gz = np.float32(item.value.fh)
+    return gx, gy, gz
 
 if __name__ == "__main__":
     # kidney data
-    file_id = '68a38c2f03ef7b17a6338f27'
+    file_id = '68a513524c05f5394c0aa38d'
     # phantom data
     # file_id = '68a38bf603ef7b17a6338f26'
     # pig experiment data
     # file_id = '68a38bc903ef7b17a6338f25'
-    image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-    print(image_array.shape)
-    print(nmr_labels)
-    plt.imshow(image_array[0,0,:,:,0,2])
-    plt.show()
-    # pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
-    # print(pulse_data.shape)
-    # print(pulse_phase.shape)
-    # plt.plot(pulse_data[0, :], label='ch0')
-    # plt.plot(pulse_data[1, :], label='ch1')
+    # image_array, nmr_labels = get_image_array_from_mrdfile(file_id)
+    # print(image_array.shape)
+    # print(nmr_labels)
+    # plt.imshow(image_array[0,0,:,:,0,2])
+    # plt.show()
+    pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
+    # if pulse_data.shape[1] < 1000:
+    #     time_axis = None
+    #     for timestamp in start_time:
+    #         # append time axis for each pulse
+    #         if time_axis is None:
+    #             time_axis = np.arange(timestamp, timestamp + dt * pulse_data.shape[1], dt)
+    #         else:
+    #             append_time_axis = np.arange(timestamp, timestamp + dt * pulse_data.shape[1], dt)
+    #             time_axis = np.append(time_axis, append_time_axis)
+    # else:
+    #     time_axis = np.arange(0, pulse_data.shape[1])
+
+    # print("time_axis.shape:", time_axis.shape)
+    # print("dt:", dt)
+    print("pulse_data.shape:", pulse_data.shape)
+    print("pulse_phase.shape:", pulse_phase.shape)
+    # print("start_time.shape:", len(start_time))
+    # plt.scatter(time_axis[:12], pulse_data[0, :12, 0], label='ch0')
+    # plt.legend()
+    # plt.show()
+    # plt.show()
+    # gx, gy, gz = get_gradient_from_mrdfile(file_id)
+    # print(gx.shape)
+    # print(gy.shape)
+    # print(gz.shape)
+    # plt.plot(gx, label='gx')
+    # plt.plot(gy, label='gy')
+    # plt.plot(gz, label='gz')
     # plt.show()

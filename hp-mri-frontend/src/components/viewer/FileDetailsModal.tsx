@@ -39,11 +39,11 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
   },
 }));
 
-const HeaderSection = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(0, 0, 2, 0),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.paper,
-}));
+// const HeaderSection = styled(Box)(({ theme }) => ({
+//   padding: theme.spacing(0, 0, 2, 0),
+//   borderBottom: `1px solid ${theme.palette.divider}`,
+//   backgroundColor: theme.palette.background.paper,
+// }));
 
 const DetailItem = styled(ListItem)(({ theme }) => ({
   padding: theme.spacing(1, 0),

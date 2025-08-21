@@ -112,9 +112,6 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
   fileProgress = {}
 }) => {
   const theme = useTheme();
-
-  console.log('UploadProgressModal render:', { open, filesCount: files?.length, overallProgress, isUploading });
-
   const completedFiles = files?.filter(f => f.status === 'completed').length || 0;
   const totalFiles = files?.length || 0;
   const hasErrors = files?.some(f => f.status === 'error') || false;

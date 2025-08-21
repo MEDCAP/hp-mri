@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
-import { Box } from '@mui/material';
 
 const HOT_COLORS: [number, string][] = [
     [0.0, 'rgb(0,0,0)'],        // Black
@@ -195,8 +194,6 @@ const ImagingPlotComponent: React.FC<Props> = ({
     const maxSlices = data[0]?.length - 1 || 0;
     const maxMetabolites = data[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
     const maxMeasurements = data[0]?.[0]?.[0]?.[0]?.[0]?.length - 1 || 0;
-    
-
     
     // Clamp indices to valid ranges
 
