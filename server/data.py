@@ -5,9 +5,11 @@ from flask import current_app
 from bson import ObjectId
 from datetime import datetime
 import os
-import numpy as np
 import boto3
+import numpy as np
 import matplotlib.pyplot as plt
+from typing import Union
+import io
 
 import app.external.python.mrd as mrd
 
@@ -60,24 +62,30 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
-def read_mrdfile_header(filepath):
+def read_mrdfile_header(filepath, owner_name=None):
     """
     Read the mrd file header as dict in mongodb mrd-files collection format
+    
+    :param filepath: Path to the MRD file
+    :param owner_name: Optional owner name (e.g., from Cognito user), defaults to patient_name from MRD header
     """
     try:
         with mrd.BinaryMrdReader(filepath) as r:
             h = r.read_header()
             image_exist = False
             for item in r.read_data():
-                if isinstance(item, mrd.StreamItem.ImageFloat):
-                    image_exist = True                
+                if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
+                    image_exist = True
                 pass
 
+            # Use provided owner_name or fallback to patient_name from MRD header
+            effective_owner_name = owner_name if owner_name else h.subject_information.patient_name
+
             header_for_db = {
-                "fileName": h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
+                "fileName": 'MID' + h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
                 "studyDate": str(h.study_information.study_date) if h.study_information.study_date else "unknown",
                 "studyTime": str(h.study_information.study_time) if h.study_information.study_time else "unknown",
-                "ownerName": h.subject_information.patient_name,
+                "ownerName": effective_owner_name,
                 "subjectType": h.subject_information.patient_name,
                 "groupName": "public",
                 "isReconstructed": image_exist,
@@ -93,11 +101,13 @@ def read_mrdfile_header(filepath):
         print(f"MRD parsing failed for {filepath}: {str(e)}")
         # Create basic metadata for files that can't be parsed as MRD
         filename = os.path.basename(filepath)
+        # Use provided owner_name or "unknown" for failed parsing
+        effective_owner_name = owner_name if owner_name else "unknown"
         basic_metadata = {
             "fileName": filename,
             "studyDate": "unknown",
             "studyTime": "unknown",
-            "ownerName": "unknown",
+            "ownerName": effective_owner_name,
             "subjectType": "unknown",
             "groupName": "public",
             "isReconstructed": False,
@@ -148,9 +158,15 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
 
 def get_image_array_from_mrdfile(file_id):
     """
-    Read the mrd file image as numpy array
-    :param filepath: local path to the mrd file
-    :return: np array float range from 0-1 in dimension of (channel, slice, y, x, metabolite, measurement)
+    Extracts 6D image array of dimension (channel, slice, rows, cols, frequencies, measurements) 
+    and header from mrd file in S3 bucket
+    -   MRDfile read_data is an iterable object, which you read by for loop one at a time
+    -   Each iteration yields item.value.data as 5D image array (channels, slice, rows, cols, frequencies) and 
+        item.value.head to specify metabolite label and measurement number
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - image_array: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
+        - nmr_labels: list of label of frequencies converted from nparray of object. If frequencies dimension is 0, return an empty list
     """
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -158,23 +174,77 @@ def get_image_array_from_mrdfile(file_id):
     BUCKET = 'medcap-data'
     s3_filekey = f'mrd_files/{file_id}'
     obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
-    with mrd.BinaryMrdReader(obj['Body']) as r:
+    # Initialize variables to avoid scope issues
+    image_array = None
+    nmr_labels = []
+    body_bytes = obj['Body'].read()
+    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
         h = r.read_header()
         for item in r.read_data():
-            if isinstance(item, mrd.StreamItem.ImageFloat):
+            if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
                 image = item.value
-                image_array = image.data
-                image_array = np.expand_dims(image_array, axis=(4,5))
-        return image_array
+                # check if image.data has correct shape
+                if image.data.ndim != 5:
+                    raise ValueError(f"Invalid shape of image array: {image.data.shape}")
+                # if rows and cols are 1, then image.data is spectrum
+                if image.rows() == 1 or image.cols() == 1:
+                    raise Exception("Spectrum is displayed")
+                # fetch header information from the first image
+                if image_array is None:
+                    # image.data is 5D image array (channels, slice, rows, cols, frequencies)
+                    image_array = image.data[..., np.newaxis]
+                    image_array *= 255 / image.data.max()
+                    meas_freq = image.head.measurement_freq
+                    repetition = image.head.repetition
+                    # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
+                    if image.head.measurement_freq_label is not None:
+                        # image.head.measurement_freq_label is in nparray, need to convert to list
+                        nmr_labels = image.head.measurement_freq_label.tolist()
+                # if image_array is not None, there are image data to the existing image_array as 
+                else:
+                    # image_array is 6D image array (channels, slice, rows, cols, frequencies, measurements)
+                    image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
 
+    # Check if any image data was found
+    if image_array is None:
+        raise ValueError(f"No image data found in MRD file with id: {file_id}")
+    return image_array, nmr_labels
 
-# test function to check the plot of image_array
-def test_plot_image_array(image_array):
-    plt.imshow(image_array[0,0,:,:,0,0], cmap='gray')
-    plt.show()
+def get_pulse_array_from_mrdfile(file_id):
+    """
+    Extract pulse.data and pulse.phase from MRD file
+    @param file_id: file_id in mongodb of the mrd file
+    @return 
+        - pulse_data: pulse data of float32 of 3D nparray(channels, samples, measurements)
+        - pulse_phase: pulse phase of float32 of 2D nparray(samples, measurements)
+        - start_time: pulse start time of float32 as list (measurements,)
+        - dt: pulse sample time of float32 in ns as single value
+    """
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    # if current_app.config['S3_BUCKET']:
+    #     BUCKET = current_app.config['S3_BUCKET']
+    # else:
+    BUCKET = 'medcap-data'
+    s3_filekey = f'mrd_files/{file_id}'
+    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
 
-if __name__ == "__main__":
-    file_id = '689cb3741a8a4a66e314dc22'
-    image_array = get_image_array_from_mrdfile(file_id)
-    print(image_array.shape)
-    test_plot_image_array(image_array)
+    body_bytes = obj['Body'].read()
+    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
+        h = r.read_header()
+        pulse_data = None
+        pulse_phase = None
+        for item in r.read_data():
+            if isinstance(item, mrd.StreamItem.Pulse):
+                pulse = item.value
+                if pulse_data is None:
+                    start_time = [pulse.head.pulse_time_stamp_ns]
+                    dt = pulse.head.sample_time_ns
+                    pulse_data = pulse.amplitude[..., np.newaxis]  # float 3D (channels, samples, measurements)
+                    pulse_phase = pulse.phase[..., np.newaxis]     # float 2D (samples, measurements)  
+                else:
+                    start_time.append(pulse.head.pulse_time_stamp_ns)
+                    pulse_data = np.concatenate([pulse_data, pulse.amplitude[..., np.newaxis]], axis=-1)
+                    pulse_phase = np.concatenate([pulse_phase, pulse.phase[..., np.newaxis]], axis=-1)
+    # return pulse_data, pulse_phase, start_time, dt
+    return pulse_data, pulse_phase

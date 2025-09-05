@@ -33,6 +33,7 @@ import {
   Minimize
 } from '@mui/icons-material';
 import { TransitionProps } from '@mui/material/transitions';
+import { getCurrentUserName } from '../pages/loginpages/cognitoUtils';
 
 // Styled components for enhanced Material Design
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -229,6 +230,14 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
     return new Promise((resolve, reject) => {
       const formData = new FormData();
       formData.append('file', file.file);
+      
+      // Add current user name from Cognito to form data
+      const currentUserName = getCurrentUserName();
+      if (currentUserName) {
+        formData.append('ownerName', currentUserName);
+      } else {
+        formData.append('ownerName', 'Unknown');
+      }
       
       // Update status to uploading
       setFiles(prev => prev.map(f => 

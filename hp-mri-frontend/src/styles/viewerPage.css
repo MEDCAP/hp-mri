@@ -298,7 +298,8 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Footer styles */
+/* Footer styles - Commented out to remove bottom footer */
+/*
 footer {
   position: fixed;
   bottom: 0;
@@ -306,20 +307,19 @@ footer {
   padding: 10px 0;
   text-align: center;
   color: #808080;
-  /* gray */
   z-index: 12;
   font-size: 12px;
 }
 
 footer a {
   color: #F8F8F8;
-  /* off-white */
   text-decoration: none;
 }
 
 footer a:hover {
   text-decoration: underline;
 }
+*/
 
 @keyframes App-logo-spin {
   from {

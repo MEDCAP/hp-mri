@@ -1,9 +1,9 @@
 /**
  * @fileoverview PlotComponent.tsx: Enhanced layout and centering with Material UI.
  *
- * @version 2.0.3
- * @author Ben Yoon
- * @date 2025-05-09
+ * @version 2.1.0
+ * @author Kento Yamada
+ * @date 2025-08-18
  */
 
 import React, { useEffect } from "react";

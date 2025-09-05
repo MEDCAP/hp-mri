@@ -1,0 +1,12 @@
+/* Sidebar width controlled by CSS variable --sidebar-width */
+.sidebar-drawer {
+  width: var(--sidebar-width, 240px);
+  flex-shrink: 0;
+}
+
+.sidebar-drawer .MuiDrawer-paper {
+  width: var(--sidebar-width, 240px);
+  transition: width 0.3s ease;
+  overflow-x: hidden;
+}
+

@@ -38,3 +38,4 @@ tsconfig.node.tsbuildinfo
 server/app/images.bin
 server/app/phantom.bin
 server/mrds/__pycache__
+server/.medcap-venv

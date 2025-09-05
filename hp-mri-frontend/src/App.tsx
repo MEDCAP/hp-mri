@@ -28,7 +28,6 @@ import ResearchPage from './pages/homepages/ResearchPage';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
 // Feature pages
-import UploadPage from './pages/mrdpages/UploadPage';
 import RetrievePage from './pages/mrdpages/RetrievePage';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
@@ -42,7 +41,7 @@ const AppContent: React.FC = () => {
   const hideHeaderRoutes = ['/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
 
   // Define pages where HeaderAccount should be used (MRD files pages)
-  const mrdFileRoutes = ['/mrd-files', '/upload'];
+  const mrdFileRoutes = ['/mrd-files', '/upload', '/simulator'];
 
   // Determine which header should be shown
   const location = useLocation();
@@ -58,8 +57,7 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Main content container */}
-      <div style={{ display: 'flex', marginTop: location.pathname !== '/visualize' ? 74 : 0 }}>
-        <Routes>
+      <Routes>
           {/* Login Pages */}
           <Route path="/account" element={<AccountPage />} />
           <Route path="/signup" element={<SignUpPage />} />
@@ -78,14 +76,13 @@ const AppContent: React.FC = () => {
           
           {/* MRD files */}
           <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
-          <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
 
           {/* Simulator */}
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/new-simulator" element={<NewSimulatorPage />} />
           <Route path="/viewer" element={<ViewerPage />} />
-        </Routes>
-      </div>
+
+      </Routes>
 
       {/* Version Display - Using Box component for the sx prop */}
       <Box

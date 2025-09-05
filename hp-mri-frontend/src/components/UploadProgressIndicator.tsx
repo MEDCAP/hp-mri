@@ -135,9 +135,6 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
 }) => {
   const theme = useTheme();
   const [isHovered, setIsHovered] = useState(false);
-
-  console.log('UploadProgressIndicator render:', { isVisible, filesCount: files?.length, overallProgress, isUploading });
-
   const completedFiles = files?.filter(f => f.status === 'completed').length || 0;
   const totalFiles = files?.length || 0;
   const hasErrors = files?.some(f => f.status === 'error') || false;

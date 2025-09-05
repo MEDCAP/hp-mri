@@ -3,37 +3,75 @@ import numpy as np
 import os
 from werkzeug.utils import secure_filename
 
-# from magnets import hupc_processing, clinical_processing, mr_solutions_processing
 from app.viewer.magnets import (
     hupc_processing,
     clinical_processing,
     mr_solutions_processing,
 )
+from data import (
+    get_image_array_from_mrdfile,
+    get_pulse_array_from_mrdfile,
+    get_gradient_from_mrdfile)
+import app.external.python.mrd as mrd
+
+
 from app.viewer import viewer_bp
 
-
-@viewer_bp.route("/get_num_slider_values/<magnet_type>", methods=["GET"])
-def fetch_num_slider_values(magnet_type):
+@viewer_bp.route("/viewer/<file_id>", methods=["GET"])
+def fetch_image_array_from_bucket(file_id: str):
     """
-    API endpoint to fetch the number of slider values.
-
-    Parameters:
-        magnet_type: The magnet type current selected.
-
-    Returns:
-        JSON: Contains the number of slider values.
+    Load image array from S3 bucket and return as JSON serializable nested lists.
+    @param file_id: file_id in mongodb of the mrd file
+    function: get_image_array_from_mrdfile
+        @return image_array: 6d nparray of dimension (channel, slice, rows, cols, frequencies, measurements)
+        @return nmr_labels: list of label of metabolites. If metabolite dimension is 0, return []
     """
-    if magnet_type == "HUPC":
-        num_values = hupc_processing.get_num_slider_values()
-    elif magnet_type == "Clinical":
-        num_values = 0
-    elif magnet_type == "MR Solutions":
-        num_values = mr_solutions_processing.get_num_slider_values()
-    else:
-        return jsonify({"error": "Invalid magnet type"}), 400
+    try:
+        img_array, nmr_labels = get_image_array_from_mrdfile(file_id)        
+        return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels}), 200
+    except FileNotFoundError:
+        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    return jsonify({"numSliderValues": num_values})
+@viewer_bp.route("/viewer/get_pulse_array/<file_id>", methods=["GET"])
+def fetch_pulse_array_from_bucket(file_id: str):
+    """
+    Load pulse array from S3 bucket and return as JSON serializable nested lists.
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - pulse_data: pulse data of float32 (channels, samples)
+        - pulse_phase: pulse phase of float32 with 1D shape (samples,)
+    """
+    try:
+        pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
+        return jsonify({
+            "pulse_data": pulse_data.tolist() if pulse_data is not None else [],
+            "pulse_phase": pulse_phase.tolist() if pulse_phase is not None else []}), 200
+            # "start_time": start_time if start_time is not None else [],
+            # "dt": dt if dt is not None else []}), 200
+    except FileNotFoundError:
+        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+@viewer_bp.route("/viewer/get_gradient_array/<file_id>", methods=["GET"])
+def fetch_gradient_array_from_bucket(file_id: str):
+    """
+    Load gradient array from S3 bucket and return as JSON serializable nested lists.
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - gradient_data: gradient data of float32 (channels, samples)
+    """
+    try:
+        gx, gy, gz = get_gradient_from_mrdfile(file_id)
+        return jsonify({"gx": gx.tolist() if gx is not None else [],
+                        "gy": gy.tolist() if gy is not None else [],
+                        "gz": gz.tolist() if gz is not None else []}), 200
+    except FileNotFoundError:
+        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @viewer_bp.route("/get_count_datasets/<magnet_type>", methods=["GET"])
 def fetch_count_datasets(magnet_type):
@@ -119,11 +157,11 @@ def get_hp_mri_data(hp_mri_dataset):
 
     return result
 
-
-@viewer_bp.route("/visualize-upload", methods=["POST"])
+# upload dicom files for comparison
+@viewer_bp.route("/viewer-upload", methods=["POST"])
 def file_upload():
     """
-    Handle file uploads by saving uploaded files to a predefined upload folder.
+    Upload dicom files from Viewer page to  to a predefined upload folder.
 
     Returns:
         json: A JSON object indicating the status of the file upload (success or error).
@@ -184,27 +222,23 @@ def get_imaging_metadata():
 @viewer_bp.route("/get_imaging_matrix", methods=["GET"])
 def get_imaging_matrix():
     """
-    Retrieve the full 4D mock MRI imaging matrix (rows x cols x metabolites x images).
+    Retrieve the full 4D imaging matrix as nested lists for frontend consumption.
 
     Returns:
-        json: JSON containing a nested list representing the 4D matrix.
+        json: { "matrix": number[rows][cols][metabolites][images] }
 
-    Author: Ben Yoon
+    Author: Ben Yoon (extended)
     Date: 2025-03-04
-    Version: 2.0.1
+    Version: 2.0.2
     """
     try:
         data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
-        data = np.load(data_path)
+        data = np.load(data_path)  # Expected shape: [rows, columns, metabolites, images]
 
         if data.ndim != 4:
             return jsonify({"error": "Imaging data must be 4-dimensional"}), 400
 
-        # Convert to list (costly for large data, but fine for dev)
-        matrix = data.tolist()
-
-        return jsonify({"matrix": matrix}), 200
-
+        return jsonify({"matrix": data.tolist()}), 200
     except FileNotFoundError:
         return jsonify({"error": "Mock imaging data file not found."}), 404
     except Exception as e:
