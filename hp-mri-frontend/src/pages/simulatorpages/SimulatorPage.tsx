@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../components/HeaderAccount';
+import HeaderAccount from '../../layouts/HeaderAccount';
 import {
   Button,
   Checkbox,

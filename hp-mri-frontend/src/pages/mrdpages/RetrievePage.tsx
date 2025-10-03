@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../components/HeaderAccount';
+import HeaderAccount from '../../layouts/HeaderAccount';
 import UploadModal from '../../components/UploadModal';
 import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';

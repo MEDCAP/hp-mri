@@ -6,7 +6,6 @@ import { signUpCognito } from './cognitoUtils';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { green, orange } from '@mui/material/colors';
-import HeaderAccount from '../../components/HeaderAccount';
 
 const passwordRequirements = [
   {
@@ -56,7 +55,6 @@ const SignUpPage: React.FC = () => {
 
   return (
     <>
-      <HeaderAccount />
       <Box
         sx={{
           position: 'fixed',

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, useTheme, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
-import Medcap from './../assets/medcap.png'
+import Medcap from './../assets/medcap_logo.png'
 import { getCurrentUserName, signOutCognito } from '../pages/loginpages/cognitoUtils';
 
 // Change header account color when used in files retrieval and viewer page

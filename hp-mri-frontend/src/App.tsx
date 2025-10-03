@@ -4,12 +4,13 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import theme from './theme'; // './theme' exports MUI theme object
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Components
-import HeaderAccount from './components/HeaderAccount';
-import UnifiedHeader from './components/UnifiedHeader';
+// Layout Components
+import HomePageLayout from './layouts/HomePageLayout';
+import MRDLayout from './layouts/MRDLayout';
+import SimpleLayout from './layouts/SimpleLayout';
 
 // Login Pages
 import AccountPage from './pages/loginpages/AccountPage';
@@ -18,13 +19,12 @@ import ConfirmSignUpPage from './pages/loginpages/ConfirmSignUpPage';
 
 // Homepage
 import HomePage from './pages/homepages/HomePage';
-import AboutPage from './pages/homepages/AboutPage';
+import AboutPage from './pages/homepages/MembersPage';
 import ConceptPage from './pages/homepages/ConceptPage';
 import ConvertStorePage from './pages/homepages/ConvertStorePage';
 import ReconstructionToolsPage from './pages/homepages/ReconstructionToolsPage';
 import SimulatePage from './pages/homepages/SimulatePage';
 import PublicationPage from './pages/homepages/PublicationPage';
-import ResearchPage from './pages/homepages/ResearchPage';
 import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
 // Feature pages
@@ -36,51 +36,32 @@ import ViewerPage from './pages/viewerpages/ViewerPage';
 const APP_VERSION = 'MEDCAP © 2025';
 
 const AppContent: React.FC = () => {
-
-  // Define pages where no header should appear
-  const hideHeaderRoutes = ['/account', '/about-devs', '/reconstruction-tools', '/concept', '/convert-store', '/simulate', '/visualize', '/mr-coil-calculator'];
-
-  // Define pages where HeaderAccount should be used (MRD files pages)
-  const mrdFileRoutes = ['/mrd-files', '/upload', '/simulator'];
-
-  // Determine which header should be shown
-  const location = useLocation();
-  const shouldShowHeader = !hideHeaderRoutes.includes(location.pathname);
-  const isMrdFilePage = mrdFileRoutes.some(route => location.pathname.startsWith(route));
-
   return (
-    // Using a React Fragment to avoid adding an unnecessary extra div wrapper
     <>
-      {/* Conditional Header rendering */}
-      {shouldShowHeader && (
-        isMrdFilePage ? <HeaderAccount /> : <UnifiedHeader />
-      )}
-
-      {/* Main content container */}
+      {/* Routes with appropriate layout wrappers */}
       <Routes>
-          {/* Login Pages */}
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/confirm-signup" element={<ConfirmSignUpPage />} />
+          {/* Login Pages - Simple Layout (no header/footer) */}
+          <Route path="/account" element={<SimpleLayout><AccountPage /></SimpleLayout>} />
+          <Route path="/signup" element={<SimpleLayout><SignUpPage /></SimpleLayout>} />
+          <Route path="/confirm-signup" element={<SimpleLayout><ConfirmSignUpPage /></SimpleLayout>} />
 
-          {/* Homepage */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about-devs" element={<AboutPage />} />
-          <Route path="/concept" element={<ConceptPage />} />
-          <Route path="/convert-store" element={<ConvertStorePage />} />
-          <Route path="/reconstruction-tools" element={<ReconstructionToolsPage />} />
-          <Route path="/simulate" element={<SimulatePage />} />
-          <Route path="/publication" element={<PublicationPage />} />
-          <Route path="/research" element={<ResearchPage />} />
-          <Route path="/mr-coil-calculator" element={<MRCalculatorPage />} />
-          
-          {/* MRD files */}
-          <Route path="/mrd-files" element={<ProtectedRoute><RetrievePage /></ProtectedRoute>} />
+          {/* Homepage Pages - Home Layout (Homepage Header + Footer) */}
+          <Route path="/" element={<HomePageLayout><HomePage /></HomePageLayout>} />
+          <Route path="/members" element={<HomePageLayout><AboutPage /></HomePageLayout>} />
+          <Route path="/publication" element={<HomePageLayout><PublicationPage /></HomePageLayout>} />
+          <Route path="/mr-coil-calculator" element={<HomePageLayout><MRCalculatorPage /></HomePageLayout>} />
+          <Route path="/concept" element={<HomePageLayout><ConceptPage /></HomePageLayout>} />
+          <Route path="/convert-store" element={<HomePageLayout><ConvertStorePage /></HomePageLayout>} />
+          <Route path="/reconstruction-tools" element={<HomePageLayout><ReconstructionToolsPage /></HomePageLayout>} />
+          <Route path="/simulate" element={<HomePageLayout><SimulatePage /></HomePageLayout>} />
 
-          {/* Simulator */}
-          <Route path="/simulator" element={<SimulatorPage />} />
-          <Route path="/new-simulator" element={<NewSimulatorPage />} />
-          <Route path="/viewer" element={<ViewerPage />} />
+          {/* MRD Files - MRD Layout (HeaderAccount) */}
+          <Route path="/mrd-files" element={<ProtectedRoute><MRDLayout><RetrievePage /></MRDLayout></ProtectedRoute>} />
+
+          {/* Simulator & Viewer - MRD Layout */}
+          <Route path="/simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
+          <Route path="/new-simulator" element={<MRDLayout><NewSimulatorPage /></MRDLayout>} />
+          <Route path="/viewer" element={<SimpleLayout><ViewerPage /></SimpleLayout>} />
 
       </Routes>
 

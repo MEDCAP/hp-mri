@@ -98,28 +98,25 @@ const MRCalculatorPage: React.FC = () => {
       maxWidth="md"
       sx={{
         minHeight: "100vh",
+        paddingTop: '6px', // Account for fixed header (72px) + extra spacing
+        paddingBottom: 4,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      <Typography
-        variant="h4"
-        color="primary"
-        gutterBottom
-        sx={{ fontWeight: 600 }}
-      >
+      <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 600, marginBottom: 4 }}>
         MR Coil Component Calculator
       </Typography>
       <Typography component="p" sx={{ mb: 2 }}>
         Welcome! This calculator helps you design heteronuclear MR coils for
-        small-animal imaging. If you use this calculator or data in your project, please cite the work found at-   
+        small-animal imaging. If you use this calculator or data in your project, please cite the work found at   
         <Link 
           href="https://doi.org/10.1016/j.jmro.2025.100206" 
           target="_blank"
           rel="noopener noreferrer"
-          color="secondary">https://doi.org/10.1016/j.jmro.2025.100206</Link>.
+          color="secondary"> https://doi.org/10.1016/j.jmro.2025.100206</Link>
       </Typography>
 
       {/* “How to use calculator” section */}

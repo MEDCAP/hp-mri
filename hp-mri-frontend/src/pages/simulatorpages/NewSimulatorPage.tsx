@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../components/HeaderAccount';
+import HeaderAccount from '../../layouts/HeaderAccount';
 import {
     Button,
     Container,

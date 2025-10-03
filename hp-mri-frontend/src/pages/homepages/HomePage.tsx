@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -10,67 +9,92 @@ import {
   CardMedia,
 } from '@mui/material';
 import PigiLogo from '../../assets/pigi_optblue_transparentexceptpennlogo.png';
-import ConceptImage from '../../assets/concept_image.png';
-import ConvertStoreImage from '../../assets/convert_store_image.png';
-import SimulateImage from '../../assets/simulate_image.png';
-import AnalyzeV from '../../assets/analyze_image.png';
-import MRCalculatorImage from '../../assets/mr_calc_thumbnail.png'
+import MRCalculatorImage from '../../assets/mr_calc_thumbnail.png';
+import MRIRecon from '../../assets/mri_recon.png';
+import ImageAnalysis from '../../assets/image_analysis.png';
+import MRISim from '../../assets/mri_simulator.png';
+// import MRIHardware from '../../assets/mri_hardware.png';
+// import MetaModel from '../../assets/metabolic_model.png';
+// import MoleModel from '../../assets/molecular_model.png';
+
+
+interface ResearchProject {
+  title: string;
+  subtitle: string;
+  content: string;
+  image: string;
+  link: string;
+}
 
 const HomePage: React.FC = () => {
-  useEffect(() => {
-    document.title = "HP-MRI Web App"; // Dynamically updates the tab title
-  }, []);
+  const navigate = useNavigate();
 
-  const sections = [
+  const researchProjects: ResearchProject[] = [
     {
-      heading: 'Concept',
-      description: 'A scalable web application for HP-MRI data standardization, visualization, and sharing.',
-      image: ConceptImage,
-      link: '/concept',
-    },
-    {
-      heading: 'Convert and Store Data',
-      description: 'A tool to convert data to the standard ISMRMRD data format and store data.',
-      image: ConvertStoreImage,
-      link: '/convert-store',
-    },
-    {
-      heading: 'MRI Reconstruction Tools',
-      description: 'Scripts to reconstruct HP-MRI data.',
-      image: AnalyzeV,
-      link: '/reconstruction-tools',
-    },
-    {
-      heading: 'Simulate Data',
-      description: 'A tool to simulate data with sequence design programming.',
-      image: SimulateImage,
-      link: '/simulate',
-    },
-    {
-      heading: 'MR Coil Component Calculator',
-      description: 'A calculator for tuning and matching capacitance values.',
+      title: 'MR Coil Component Calculator',
+      subtitle: 'A calculator for tuning and matching capacitance values.',
+      content: 'A calculator for tuning and matching capacitance values.',
       image: MRCalculatorImage,
       link: '/mr-coil-calculator',
     },
+    {
+      title: 'MRI Reconstruction Tools',
+      subtitle: 'Standard MRI reconstruction methods based on MRD format',
+      content: 'Along with the motivation to develop standard data structure to store MRI data, the MRD working group developed the Gadgetron, an interface to program reconstruction algorithm based on MRD format and integrate as a workflow in MRI console.',
+      image: MRIRecon,
+      link: '/reconstruction-tools',
+    },
+    {
+      title: 'MRI Image Analysis',
+      subtitle: 'Image analysis tools for images produced from MRD format',
+      content: 'As the standard for MRI data become established, we also need a consistent interface to analyze the images. The proposed tools provide researchers with commonly used analysis methods.',
+      image: ImageAnalysis,
+      link: '/concept', // Update with actual route when available
+    },
+    {
+      title: 'MRI Simulator',
+      subtitle: 'MRI simulation based on Bloch Equation to test reconstruction methods',
+      content: 'The challenge with MRI reconstruction is that the quality of images depends on the adjustment of reconstruction parameters. The optimization of these variables require try and errors of reconstruction algorithms, which can be tested on a simulator.',
+      image: MRISim,
+      link: '/simulate',
+    },
+    // {
+    //   title: 'MRI Hardware',
+    //   subtitle: 'MRI coil customization to target metabolites of interest',
+    //   content: 'Customizing the surface coil allows us to excite specific metabolite at a time, producing clear signals.',
+    //   image: MRIHardware,
+    //   link: '/mr-coil-calculator',
+    // },
+    // {
+    //   title: 'Metabolic Modeling',
+    //   subtitle: 'Metabolic models to estimate the conversion rate between each metabolites',
+    //   content: 'Modeling the metabolite interactions reveal the characteristics of the tissues we are scanning.',
+    //   image: MetaModel,
+    //   link: '/concept', // Update with actual route when available
+    // },
+    // {
+    //   title: 'Molecular Modeling',
+    //   subtitle: 'Molecular models to understand metabolite behavior',
+    //   content: 'Modeling the metabolite interactions reveal the characteristics of the tissues we are scanning.',
+    //   image: MoleModel,
+    //   link: '/concept', // Update with actual route when available
+    // },
   ];
+
+  const handleCardClick = (link: string) => {
+    navigate(link);
+  };
 
   return (
     <Container
       maxWidth="lg"
       sx={{
-        minHeight: '100vh',
+        paddingY: 4,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-start',
-        textAlign: 'center',
-        paddingY: 4,
-        paddingTop: 2, // Reduced padding
-        marginTop: 0, // Remove margin
       }}
     >
-
-
       {/* Logo Section */}
       <Box
         component="a"
@@ -125,53 +149,46 @@ const HomePage: React.FC = () => {
         Format and Store, Simulate and Analyze MRI Instrument Data
       </Typography>
 
-      {/* Sections */}
-      <Box
-        sx={{
-          marginTop: 6,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4,
-          width: '100%',
-        }}
-      >
-        {sections.map((section, index) => (
+      {/* Research Projects */}
+      <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {researchProjects.map((project, index) => (
           <Card
             key={index}
+            onClick={() => handleCardClick(project.link)}
             sx={{
               display: 'flex',
               flexDirection: { xs: 'column', md: 'row' },
-              alignItems: 'center',
-              padding: 2,
               boxShadow: 3,
               cursor: 'pointer',
               transition: 'transform 0.2s, box-shadow 0.2s',
               '&:hover': {
-                transform: 'scale(1.02)',
+                transform: 'translateY(-4px)',
                 boxShadow: 6,
               },
             }}
-            component={Link}
-            to={section.link}
           >
+            {/* Image on the left */}
             <CardMedia
               component="img"
               sx={{
-                width: { xs: '100%', md: '40%' },
-                height: 'auto',
-                borderRadius: 2,
-                boxShadow: 1,
-                maxWidth: '250px',
+                width: { xs: '100%', md: '300px' },
+                height: { xs: 'auto', md: '220px' },
+                objectFit: 'cover',
               }}
-              image={section.image}
-              alt={section.heading}
+              image={project.image}
+              alt={project.title}
             />
-            <CardContent sx={{ textAlign: 'left', paddingLeft: { md: 3 } }}>
-              <Typography variant="h5" gutterBottom>
-                {section.heading}
+
+            {/* Content on the right */}
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 3 }}>
+              <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600, color: '#011F5B' }}>
+                {project.title}
               </Typography>
-              <Typography variant="body1" color="textSecondary">
-                {section.description}
+              <Typography variant="h6" component="h3" gutterBottom sx={{ fontWeight: 400, color: '#555' }}>
+                {project.subtitle}
+              </Typography>
+              <Typography variant="body1" color="textSecondary" sx={{ marginTop: 1 }}>
+                {project.content}
               </Typography>
             </CardContent>
           </Card>

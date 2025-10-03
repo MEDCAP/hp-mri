@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../components/HeaderAccount';
+import HeaderAccount from '../../layouts/HeaderAccount';
 import { PulsePlotComponent } from '../../components/visualize/PulsePlotComponent';
 import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
 import ImageDisplayWindow from '../../components/viewer/ImageDisplayWindow';
