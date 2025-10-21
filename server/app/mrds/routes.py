@@ -1,4 +1,4 @@
-from flask import jsonify, request, current_app
+from flask import jsonify, request, current_app, g
 import os
 import boto3
 from bson import json_util, ObjectId
@@ -7,18 +7,21 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 # list, insert mongodb functions
-from data import list_all_mrdfiles, insert_mrdfile_header, read_mrdfile_header
-# read mrd header function
-from data import get_mrdfile_by_id
+from data import (
+    list_mrdfiles_for_user, insert_mrdfile_header, read_mrdfile_header,
+    get_mrdfile_by_id_with_auth, delete_mrdfiles_by_ids, change_file_visibility
+)
+from app.auth import requires_auth
 
 # flask blueprint for mrds route
 from . import mrds_bp
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
+@requires_auth
 def show_files():
     """
-    Return a list of MRD files with selected fields from MongoDB
+    Return a list of MRD files accessible to the current user
     """
     try:
         # define projection to list only relevant fields for display
@@ -29,6 +32,7 @@ def show_files():
             "ownerName": 1,
             "subjectType": 1,
             "groupName": 1,
+            "ownerId": 1,
             "isReconstructed": 1,
             "protocolName": 1,
             "measurementId": 1,
@@ -39,26 +43,33 @@ def show_files():
             "s3_key": 1,
             "_id": 1
         }
-        # list of cursor object 
-        cursor_list = list_all_mrdfiles(projection=proj)
+        
+        # Get pagination parameters
+        limit = min(int(request.args.get("limit", 50)), 200)
+        skip = int(request.args.get("skip", 0))
+        
+        # Get files accessible to user
+        cursor_list = list_mrdfiles_for_user(g.user_sub, projection=proj, limit=limit, skip=skip)
         return jsonify(cursor_list)
     except Exception as e:
         return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
+@requires_auth
 def get_file_details(file_id):
     try:
-        file_data = get_mrdfile_by_id(file_id)
+        file_data = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
         if file_data:
             # json_util handles BSON types like ObjectId
             return json.loads(json_util.dumps(file_data)), 200
-        return jsonify({"error": "File not found"}), 404
+        return jsonify({"error": "File not found or access denied"}), 404
     except Exception as e:
         return jsonify({"error": "Invalid file ID", "details": str(e)}), 400
 
 # Route to upload MRD files
 @mrds_bp.route("/upload", methods=["POST"])
+@requires_auth
 def upload_file():
     """
     Handle batch upload of MRD files with proper error handling and status tracking
@@ -70,6 +81,11 @@ def upload_file():
     if "ownerName" not in request.form:
         return jsonify({"error": "current UserName not found"}), 400
     current_user_name = request.form.get("ownerName")
+    
+    # Get group name from form data (null for private files)
+    group_name = request.form.get("groupName")
+    if group_name == "null" or group_name == "":
+        group_name = None
     
     # Setup AWS S3 client
     s3 = boto3.client("s3")
@@ -112,6 +128,11 @@ def upload_file():
             # Step 1: Extract metadata from MRD file (20% of progress)
             time.sleep(0.3)  # Simulate metadata extraction time
             db_entry = read_mrdfile_header(temp_filepath, owner_name=current_user_name)
+            
+            # Set ownership and group information
+            db_entry["ownerId"] = g.user_sub
+            db_entry["groupName"] = group_name
+            
             # Step 2: Insert metadata into MongoDB (40% of progress)
             time.sleep(0.2)  # Simulate database operation
             inserted_id = insert_mrdfile_header(db_entry)
@@ -184,6 +205,7 @@ def upload_file():
         return jsonify(response_data), 200  # 200 OK if all files succeeded
 
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
+@requires_auth
 def delete_files():
     try:
         file_ids = request.json.get("ids", [])
@@ -204,8 +226,8 @@ def delete_files():
         
         for file_id in file_ids:
             try:
-                # First, get the file document to find the S3 key
-                file_doc = db.mrdfiles.find_one({"_id": ObjectId(file_id)})
+                # First, get the file document to find the S3 key and check ownership
+                file_doc = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
                 
                 if file_doc:
                     file_result = {
@@ -274,6 +296,31 @@ def delete_files():
         return jsonify({"error": "Failed to delete files", "details": str(e)}), 400
 
 @mrds_bp.route("/mrd-file/<int:file_id>/download")
+@requires_auth
 def download_file(file_id):
     # download file
     pass
+
+@mrds_bp.route("/mrd-files/<file_id>/share", methods=["POST"])
+@requires_auth
+def share_file(file_id):
+    """
+    Change file visibility from private to group or vice versa
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        new_group_name = data.get("groupName")
+        if new_group_name == "null" or new_group_name == "":
+            new_group_name = None
+        
+        success = change_file_visibility(file_id, new_group_name, g.user_sub)
+        if success:
+            return jsonify({"message": "File visibility updated successfully"}), 200
+        else:
+            return jsonify({"error": "Failed to update file visibility or access denied"}), 400
+            
+    except Exception as e:
+        return jsonify({"error": "Failed to update file visibility", "details": str(e)}), 500

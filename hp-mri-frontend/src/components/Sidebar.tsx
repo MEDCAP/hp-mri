@@ -1,5 +1,5 @@
-import React from 'react';
-import { FaCube, FaFile, FaImages } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaCube, FaFile, FaImages, FaCog } from 'react-icons/fa';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Drawer,
@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
+import SettingsModal from './SettingsModal';
 import '../styles/sidebar.css';
 
 interface SidebarProps {
@@ -25,9 +26,16 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black = false }) => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
   };
+  
+  const handleSettingsClick = () => {
+    setSettingsOpen(true);
+  };
+  
   const theme = useTheme()
   const location = useLocation();
   const isMrdSelected = location.pathname.startsWith('/mrd-files');
@@ -196,6 +204,48 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
         </ListItem>
       </List>
       <Divider />
+      
+      {/* Settings Button at Bottom */}
+      <Box sx={{ 
+        position: 'absolute', 
+        bottom: 0, 
+        left: 0, 
+        right: 0,
+        p: 1
+      }}>
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={handleSettingsClick}
+            sx={{
+              padding: '10px 16px',
+              borderRadius: 1,
+              '&:hover': {
+                backgroundColor: background_black ? alpha(theme.palette.common.white, 0.08) : theme.palette.action.hover,
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaCog color={background_black ? theme.palette.common.white : '#011F5B'} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+            </ListItemIcon>
+            {isOpen && (
+              <ListItemText
+                primary="Settings"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  sx: { color: background_black ? theme.palette.common.white : 'inherit' },
+                }}
+              />
+            )}
+          </ListItemButton>
+        </ListItem>
+      </Box>
+      
+      {/* Settings Modal */}
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </Drawer>
   );
 };

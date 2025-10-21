@@ -5,7 +5,8 @@ export interface MRDFile {
   studyTime: string;
   ownerName: string;
   subjectType: string;
-  groupName: string;
+  groupName: string | null;  // null for private files
+  ownerId: string;           // Cognito sub of the owner
   isReconstructed: boolean;
   protocolName?: string;
   measurementId?: string;

@@ -104,6 +104,19 @@ export function getCurrentUserName(): string | null {
   return null;
 }
 
+export function getCurrentUserEmail(): string | null {
+  const user = userPool.getCurrentUser();
+  if (!user) return null;
+  
+  // Try to get the email from localStorage first (set during sign in)
+  const storedEmail = localStorage.getItem('cognito_user_email');
+  if (storedEmail) {
+    return storedEmail;
+  }
+  
+  return null;
+}
+
 export const getCurrentUserId = () => {
   const session = localStorage.getItem('amplify-authenticator-authState');
   if (session) {
@@ -126,4 +139,26 @@ export function signOutCognito() {
   // Clear stored user information
   localStorage.removeItem('cognito_user_name');
   localStorage.removeItem('cognito_user_email');
-} 
+}
+
+export function getIdToken(): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const user = userPool.getCurrentUser();
+    if (!user) {
+      resolve(null);
+      return;
+    }
+    
+    user.getSession((err: any, session: any) => {
+      if (err) {
+        reject(err);
+      } else {
+        const idToken = session.getIdToken().getJwtToken();
+        resolve(idToken);
+      }
+    });
+  });
+}
+
+// Export userPool for use in other modules
+export { userPool }; 

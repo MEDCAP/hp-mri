@@ -27,6 +27,8 @@ def create_app():
     app.register_blueprint(mrds_bp, url_prefix="/api")
     from app.viewer import viewer_bp
     app.register_blueprint(viewer_bp, url_prefix="/api")
+    from app.groups import groups_bp
+    app.register_blueprint(groups_bp, url_prefix="/api")
 
     # Health check endpoint for AWS ALB
     @app.route("/api/health", methods=["GET"])

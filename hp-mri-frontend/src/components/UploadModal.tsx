@@ -34,6 +34,8 @@ import {
 } from '@mui/icons-material';
 import { TransitionProps } from '@mui/material/transitions';
 import { getCurrentUserName } from '../pages/loginpages/cognitoUtils';
+import { Group } from '../types/group';
+import apiClient from '../api/apiClient';
 
 // Styled components for enhanced Material Design
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -171,12 +173,31 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isJiggling, setIsJiggling] = useState(false);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string>('private');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use external upload state if provided, otherwise use internal state
   const isUploadingState = externalIsUploading !== undefined ? externalIsUploading : isUploading;
 
   console.log('UploadModal render:', { open, isUploadingState, filesCount: files.length });
+
+  // Fetch user's groups when modal opens
+  React.useEffect(() => {
+    if (open) {
+      fetchUserGroups();
+    }
+  }, [open]);
+
+  const fetchUserGroups = async () => {
+    try {
+      const response = await apiClient.get('/groups');
+      setUserGroups(response.data);
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+      setUserGroups([]);
+    }
+  };
 
   // File validation
   const isValidFileType = (file: File): boolean => {
@@ -239,6 +260,9 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         formData.append('ownerName', 'Unknown');
       }
       
+      // Add group selection (null for private files)
+      formData.append('groupName', selectedGroup === 'private' ? 'null' : selectedGroup);
+      
       // Update status to uploading
       setFiles(prev => prev.map(f => 
         f.id === file.id 
@@ -293,19 +317,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
       // Start progress updates
       setTimeout(updateProgress, 100);
       
-      // Make API call
-      fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      .then(response => {
-        if (!response.ok) {
-          const errorMessage = `HTTP error! status: ${response.status}`;
-          const uploadError = new Error(errorMessage);
-          throw uploadError;
-        }
-        
-        return response.json();
+      // Make API call using apiClient (includes JWT token)
+      apiClient.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
       .then(data => {
         // Set progress to 100% and completed status
@@ -461,6 +477,30 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
       </DialogTitle>
 
       <DialogContent sx={{ pt: 0 }}>
+        {/* Group Selection */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Share with:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              label="Private"
+              color={selectedGroup === 'private' ? 'primary' : 'default'}
+              onClick={() => setSelectedGroup('private')}
+              variant={selectedGroup === 'private' ? 'filled' : 'outlined'}
+            />
+            {userGroups.map((group) => (
+              <Chip
+                key={group.name}
+                label={group.displayName}
+                color={selectedGroup === group.name ? 'primary' : 'default'}
+                onClick={() => setSelectedGroup(group.name)}
+                variant={selectedGroup === group.name ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
+        </Box>
+        
         {/* Upload Zone */}
         <UploadZone
           isDragOver={isDragOver}

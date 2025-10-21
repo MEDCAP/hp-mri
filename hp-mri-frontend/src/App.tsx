@@ -33,6 +33,10 @@ import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
 
+// Group pages
+import GroupsPage from './pages/grouppages/GroupsPage';
+import GroupDetailPage from './pages/grouppages/GroupDetailPage';
+
 const APP_VERSION = 'MEDCAP © 2025';
 
 const AppContent: React.FC = () => {
@@ -57,6 +61,10 @@ const AppContent: React.FC = () => {
 
           {/* MRD Files - MRD Layout (HeaderAccount) */}
           <Route path="/mrd-files" element={<ProtectedRoute><MRDLayout><RetrievePage /></MRDLayout></ProtectedRoute>} />
+
+          {/* Groups - MRD Layout */}
+          <Route path="/groups" element={<ProtectedRoute><MRDLayout><GroupsPage /></MRDLayout></ProtectedRoute>} />
+          <Route path="/groups/:groupName" element={<ProtectedRoute><MRDLayout><GroupDetailPage /></MRDLayout></ProtectedRoute>} />
 
           {/* Simulator & Viewer - MRD Layout */}
           <Route path="/simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />

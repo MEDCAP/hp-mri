@@ -35,7 +35,7 @@ import {
   UploadFile, 
   Refresh
 } from '@mui/icons-material';
-import axios from 'axios';
+import apiClient from '../../api/apiClient';
 import { MRDFile } from '../../types/mrd';
 
 const formatStudyTime = (timeString: string) => {
@@ -101,7 +101,7 @@ const RetrievePage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
 
   const fetchFiles = () => {
-    axios.get('/api/mrd-files')
+    apiClient.get('/mrd-files')
       .then((response) => {
         console.log('mrd-files response: ', response.data);
         

@@ -61,18 +61,18 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
         </Box>
 
         {/* Center Section: Title */}
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 600,
-            color: background_black? "white" : theme.palette.primary.main,
-            textAlign: 'center',
-            flexGrow: 1,
-            letterSpacing: 1.2,
-          }}
-        >
-          HP-MRI
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexGrow: 1, justifyContent: 'center' }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              color: background_black? "white" : theme.palette.primary.main,
+              letterSpacing: 1.2,
+            }}
+          >
+            HP-MRI
+          </Typography>
+        </Box>
 
         {/* Right Section: Account */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
