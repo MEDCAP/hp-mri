@@ -18,6 +18,8 @@ import {
   Avatar,
   Card,
   CardContent,
+  Tabs,
+  Tab,
   useTheme,
   alpha
 } from '@mui/material';
@@ -31,9 +33,12 @@ import {
   Settings as SettingsIcon
 } from '@mui/icons-material';
 import apiClient from '../api/apiClient';
-import { getCurrentUserName, getCurrentUserEmail } from '../pages/loginpages/cognitoUtils';
+import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub } from '../pages/loginpages/cognitoUtils';
+import { useNavigate } from 'react-router-dom';
 import { Group } from '../types/group';
 import CreateGroupDialog from './CreateGroupDialog';
+import JoinGroupDialog from './JoinGroupDialog';
+import JoinRequestStatus from './JoinRequestStatus';
 
 interface SettingsModalProps {
   open: boolean;
@@ -42,11 +47,14 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [userName, setUserName] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [joinGroupOpen, setJoinGroupOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -79,13 +87,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   };
 
   const handleJoinGroup = () => {
-    // This would open a join group dialog
-    alert('Join group functionality will be implemented here');
+    setJoinGroupOpen(true);
   };
 
   const handleGroupCreated = () => {
     // Refresh the groups list
     loadGroups();
+  };
+
+  const handleGroupJoined = () => {
+    // Refresh the groups list
+    loadGroups();
+  };
+
+  const handleGroupClick = (groupName: string) => {
+    navigate(`/groups/${groupName}`);
+    onClose(); // Close the settings modal
   };
 
   return (
@@ -218,12 +235,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                 {groups.map((group, index) => (
                   <React.Fragment key={group._id}>
                     <ListItem
+                      button
+                      onClick={() => handleGroupClick(group.name)}
                       sx={{
                         px: 0,
                         py: 1.5,
                         '&:hover': {
                           backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                        }
+                        },
+                        cursor: 'pointer',
                       }}
                     >
                       <Avatar
@@ -281,6 +301,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             )}
           </CardContent>
         </Card>
+
+        {/* Join Request Status Section */}
+        <Card sx={{ mt: 3, boxShadow: 1 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <GroupIcon color="primary" sx={{ mr: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                My Join Requests
+              </Typography>
+            </Box>
+            <JoinRequestStatus userSub={getCurrentUserSub() || 'unknown-user-sub'} />
+          </CardContent>
+        </Card>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -294,6 +327,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
         open={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
         onGroupCreated={handleGroupCreated}
+      />
+      
+      {/* Join Group Dialog */}
+      <JoinGroupDialog
+        open={joinGroupOpen}
+        onClose={() => setJoinGroupOpen(false)}
+        onGroupJoined={handleGroupJoined}
       />
     </Dialog>
   );

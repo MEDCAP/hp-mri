@@ -401,10 +401,17 @@ def is_group_admin(group_name: str, user_sub: str) -> bool:
     """
     try:
         db = get_db()
+        print(f"DEBUG: is_group_admin checking group={group_name}, user_sub={user_sub}")
+        
         group = db.groups.find_one(
             {"name": group_name, "admins": user_sub},
             {"_id": 1}
         )
+        
+        print(f"DEBUG: is_group_admin found group: {group is not None}")
+        if group:
+            print(f"DEBUG: Group found with _id: {group.get('_id')}")
+        
         return group is not None
     except Exception as e:
         print(f"Error checking group admin: {e}")
@@ -550,6 +557,473 @@ def delete_group(group_name: str, deleted_by_sub: str) -> bool:
         return result.deleted_count > 0
     except Exception as e:
         print(f"Error deleting group: {e}")
+        return False
+
+# ===== INVITE CODE FUNCTIONS =====
+
+def generate_invite_code(group_name: str, created_by_sub: str, expires_days: int = None, max_uses: int = None) -> str:
+    """
+    Generate a new invite code for a group
+    Returns the generated code
+    """
+    try:
+        if not is_group_admin(group_name, created_by_sub):
+            return None
+        
+        import secrets
+        import string
+        from datetime import datetime, timedelta
+        
+        # Generate secure random code (9 characters, alphanumeric)
+        alphabet = string.ascii_uppercase + string.digits
+        code = ''.join(secrets.choice(alphabet) for _ in range(9))
+        
+        # Calculate expiration date
+        expires_at = None
+        if expires_days:
+            expires_at = datetime.utcnow() + timedelta(days=expires_days)
+        
+        # Create invite code object
+        invite_code = {
+            "code": code,
+            "createdBy": created_by_sub,
+            "createdAt": datetime.utcnow(),
+            "expiresAt": expires_at,
+            "maxUses": max_uses,
+            "usedCount": 0
+        }
+        
+        db = get_db()
+        result = db.groups.update_one(
+            {"name": group_name},
+            {"$push": {"inviteCodes": invite_code}}
+        )
+        
+        return code if result.modified_count > 0 else None
+    except Exception as e:
+        print(f"Error generating invite code: {e}")
+        return None
+
+def validate_invite_code(code: str) -> dict:
+    """
+    Validate an invite code
+    Returns group info if valid, None if invalid
+    """
+    try:
+        db = get_db()
+        group = db.groups.find_one(
+            {"inviteCodes.code": code},
+            {"name": 1, "displayName": 1, "inviteCodes.$": 1}
+        )
+        
+        if not group:
+            return None
+        
+        invite_code = group["inviteCodes"][0]
+        now = datetime.utcnow()
+        
+        # Check expiration
+        if invite_code.get("expiresAt") and invite_code["expiresAt"] < now:
+            return None
+        
+        # Check max uses
+        if invite_code.get("maxUses") and invite_code["usedCount"] >= invite_code["maxUses"]:
+            return None
+        
+        return {
+            "groupName": group["name"],
+            "displayName": group["displayName"],
+            "code": code
+        }
+    except Exception as e:
+        print(f"Error validating invite code: {e}")
+        return None
+
+def use_invite_code(code: str, user_sub: str) -> dict:
+    """
+    Use an invite code to join a group
+    Returns group info if successful, None if failed
+    """
+    try:
+        # First validate the code
+        code_info = validate_invite_code(code)
+        if not code_info:
+            return None
+        
+        group_name = code_info["groupName"]
+        
+        # Check if user is already a member
+        if is_group_member(group_name, user_sub):
+            return None
+        
+        db = get_db()
+        
+        # Add user to group and increment usage count
+        result = db.groups.update_one(
+            {
+                "name": group_name,
+                "inviteCodes.code": code
+            },
+            {
+                "$addToSet": {"members": user_sub},
+                "$inc": {"inviteCodes.$.usedCount": 1}
+            }
+        )
+        
+        if result.modified_count > 0:
+            return code_info
+        return None
+    except Exception as e:
+        print(f"Error using invite code: {e}")
+        return None
+
+def get_group_invite_codes(group_name: str, user_sub: str) -> list:
+    """
+    Get all invite codes for a group (admin only)
+    """
+    try:
+        if not is_group_admin(group_name, user_sub):
+            return []
+        
+        db = get_db()
+        group = db.groups.find_one(
+            {"name": group_name},
+            {"inviteCodes": 1}
+        )
+        
+        return group.get("inviteCodes", []) if group else []
+    except Exception as e:
+        print(f"Error getting invite codes: {e}")
+        return []
+
+def revoke_invite_code(group_name: str, code: str, user_sub: str) -> bool:
+    """
+    Revoke an invite code (admin only)
+    """
+    try:
+        if not is_group_admin(group_name, user_sub):
+            return False
+        
+        db = get_db()
+        result = db.groups.update_one(
+            {"name": group_name},
+            {"$pull": {"inviteCodes": {"code": code}}}
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error revoking invite code: {e}")
+        return False
+
+# ===== JOIN REQUEST FUNCTIONS =====
+
+def create_join_request(group_name: str, user_sub: str, user_name: str, user_email: str) -> bool:
+    """
+    Create a join request for a group
+    """
+    try:
+        print(f"DEBUG: create_join_request called with group_name={group_name}, user_sub={user_sub}")
+        
+        # Check if user is already a member
+        if is_group_member(group_name, user_sub):
+            print(f"DEBUG: User {user_sub} is already a member of {group_name}")
+            return False
+        
+        # Check if group exists and is discoverable
+        group = get_group_by_name(group_name)
+        if not group or not group.get("settings", {}).get("isDiscoverable", True):
+            print(f"DEBUG: Group {group_name} not found or not discoverable")
+            return False
+        
+        # Check if there's already a pending request
+        db = get_db()
+        existing_request = db.groups.find_one(
+            {
+                "name": group_name,
+                "joinRequests": {
+                    "$elemMatch": {
+                        "userSub": user_sub,
+                        "status": "pending"
+                    }
+                }
+            }
+        )
+        
+        if existing_request:
+            print(f"DEBUG: User {user_sub} already has a pending request for {group_name}")
+            return False
+        
+        # Create join request
+        join_request = {
+            "userSub": user_sub,
+            "userName": user_name,
+            "userEmail": user_email,
+            "requestedAt": datetime.utcnow(),
+            "status": "pending"
+        }
+        
+        # Check if group has auto-approve enabled
+        auto_approve = group.get("settings", {}).get("autoApprove", False)
+        
+        print(f"DEBUG: Auto-approve enabled: {auto_approve}")
+        
+        if auto_approve:
+            # Auto-approve: add user to members and mark request as approved
+            result = db.groups.update_one(
+                {"name": group_name},
+                {
+                    "$addToSet": {"members": user_sub},
+                    "$push": {"joinRequests": {**join_request, "status": "approved"}}
+                }
+            )
+        else:
+            # Manual approval: just add the request
+            result = db.groups.update_one(
+                {"name": group_name},
+                {"$push": {"joinRequests": join_request}}
+            )
+        
+        print(f"DEBUG: Database update result: {result.modified_count > 0}")
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error creating join request: {e}")
+        return False
+
+def get_pending_join_requests(group_name: str, user_sub: str) -> list:
+    """
+    Get pending join requests for a group (admin only)
+    """
+    try:
+        if not is_group_admin(group_name, user_sub):
+            return []
+        
+        db = get_db()
+        group = db.groups.find_one(
+            {"name": group_name},
+            {"joinRequests": 1}
+        )
+        
+        if not group:
+            return []
+        
+        # Filter for pending requests
+        pending_requests = [
+            req for req in group.get("joinRequests", [])
+            if req.get("status") == "pending"
+        ]
+        
+        return pending_requests
+    except Exception as e:
+        print(f"Error getting pending join requests: {e}")
+        return []
+
+def approve_join_request(group_name: str, user_sub: str, approved_by_sub: str) -> bool:
+    """
+    Approve a join request (admin only)
+    """
+    try:
+        if not is_group_admin(group_name, approved_by_sub):
+            return False
+        
+        db = get_db()
+        result = db.groups.update_one(
+            {
+                "name": group_name,
+                "joinRequests": {
+                    "$elemMatch": {
+                        "userSub": user_sub,
+                        "status": "pending"
+                    }
+                }
+            },
+            {
+                "$addToSet": {"members": user_sub},
+                "$set": {"joinRequests.$.status": "approved"}
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error approving join request: {e}")
+        return False
+
+def deny_join_request(group_name: str, user_sub: str, denied_by_sub: str) -> bool:
+    """
+    Deny a join request (admin only)
+    """
+    try:
+        if not is_group_admin(group_name, denied_by_sub):
+            return False
+        
+        db = get_db()
+        result = db.groups.update_one(
+            {
+                "name": group_name,
+                "joinRequests": {
+                    "$elemMatch": {
+                        "userSub": user_sub,
+                        "status": "pending"
+                    }
+                }
+            },
+            {"$set": {"joinRequests.$.status": "denied"}}
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error denying join request: {e}")
+        return False
+
+# ===== GROUP SEARCH FUNCTIONS =====
+
+def search_groups(query: str, user_sub: str) -> list:
+    """
+    Search for discoverable groups that the user is not already a member of
+    """
+    try:
+        db = get_db()
+        
+        # Get groups user is already a member of
+        user_groups = get_user_group_names(user_sub)
+        
+        # Build search query
+        search_filter = {
+            "settings.isDiscoverable": True,
+            "name": {"$nin": user_groups}  # Exclude groups user is already in
+        }
+        
+        if query and query.strip():
+            # Add text search if query provided
+            search_filter["$or"] = [
+                {"name": {"$regex": query, "$options": "i"}},
+                {"displayName": {"$regex": query, "$options": "i"}},
+                {"description": {"$regex": query, "$options": "i"}}
+            ]
+        
+        # Get discoverable groups
+        groups = list(db.groups.find(
+            search_filter,
+            {
+                "name": 1,
+                "displayName": 1,
+                "description": 1,
+                "members": 1,
+                "createdAt": 1
+            }
+        ).limit(20))
+        
+        # Add member count to each group
+        for group in groups:
+            group["memberCount"] = len(group.get("members", []))
+            group["_id"] = str(group["_id"])
+        
+        return groups
+    except Exception as e:
+        print(f"Error searching groups: {e}")
+        return []
+
+def get_group_settings(group_name: str) -> dict:
+    """
+    Get group settings
+    """
+    try:
+        group = get_group_by_name(group_name)
+        if not group:
+            return None
+        
+        return group.get("settings", {
+            "isDiscoverable": True,
+            "autoApprove": False
+        })
+    except Exception as e:
+        print(f"Error getting group settings: {e}")
+        return None
+
+def update_group_settings(group_name: str, settings: dict, updated_by_sub: str) -> bool:
+    """
+    Update group settings (admin only)
+    """
+    try:
+        if not is_group_admin(group_name, updated_by_sub):
+            return False
+        
+        db = get_db()
+        result = db.groups.update_one(
+            {"name": group_name},
+            {"$set": {"settings": settings}}
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error updating group settings: {e}")
+        return False
+
+def get_user_join_requests(user_sub: str) -> list:
+    """
+    Get all join requests made by a user across all groups
+    """
+    try:
+        db = get_db()
+        
+        # Find all groups where this user has made join requests
+        groups = list(db.groups.find(
+            {"joinRequests.userSub": user_sub},
+            {"name": 1, "displayName": 1, "joinRequests": 1}
+        ))
+        
+        user_requests = []
+        for group in groups:
+            # Find the user's requests in this group
+            for request in group.get("joinRequests", []):
+                if request.get("userSub") == user_sub:
+                    user_requests.append({
+                        "groupName": group["name"],
+                        "displayName": group["displayName"],
+                        "status": request.get("status", "pending"),
+                        "requestedAt": request.get("requestedAt"),
+                        "userName": request.get("userName"),
+                        "userEmail": request.get("userEmail")
+                    })
+        
+        # Sort by requested date (most recent first)
+        user_requests.sort(key=lambda x: x.get("requestedAt", ""), reverse=True)
+        
+        return user_requests
+    except Exception as e:
+        print(f"Error getting user join requests: {e}")
+        return []
+
+def withdraw_join_request(group_name: str, user_sub: str) -> bool:
+    """
+    Withdraw a pending join request
+    """
+    try:
+        db = get_db()
+        
+        # Remove the pending request from the group
+        result = db.groups.update_one(
+            {
+                "name": group_name,
+                "joinRequests": {
+                    "$elemMatch": {
+                        "userSub": user_sub,
+                        "status": "pending"
+                    }
+                }
+            },
+            {
+                "$pull": {
+                    "joinRequests": {
+                        "userSub": user_sub,
+                        "status": "pending"
+                    }
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error withdrawing join request: {e}")
         return False
 
 def change_file_visibility(file_id: str, new_group_name: Optional[str], user_sub: str) -> bool:

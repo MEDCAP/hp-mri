@@ -64,9 +64,11 @@ export function signInCognito(email: string, password: string): Promise<any> {
         const payload = idToken.payload;
         const name = payload.name || payload.email || email;
         const userEmail = payload.email || email;
+        const userSub = payload.sub;
         
         localStorage.setItem('cognito_user_name', name);
         localStorage.setItem('cognito_user_email', userEmail);
+        localStorage.setItem('cognito_user_sub', userSub);
         
         resolve(result);
       },
@@ -99,6 +101,19 @@ export function getCurrentUserName(): string | null {
   const storedEmail = localStorage.getItem('cognito_user_email');
   if (storedEmail) {
     return storedEmail;
+  }
+  
+  return null;
+}
+
+export function getCurrentUserSub(): string | null {
+  const user = userPool.getCurrentUser();
+  if (!user) return null;
+  
+  // Try to get the sub from localStorage first (set during sign in)
+  const storedSub = localStorage.getItem('cognito_user_sub');
+  if (storedSub) {
+    return storedSub;
   }
   
   return null;
@@ -139,6 +154,7 @@ export function signOutCognito() {
   // Clear stored user information
   localStorage.removeItem('cognito_user_name');
   localStorage.removeItem('cognito_user_email');
+  localStorage.removeItem('cognito_user_sub');
 }
 
 export function getIdToken(): Promise<string | null> {

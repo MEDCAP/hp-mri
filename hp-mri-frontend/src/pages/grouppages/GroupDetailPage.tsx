@@ -35,6 +35,9 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { Group as GroupType, GroupMember } from '../../types/group';
+import JoinRequestsPanel from '../../components/JoinRequestsPanel';
+import ManageInviteCodesDialog from '../../components/ManageInviteCodesDialog';
+import { getCurrentUserSub } from '../loginpages/cognitoUtils';
 
 const GroupDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,6 +48,7 @@ const GroupDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteCodesDialogOpen, setInviteCodesDialogOpen] = useState(false);
   const [userSubToInvite, setUserSubToInvite] = useState('');
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [isUserMember, setIsUserMember] = useState(false);
@@ -67,7 +71,13 @@ const GroupDetailPage: React.FC = () => {
       setMembers(membersResponse.data.members);
       
       // Check if current user is admin or member
-      const currentUserSub = getCurrentUserSub();
+      const currentUserSub = getCurrentUserSubLocal();
+      console.log('DEBUG: Current user sub:', currentUserSub);
+      console.log('DEBUG: Group admins:', groupResponse.data.admins);
+      console.log('DEBUG: Group members:', groupResponse.data.members);
+      console.log('DEBUG: Is user admin?', groupResponse.data.admins.includes(currentUserSub));
+      console.log('DEBUG: Is user member?', groupResponse.data.members.includes(currentUserSub));
+      
       setIsUserAdmin(groupResponse.data.admins.includes(currentUserSub));
       setIsUserMember(groupResponse.data.members.includes(currentUserSub));
       
@@ -80,9 +90,8 @@ const GroupDetailPage: React.FC = () => {
     }
   };
 
-  const getCurrentUserSub = () => {
-    // This would need to be implemented to get the current user's sub
-    return 'current-user-sub'; // This should be replaced with actual user sub
+  const getCurrentUserSubLocal = () => {
+    return getCurrentUserSub() || 'unknown-user-sub';
   };
 
   const handleUpdateGroup = async (updates: { displayName?: string; description?: string }) => {
@@ -158,7 +167,7 @@ const GroupDetailPage: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/groups/${groupName}/members/${getCurrentUserSub()}`);
+      await apiClient.delete(`/groups/${groupName}/members/${getCurrentUserSubLocal()}`);
       navigate('/groups');
     } catch (error: any) {
       console.error('Error leaving group:', error);
@@ -248,6 +257,18 @@ const GroupDetailPage: React.FC = () => {
                   </Button>
                 )}
                 
+                {isUserAdmin && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<PersonAdd />}
+                    onClick={() => setInviteCodesDialogOpen(true)}
+                    fullWidth
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Manage Invite Codes
+                  </Button>
+                )}
+                
                 {isUserMember && !isUserAdmin && (
                   <Button
                     variant="outlined"
@@ -280,7 +301,7 @@ const GroupDetailPage: React.FC = () => {
                         secondary={member.isAdmin ? 'Admin' : 'Member'}
                       />
                       <ListItemSecondaryAction>
-                        {isUserAdmin && member.sub !== getCurrentUserSub() && (
+                        {isUserAdmin && member.sub !== getCurrentUserSubLocal() && (
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             {member.isAdmin ? (
                               <Tooltip title="Demote to Member">
@@ -321,6 +342,17 @@ const GroupDetailPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Join Requests Panel - Only for Admins */}
+        {isUserAdmin && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <JoinRequestsPanel groupName={groupName!} isAdmin={isUserAdmin} />
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
       </Grid>
 
       {/* Edit Group Dialog */}
@@ -386,6 +418,13 @@ const GroupDetailPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Manage Invite Codes Dialog */}
+      <ManageInviteCodesDialog
+        open={inviteCodesDialogOpen}
+        onClose={() => setInviteCodesDialogOpen(false)}
+        groupName={groupName!}
+      />
     </Box>
   );
 };

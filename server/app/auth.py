@@ -4,6 +4,7 @@ JWT Authentication module for Cognito integration
 import json
 import urllib.request
 import jwt
+from jwt import get_unverified_header, ExpiredSignatureError, InvalidTokenError
 from flask import request, jsonify, g
 from functools import wraps
 
@@ -35,7 +36,7 @@ def requires_auth(f):
         
         try:
             # Get unverified header to find the key ID
-            unverified_header = jwt.get_unverified_header(token)
+            unverified_header = get_unverified_header(token)
             kid = unverified_header.get('kid')
             
             # Find the matching key
@@ -66,9 +67,9 @@ def requires_auth(f):
             
             return f(*args, **kwargs)
             
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             return jsonify({'error': 'Token has expired'}), 401
-        except jwt.InvalidTokenError as e:
+        except InvalidTokenError as e:
             return jsonify({'error': 'Invalid token', 'details': str(e)}), 401
         except Exception as e:
             return jsonify({'error': 'Authentication failed', 'details': str(e)}), 401
