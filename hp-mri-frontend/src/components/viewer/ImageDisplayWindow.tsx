@@ -13,7 +13,7 @@ import {
   ShowChart,
   SwapHoriz
 } from '@mui/icons-material';
-import ImagingPlotComponent from '../visualize/ImagingPlotComponent';
+import ImagingPlotComponent from './ImagingPlotComponent';
 import { MRDFile } from '../../types/mrd';
 import InlineControls from './InlineControls';
 import FileDetailsModal from './FileDetailsModal';

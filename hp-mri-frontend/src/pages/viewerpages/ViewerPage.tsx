@@ -3,8 +3,8 @@ import { Box, Typography } from '@mui/material';
 
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../layouts/HeaderAccount';
-import { PulsePlotComponent } from '../../components/visualize/PulsePlotComponent';
-import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
+import { PulsePlotComponent } from '../../components/viewer/PulsePlotComponent';
+import ViewerSidePanel from '../../components/viewer/ViewerSidePanel';
 import ImageDisplayWindow from '../../components/viewer/ImageDisplayWindow';
 import FileSelector from '../../components/viewer/FileSelector';
 import ConcatenationPanel from '../../components/viewer/ConcatenationPanel';
