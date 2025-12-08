@@ -248,3 +248,19 @@ def get_pulse_array_from_mrdfile(file_id):
                     pulse_phase = np.concatenate([pulse_phase, pulse.phase[..., np.newaxis]], axis=-1)
     # return pulse_data, pulse_phase, start_time, dt
     return pulse_data, pulse_phase
+
+
+if __name__ == "__main__":
+    # Setup AWS S3 client
+    s3 = boto3.client("s3")
+    # BUCKET = current_app.config['S3_BUCKET']
+    BUCKET = 'medcap-data'
+    file_id = '690baa067ad45d0195f29ba7'
+    s3_filekey = f'mrd_files/{file_id}'
+    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    # Initialize variables to avoid scope issues
+    body_bytes = obj['Body']
+    with mrd.BinaryMrdReader(body_bytes) as r:
+        h = r.read_header()
+        for item in r.read_data():
+            pass

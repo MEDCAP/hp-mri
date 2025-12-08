@@ -8,10 +8,7 @@ from app.viewer.magnets import (
     clinical_processing,
     mr_solutions_processing,
 )
-from data import (
-    get_image_array_from_mrdfile,
-    get_pulse_array_from_mrdfile,
-    get_gradient_from_mrdfile)
+from data import get_image_array_from_mrdfile, get_pulse_array_from_mrdfile
 import app.external.python.mrd as mrd
 
 

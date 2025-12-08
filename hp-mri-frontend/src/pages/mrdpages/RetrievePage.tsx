@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../layouts/HeaderAccount';
 import UploadModal from '../../components/UploadModal';
@@ -8,6 +7,7 @@ import UploadProgressModal from '../../components/UploadProgressModal';
 import UploadCompletionModal from '../../components/UploadCompletionModal';
 import DeleteConfirmationDialog from '../../components/DeleteConfirmationDialog';
 import FileDetailsPanel from '../../components/FileDetailsPanel';
+import ReconstructModal from '../../components/ReconstructModal';
 import {
   Button,
   Checkbox,
@@ -33,7 +33,8 @@ import {
   CloudDownload, 
   Delete, 
   UploadFile, 
-  Refresh
+  Refresh,
+  Build
 } from '@mui/icons-material';
 import axios from 'axios';
 import { MRDFile } from '../../types/mrd';
@@ -99,6 +100,7 @@ const RetrievePage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
+  const [reconstructModalOpen, setReconstructModalOpen] = useState(false);
 
   const fetchFiles = () => {
     axios.get('/api/mrd-files')
@@ -376,9 +378,19 @@ const RetrievePage: React.FC = () => {
                     setUploadProgressModalOpen(false);
                     setUploadModalOpen(true);
                   }}
-                  sx={{ flex: '1 1 24%', marginTop: '-8px' }}
+                  sx={{ flex: '1 1 19%', marginTop: '-8px' }}
                 >
                   Upload
+                </Button>
+              </Tooltip>
+              <Tooltip title="Reconstruct MRD files">
+                <Button 
+                  variant="outlined" 
+                  startIcon={<Build />} 
+                  onClick={() => setReconstructModalOpen(true)}
+                  sx={{ flex: '1 1 19%', marginTop: '-8px' }}
+                >
+                  Reconstruct
                 </Button>
               </Tooltip>
               <Tooltip title="Refresh MRD files">
@@ -387,7 +399,7 @@ const RetrievePage: React.FC = () => {
                   startIcon={<Refresh />}
                   onClick={fetchFiles}
                   sx={{
-                    flex: '1 1 24%',
+                    flex: '1 1 19%',
                     marginTop: '-8px'
                   }}
                 >
@@ -403,7 +415,7 @@ const RetrievePage: React.FC = () => {
                     disabled={!isAnyFileSelected}
                     onClick={handleDelete}
                     sx={{
-                      flex: '1 1 24%',
+                      flex: '1 1 19%',
                       marginTop: '-8px'
                     }}
                   >
@@ -419,7 +431,7 @@ const RetrievePage: React.FC = () => {
                     startIcon={<CloudDownload />}
                     disabled={!isAnyFileSelected}
                     sx={{
-                      flex: '1 1 24%',
+                      flex: '1 1 19%',
                       marginTop: '-8px'
                     }}
                   >
@@ -609,6 +621,16 @@ const RetrievePage: React.FC = () => {
           setSelectedFile(null);
         }}
         file={selectedFile}
+      />
+
+      {/* Reconstruct Modal */}
+      <ReconstructModal
+        open={reconstructModalOpen}
+        onClose={() => setReconstructModalOpen(false)}
+        onReconstructStart={() => {
+          console.log('Reconstruction started');
+          // You can add success notification here if needed
+        }}
       />
     </div>
   );
