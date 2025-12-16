@@ -1,7 +1,7 @@
 # **HP-MRI Web App**  
 
 **Author(s):** The MEDCAP computing (Ben Yoon, Yamada, Kadlecek, Zhou)  
-**Date:** Fri May 8, 2025  
+**Date:** Fri Dec 16, 2025  
 **Version:** 2.0.5
 
 A **full-stack web application** designed to streamline the **visualization, simulation, shareability, and conversion** of **Hyperpolarized MRI (HP MRI) data**. Built with **React (Vite)** on the **frontend** and **Flask** on the **backend**, this application provides an intuitive UI for managing MRI workflows, sharing (storing and retrieving) data, and visualizing MRI images in an **interactive and scalable** way.
@@ -86,9 +86,11 @@ To set up and run the backend (Flask):
 4. **Install backend dependencies**:
    ```bash
    pip install -r requirements.txt
-5. **Start the Flask server**:
+5. **Build the docker image**:
    ```bash
-   python app.py
+   docker build -t medcap-app:$(cat ../VERSION) .
+6. **Run backend container**:
+   docker run --rm -p 5000:5000 --env-file .env.development medcap-app:$(cat ../VERSION)
 6. **Access the backend at**:
    http://localhost:5000
 
