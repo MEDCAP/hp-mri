@@ -1,10 +1,37 @@
 /**
- * @fileoverview Defines global styles for the HP-MRI Visualization Tool. 
+ * @fileoverview Defines global styles for the HP-MRI Visualization Tool.
  *
  * @author Benjamin Yoon
  * @date 2024-04-30
  * @version 1.2.2
  */
+
+/* Viewer page global resets — applied via JS (document.body.style.overflow) for overflow,
+   and as static rules below for layout normalization */
+html, body {
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  background: none;
+}
+
+/* Add panel hover button — CSS sibling selector approach */
+.panels-container:hover .add-panel-btn {
+  opacity: 0.55;
+}
 
 /* Ensure the visualization container is centered */
 .visualization-container {

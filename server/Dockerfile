@@ -32,6 +32,8 @@ USER appuser
 # Copy dependencies from build stage
 COPY --from=build --chown=appuser:appuser /root/.local /home/appuser/.local
 
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.0 /lambda-adapter /opt/extensions/lambda-adapter
+
 # copy application code
 COPY --chown=appuser:appuser app app
 COPY run.py config.py data.py ./

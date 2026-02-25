@@ -35,7 +35,8 @@ interface ConcatenationPanelProps {
   error: string | null;
   onFileSelectionChange: (files: MRDFile[]) => void;
   onPerformConcatenation: () => void;
-  onLoadToWindow: (windowNumber: 1 | 2 | 3) => void;
+  onLoadToWindow: (windowIndex: number) => void;
+  panelCount: number;
 }
 
 const ConcatenationPanel: React.FC<ConcatenationPanelProps> = ({
@@ -46,7 +47,8 @@ const ConcatenationPanel: React.FC<ConcatenationPanelProps> = ({
   error,
   onFileSelectionChange,
   onPerformConcatenation,
-  onLoadToWindow
+  onLoadToWindow,
+  panelCount
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -229,37 +231,19 @@ const ConcatenationPanel: React.FC<ConcatenationPanelProps> = ({
                 Source files: {concatenatedData.sourceFiles.join(', ')}
               </Typography>
 
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Tooltip title="Load concatenated data into Window 1">
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<LoadIcon />}
-                    onClick={() => onLoadToWindow(1)}
-                  >
-                    → Window 1
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Load concatenated data into Window 2">
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<LoadIcon />}
-                    onClick={() => onLoadToWindow(2)}
-                  >
-                    → Window 2
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Load concatenated data into Window 3">
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<LoadIcon />}
-                    onClick={() => onLoadToWindow(3)}
-                  >
-                    → Window 3
-                  </Button>
-                </Tooltip>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {Array.from({ length: panelCount }, (_, i) => (
+                  <Tooltip key={i} title={`Load concatenated data into Window ${i + 1}`}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<LoadIcon />}
+                      onClick={() => onLoadToWindow(i)}
+                    >
+                      {`→ Window ${i + 1}`}
+                    </Button>
+                  </Tooltip>
+                ))}
               </Box>
             </Box>
           )}

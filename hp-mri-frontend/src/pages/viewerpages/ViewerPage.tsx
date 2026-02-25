@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
+import { AddCircleOutline } from '@mui/icons-material';
 
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../layouts/HeaderAccount';
@@ -8,51 +9,13 @@ import ViewerSidePanel from '../../components/visualize/ViewerSidePanel';
 import ImageDisplayWindow from '../../components/viewer/ImageDisplayWindow';
 import FileSelector from '../../components/viewer/FileSelector';
 import ConcatenationPanel from '../../components/viewer/ConcatenationPanel';
-import { useViewerState } from '../../hooks/useViewerState';
-
-// Add global styles to override any border styling
-const viewerStyles = `
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    outline: none !important;
-    overflow: hidden !important;
-    width: 100vw !important;
-    height: 100vh !important;
-  }
-  
-  #root {
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    outline: none !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    display: block !important;
-    background: none !important;
-  }
-  
-  /* Override any parent flex container */
-  body > div {
-    display: block !important;
-  }
-  
-  /* Override root background */
-  :root {
-    background-color: transparent !important;
-  }
-  
-  /* Ensure viewer page fills entire viewport */
-  body {
-    background-color: #f5f5f5 !important;
-  }
-`;
+import { useViewerState, MAX_WINDOWS, createInitialWindowState } from '../../hooks/useViewerState';
+import '../../styles/viewerPage.css';
 
 const ViewerPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
-  // Use the custom hook for viewer state management
+  const [panelCount, setPanelCount] = useState(1);
+
   const viewerState = useViewerState();
 
   // Global settings state
@@ -72,13 +35,18 @@ const ViewerPage: React.FC = () => {
 
   const sidebarWidth = isSidebarOpen ? 240 : 80;
 
+  // Lock body scroll while viewer is mounted
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   const toggleHpMriData = () => setShowHpMriData(prev => !prev);
-  const onThresholdChange = (_e: any, value: number | number[]) => {
-    const v = Array.isArray(value) ? value[0] : value;
-    setThreshold(v);
+  const onThresholdChange = (_e: React.SyntheticEvent, value: number | number[]) => {
+    setThreshold(Array.isArray(value) ? value[0] : value);
   };
   const onAlphaChange = (value: number) => setAlpha(value);
-  const onMagnetTypeChange = (_e: any) => {};
+  const onMagnetTypeChange = (_e: React.SyntheticEvent) => {};
   const onColorScaleChange = (value: 'Hot' | 'Jet' | 'B&W') => setColorScale(value);
   const onToggleScaleByIntensity = () => setScaleByIntensity(prev => !prev);
   const onOpenDrawer = (tool: string) => {
@@ -87,7 +55,6 @@ const ViewerPage: React.FC = () => {
       setSelectedTool(null);
       return;
     }
-    
     if (selectedTool === tool && openDrawer) {
       setOpenDrawer(false);
       setSelectedTool(null);
@@ -100,11 +67,22 @@ const ViewerPage: React.FC = () => {
   const onFileUpload = (_files: FileList) => {};
   const onExportGif = () => {};
 
+  const handleAddPanel = () => setPanelCount(prev => Math.min(prev + 1, MAX_WINDOWS));
+
+  const handleClosePanel = (index: number) => {
+    viewerState.setWindows(prev => {
+      const next = [...prev];
+      next.splice(index, 1);
+      next.push(createInitialWindowState());
+      return next;
+    });
+    setPanelCount(prev => Math.max(prev - 1, 1));
+  };
+
   return (
     <>
-      <style>{viewerStyles}</style>
       <HeaderAccount background_black />
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black/>
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black />
       <ViewerSidePanel
         toggleHpMriData={toggleHpMriData}
         onFileUpload={onFileUpload}
@@ -136,9 +114,9 @@ const ViewerPage: React.FC = () => {
         onExportGif={onExportGif}
         sidebarWidth={sidebarWidth}
       />
-      
+
       {/* Main Content Area */}
-      <Box sx={{ 
+      <Box sx={{
         position: 'fixed',
         top: '64px',
         left: `${sidebarWidth + 60}px`,
@@ -154,84 +132,72 @@ const ViewerPage: React.FC = () => {
         overflow: 'hidden'
       }}>
         {/* Top Section - Image Display Windows */}
-        <Box sx={{
-          flex: '3 1 0%', // Takes up 3/4 of available space for better proportion
-          display: 'flex',
-          gap: 0.5,
-          p: 0.5,
-          minHeight: 0 // Important for flex child
-        }}>
-          <ImageDisplayWindow
-            windowNumber={1}
-            selectedFile={viewerState.selectedFile1}
-            loading={viewerState.loading1}
-            error={viewerState.error1}
-            imageArray={viewerState.imageArray1}
-            onFileSelect={() => viewerState.setFileSelectorOpen1(true)}
-            onActivatePulseSource={viewerState.setPulseSourceFileId}
-            channelIndex={viewerState.channelIndex1}
-            sliceIndex={viewerState.sliceIndex1}
-            metaboliteIndex={viewerState.metaboliteIndex1}
-            measurementIndex={viewerState.measurementIndex1}
-            nmrLabels={viewerState.nmrLabels1}
-            setChannelIndex={viewerState.setChannelIndex1}
-            setSliceIndex={viewerState.setSliceIndex1}
-            setMetaboliteIndex={viewerState.setMetaboliteIndex1}
-            setMeasurementIndex={viewerState.setMeasurementIndex1}
-            alpha={alpha}
-            colorScale={colorScale}
-            scaleByIntensity={scaleByIntensity}
-            showHpMriData={showHpMriData}
-          />
-          <ImageDisplayWindow
-            windowNumber={2}
-            selectedFile={viewerState.selectedFile2}
-            loading={viewerState.loading2}
-            error={viewerState.error2}
-            imageArray={viewerState.imageArray2}
-            onFileSelect={() => viewerState.setFileSelectorOpen2(true)}
-            onActivatePulseSource={viewerState.setPulseSourceFileId}
-            channelIndex={viewerState.channelIndex2}
-            sliceIndex={viewerState.sliceIndex2}
-            metaboliteIndex={viewerState.metaboliteIndex2}
-            measurementIndex={viewerState.measurementIndex2}
-            nmrLabels={viewerState.nmrLabels2}
-            setChannelIndex={viewerState.setChannelIndex2}
-            setSliceIndex={viewerState.setSliceIndex2}
-            setMetaboliteIndex={viewerState.setMetaboliteIndex2}
-            setMeasurementIndex={viewerState.setMeasurementIndex2}
-            alpha={alpha}
-            colorScale={colorScale}
-            scaleByIntensity={scaleByIntensity}
-            showHpMriData={showHpMriData}
-          />
-          <ImageDisplayWindow
-            windowNumber={3}
-            selectedFile={viewerState.selectedFile3}
-            loading={viewerState.loading3}
-            error={viewerState.error3}
-            imageArray={viewerState.imageArray3}
-            onFileSelect={() => viewerState.setFileSelectorOpen3(true)}
-            onActivatePulseSource={viewerState.setPulseSourceFileId}
-            channelIndex={viewerState.channelIndex3}
-            sliceIndex={viewerState.sliceIndex3}
-            metaboliteIndex={viewerState.metaboliteIndex3}
-            measurementIndex={viewerState.measurementIndex3}
-            nmrLabels={viewerState.nmrLabels3}
-            setChannelIndex={viewerState.setChannelIndex3}
-            setSliceIndex={viewerState.setSliceIndex3}
-            setMetaboliteIndex={viewerState.setMetaboliteIndex3}
-            setMeasurementIndex={viewerState.setMeasurementIndex3}
-            alpha={alpha}
-            colorScale={colorScale}
-            scaleByIntensity={scaleByIntensity}
-            showHpMriData={showHpMriData}
-          />
+        <Box
+          className="panels-container"
+          sx={{
+            flex: '3 1 0%',
+            display: 'flex',
+            gap: 0.5,
+            p: 0.5,
+            minHeight: 0,
+            position: 'relative',
+            alignItems: 'stretch',
+          }}
+        >
+          {Array.from({ length: panelCount }, (_, index) => (
+            <ImageDisplayWindow
+              key={index}
+              windowIndex={index}
+              showCloseButton={panelCount > 1}
+              onClose={() => handleClosePanel(index)}
+              selectedFile={viewerState.windows[index].selectedFile}
+              loading={viewerState.windows[index].loading}
+              error={viewerState.windows[index].error}
+              imageArray={viewerState.windows[index].imageArray}
+              onFileSelect={() => viewerState.updateWindow(index, { fileSelectorOpen: true })}
+              onActivatePulseSource={viewerState.setPulseSourceFileId}
+              channelIndex={viewerState.windows[index].channelIndex}
+              sliceIndex={viewerState.windows[index].sliceIndex}
+              metaboliteIndex={viewerState.windows[index].metaboliteIndex}
+              measurementIndex={viewerState.windows[index].measurementIndex}
+              nmrLabels={viewerState.windows[index].nmrLabels}
+              setChannelIndex={(v) => viewerState.updateWindow(index, { channelIndex: v })}
+              setSliceIndex={(v) => viewerState.updateWindow(index, { sliceIndex: v })}
+              setMetaboliteIndex={(v) => viewerState.updateWindow(index, { metaboliteIndex: v })}
+              setMeasurementIndex={(v) => viewerState.updateWindow(index, { measurementIndex: v })}
+              alpha={alpha}
+              colorScale={colorScale}
+              scaleByIntensity={scaleByIntensity}
+              showHpMriData={showHpMriData}
+            />
+          ))}
+
+          {/* Add Panel Button — appears on hover when count is below max */}
+          {panelCount < MAX_WINDOWS && (
+            <Box
+              onClick={handleAddPanel}
+              sx={{
+                width: 36,
+                alignSelf: 'stretch',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+                opacity: 0.25,
+                transition: 'opacity 0.2s',
+                '&:hover': { opacity: 1 },
+                '.panels-container:hover &': { opacity: 0.55 },
+              }}
+            >
+              <AddCircleOutline sx={{ color: 'rgba(100,100,100,0.9)', fontSize: 28 }} />
+            </Box>
+          )}
         </Box>
 
         {/* Bottom Section - Split between Pulse Plot and Concatenation Panel */}
         <Box sx={{
-          flex: '1 1 0%', // Takes up 1/4 of available space for better proportion
+          flex: '1 1 0%',
           minHeight: '100px',
           maxHeight: '40vh',
           m: 0,
@@ -278,36 +244,24 @@ const ViewerPage: React.FC = () => {
               onFileSelectionChange={viewerState.handleMultipleFileSelect}
               onPerformConcatenation={viewerState.performConcatenation}
               onLoadToWindow={viewerState.loadConcatenatedDataToWindow}
+              panelCount={panelCount}
             />
           </Box>
         </Box>
-        </Box>
+      </Box>
 
-        {/* File Selector Dialogs */}
+      {/* File Selector Dialogs — always render all slots so state persists */}
+      {Array.from({ length: MAX_WINDOWS }, (_, index) => (
         <FileSelector
-        open={viewerState.fileSelectorOpen1}
-        onClose={() => viewerState.setFileSelectorOpen1(false)}
-        onSelect={(file) => viewerState.handleFileSelect(file, 1)}
-          windowNumber={1}
-        availableFiles={viewerState.availableFiles}
-        filesLoading={viewerState.filesLoading}
+          key={index}
+          open={viewerState.windows[index].fileSelectorOpen}
+          onClose={() => viewerState.updateWindow(index, { fileSelectorOpen: false })}
+          onSelect={(file) => viewerState.handleFileSelect(file, index)}
+          windowNumber={index + 1}
+          availableFiles={viewerState.availableFiles}
+          filesLoading={viewerState.filesLoading}
         />
-        <FileSelector
-        open={viewerState.fileSelectorOpen2}
-        onClose={() => viewerState.setFileSelectorOpen2(false)}
-        onSelect={(file) => viewerState.handleFileSelect(file, 2)}
-          windowNumber={2}
-        availableFiles={viewerState.availableFiles}
-        filesLoading={viewerState.filesLoading}
-        />
-        <FileSelector
-        open={viewerState.fileSelectorOpen3}
-        onClose={() => viewerState.setFileSelectorOpen3(false)}
-        onSelect={(file) => viewerState.handleFileSelect(file, 3)}
-          windowNumber={3}
-        availableFiles={viewerState.availableFiles}
-        filesLoading={viewerState.filesLoading}
-      />
+      ))}
     </>
   );
 };
