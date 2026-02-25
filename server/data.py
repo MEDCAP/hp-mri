@@ -176,6 +176,7 @@ def get_image_array_from_mrdfile(file_id):
     obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
     # Initialize variables to avoid scope issues
     image_array = None
+    spectrum_array = None
     nmr_labels = []
     body_bytes = obj['Body'].read()
     with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
@@ -186,12 +187,10 @@ def get_image_array_from_mrdfile(file_id):
                 # check if image.data has correct shape
                 if image.data.ndim != 5:
                     raise ValueError(f"Invalid shape of image array: {image.data.shape}")
-                # if rows and cols are 1, then image.data is spectrum
-                if image.rows() == 1 or image.cols() == 1:
-                    raise Exception("Spectrum is displayed")
                 # fetch header information from the first image
                 if image_array is None:
-                    # image.data is 5D image array (channels, slice, rows, cols, frequencies)
+                    # individual image.data is 5D image array (channels, slice, rows, cols, frequencies)
+                    # image_array is 6D image array (channels, slice, rows, cols, frequencies, measurements)
                     image_array = image.data[..., np.newaxis]
                     image_array *= 255 / image.data.max()
                     meas_freq = image.head.measurement_freq
@@ -200,10 +199,18 @@ def get_image_array_from_mrdfile(file_id):
                     if image.head.measurement_freq_label is not None:
                         # image.head.measurement_freq_label is in nparray, need to convert to list
                         nmr_labels = image.head.measurement_freq_label.tolist()
-                # if image_array is not None, there are image data to the existing image_array as 
-                else:
-                    # image_array is 6D image array (channels, slice, rows, cols, frequencies, measurements)
+                # if more image.data of same shape are found, they are in multiple measurements
+                # Concatenate the newly acquired image.data to the image_array as new measurements
+                elif image_array[..., 0].shape == image.data.shape:
                     image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
+            # plot rgba image is saved as ImageUint32
+            elif isinstance(item, mrd.StreamItem.ImageUint32):
+                image = item.value
+                # store plot figures as multi-measurement arrays
+                if spectrum_array is None:
+                    spectrum_array = image.data[..., np.newaxis]
+                else:
+                    spectrum_array = np.concatenate([spectrum_array, image.data[..., np.newaxis]], axis=-1)
 
     # Check if any image data was found
     if image_array is None:

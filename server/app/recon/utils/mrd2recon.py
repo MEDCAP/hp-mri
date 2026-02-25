@@ -1,3 +1,7 @@
+'''
+Reconstruct MRS data
+'''
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for headless Docker environments

@@ -8,9 +8,17 @@ import {
   Typography,
   Snackbar,
   Alert,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
+
+interface FileWithPath {
+  file: File;
+  relativePath: string;
+}
 
 const DragDropBox = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -35,28 +43,29 @@ const UploadPage: React.FC = () => {
     document.title = "HP-MRI Web App";
   }, []);
 
-  const [mriFile, setMriFile] = useState<FileList | null>(null);
-  const [auxFile, setAuxFile] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-    type: string
-  ) => {
+  const handleFolderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      type === 'MRI' ? setMriFile(event.target.files) : setAuxFile(event.target.files);
+      const fileList = Array.from(event.target.files);
+      const filesWithPaths: FileWithPath[] = fileList.map((file) => ({
+        file,
+        relativePath: (file as File & { webkitRelativePath: string }).webkitRelativePath || file.name,
+      }));
+      setFiles(filesWithPaths);
     }
   };
 
   const handleUpload = () => {
     const formData = new FormData();
-    if (mriFile) {
-      Array.from(mriFile).forEach((file) => formData.append('mriFiles', file));
-    }
-    if (auxFile) {
-      Array.from(auxFile).forEach((file) => formData.append('auxFiles', file));
-    }
+    
+    // Append files with their relative paths
+    files.forEach((fileWithPath) => {
+      formData.append('files', fileWithPath.file);
+      formData.append('filePaths', fileWithPath.relativePath);
+    });
 
     axios
       .post('/api/upload', formData, {
@@ -66,6 +75,7 @@ const UploadPage: React.FC = () => {
       })
       .then(() => {
         setSuccessMessage('Files uploaded successfully!');
+        setFiles([]);
       })
       .catch((err) => {
         console.error(err);
@@ -136,53 +146,46 @@ const UploadPage: React.FC = () => {
           )}
 
           <Typography variant="body1" color="textSecondary" sx={{ marginBottom: 2 }}>
-            Select and upload your files below:
+            Select a folder to upload. All files will be discovered recursively.
           </Typography>
 
-          <Box
-            display="flex"
-            flexDirection={{ xs: 'column', md: 'row' }}
-            gap={4}
-            justifyContent="center"
-            alignItems="center"
-            width="100%"
-          >
-            <DragDropBox>
-              <label style={{ cursor: 'pointer', textAlign: 'center', width: '100%' }}>
-                <Typography variant="h6" fontWeight="bold">
-                  Upload MRI Raw Data
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Drag and drop or select files
-                </Typography>
-                <input
-                  type="file"
-                  accept=".bin, .dat"
-                  multiple
-                  onChange={(e) => handleFileChange(e, 'MRI')}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </DragDropBox>
+          <DragDropBox sx={{ width: '100%', maxWidth: '500px' }}>
+            <label style={{ cursor: 'pointer', textAlign: 'center', width: '100%' }}>
+              <Typography variant="h6" fontWeight="bold">
+                Upload MRI Data Folder
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Click to select a folder
+              </Typography>
+              <input
+                type="file"
+                // @ts-expect-error webkitdirectory is a non-standard attribute
+                webkitdirectory=""
+                directory=""
+                multiple
+                onChange={handleFolderChange}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </DragDropBox>
 
-            <DragDropBox>
-              <label style={{ cursor: 'pointer', textAlign: 'center', width: '100%' }}>
-                <Typography variant="h6" fontWeight="bold">
-                  Upload Aux Raw Data
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Drag and drop or select files
-                </Typography>
-                <input
-                  type="file"
-                  accept=".txt, .json"
-                  multiple
-                  onChange={(e) => handleFileChange(e, 'Aux')}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </DragDropBox>
-          </Box>
+          {files.length > 0 && (
+            <Box sx={{ width: '100%', maxWidth: '500px', mt: 3 }}>
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+                Files to upload ({files.length}):
+              </Typography>
+              <List dense sx={{ maxHeight: '200px', overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1 }}>
+                {files.map((fileWithPath, index) => (
+                  <ListItem key={index}>
+                    <ListItemText 
+                      primary={fileWithPath.relativePath}
+                      secondary={`${(fileWithPath.file.size / 1024).toFixed(2)} KB`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>

@@ -215,28 +215,3 @@ def get_imaging_metadata():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@viewer_bp.route("/get_imaging_matrix", methods=["GET"])
-def get_imaging_matrix():
-    """
-    Retrieve the full 4D imaging matrix as nested lists for frontend consumption.
-
-    Returns:
-        json: { "matrix": number[rows][cols][metabolites][images] }
-
-    Author: Ben Yoon (extended)
-    Date: 2025-03-04
-    Version: 2.0.2
-    """
-    try:
-        data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
-        data = np.load(data_path)  # Expected shape: [rows, columns, metabolites, images]
-
-        if data.ndim != 4:
-            return jsonify({"error": "Imaging data must be 4-dimensional"}), 400
-
-        return jsonify({"matrix": data.tolist()}), 200
-    except FileNotFoundError:
-        return jsonify({"error": "Mock imaging data file not found."}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
