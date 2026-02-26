@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Box } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
-import MedCapLogo from './../assets/medcap_logo.png'
+import MedCapLogo from './../assets/medcap_logo.png';
 import { getCurrentUserName, signOutCognito } from '../pages/loginpages/cognitoUtils';
 
 // Reusable styles for navigation links
@@ -96,39 +96,61 @@ const HeaderHomePage: React.FC = () => {
               GitHub
             </Typography>
             <Link to="/members" style={{ textDecoration: 'none' }}>
-              <Typography sx={NAV_LINK_STYLE}>Members</Typography>
+              <Typography sx={NAV_LINK_STYLE}>About Devs</Typography>
             </Link>
           </Box>
         </Box>
 
         {/* Right Section: Account */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {userName ? (
             <>
-              <Link to="/mrd-files" style={{ textDecoration: 'none' }}>
-                <Typography sx={NAV_LINK_STYLE}>Go to Tool</Typography>
-              </Link>
-              <Typography variant="subtitle2" sx={{ fontWeight: 500, color: '#333333', fontSize: '0.9rem' }}>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/mrd-files')}
+                sx={{ fontWeight: 600, borderRadius: 2 }}
+              >
+                Go to Tool
+              </Button>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 500, color: '#555', fontSize: '0.9rem' }}
+              >
                 Welcome, {userName}
               </Typography>
-              <Typography
+              <Button
+                variant="text"
+                color="error"
                 onClick={handleSignOut}
-                sx={{
-                  color: '#d32f2f',
-                  fontWeight: 500,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                  transition: 'color 0.2s ease',
-                  '&:hover': { color: '#b71c1c' },
-                }}
+                sx={{ fontWeight: 600 }}
               >
                 Sign Out
-              </Typography>
+              </Button>
             </>
           ) : (
-            <Link to="/account" style={{ textDecoration: 'none' }}>
-              <Typography sx={NAV_LINK_STYLE}>Sign In</Typography>
-            </Link>
+            <>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/mrd-files')}
+                sx={{ fontWeight: 600, borderRadius: 2 }}
+              >
+                Try MR Visualizer
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/account')}
+                sx={{
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  backgroundColor: '#ffffff',
+                  borderColor: '#011F5B',
+                  color: '#011F5B',
+                  '&:hover': { backgroundColor: '#f0f4ff', borderColor: '#011F5B' },
+                }}
+              >
+                Sign In
+              </Button>
+            </>
           )}
         </Box>
       </Toolbar>

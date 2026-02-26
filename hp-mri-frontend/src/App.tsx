@@ -30,7 +30,6 @@ import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 // Feature pages
 import RetrievePage from './pages/mrdpages/RetrievePage';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
-import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
 
 // Group pages
@@ -59,16 +58,16 @@ const AppContent: React.FC = () => {
           <Route path="/reconstruction-tools" element={<HomePageLayout><ReconstructionToolsPage /></HomePageLayout>} />
           <Route path="/simulate" element={<HomePageLayout><SimulatePage /></HomePageLayout>} />
 
-          {/* MRD Files - MRD Layout (HeaderAccount) */}
-          <Route path="/mrd-files" element={<ProtectedRoute><MRDLayout><RetrievePage /></MRDLayout></ProtectedRoute>} />
+          {/* MRD Files - MRD Layout (HeaderAccount) — accessible to guests (public files only) */}
+          <Route path="/mrd-files" element={<MRDLayout><RetrievePage /></MRDLayout>} />
 
           {/* Groups - MRD Layout */}
           <Route path="/groups" element={<ProtectedRoute><MRDLayout><GroupsPage /></MRDLayout></ProtectedRoute>} />
           <Route path="/groups/:groupName" element={<ProtectedRoute><MRDLayout><GroupDetailPage /></MRDLayout></ProtectedRoute>} />
 
-          {/* Simulator & Viewer - MRD Layout */}
+          {/* Simulator — incomplete, show coming soon within MRD layout */}
           <Route path="/simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
-          <Route path="/new-simulator" element={<MRDLayout><NewSimulatorPage /></MRDLayout>} />
+          <Route path="/new-simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
           <Route path="/viewer" element={<SimpleLayout><ViewerPage /></SimpleLayout>} />
 
       </Routes>

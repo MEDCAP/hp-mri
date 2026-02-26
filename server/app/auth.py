@@ -76,6 +76,46 @@ def requires_auth(f):
     
     return wrapper
 
+def optional_auth(f):
+    """
+    Like requires_auth but allows unauthenticated requests.
+    Sets g.user_sub = None for guests; validates token if present.
+    Routes using this decorator must check g.user_sub before accessing user-specific data.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        g.user_sub = None
+        g.user_email = None
+        g.user_name = None
+        g.user_groups = []
+
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header.split(' ', 1)[1]
+            try:
+                unverified_header = get_unverified_header(token)
+                kid = unverified_header.get('kid')
+                key = next((k for k in jwks['keys'] if k['kid'] == kid), None)
+                if key:
+                    public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+                    decoded = jwt.decode(
+                        token,
+                        public_key,
+                        algorithms=['RS256'],
+                        audience=AUDIENCE,
+                        issuer=f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}'
+                    )
+                    g.user_sub = decoded.get('sub')
+                    g.user_email = decoded.get('email')
+                    g.user_name = decoded.get('name') or decoded.get('email')
+                    g.user_groups = decoded.get('cognito:groups', [])
+            except Exception:
+                pass  # Invalid or expired token — treat as guest
+
+        return f(*args, **kwargs)
+
+    return wrapper
+
 def get_current_user():
     """
     Get current user information from Flask g context

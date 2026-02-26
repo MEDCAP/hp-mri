@@ -8,13 +8,41 @@ from datetime import datetime
 
 # list, insert mongodb functions
 from data import (
-    list_mrdfiles_for_user, insert_mrdfile_header, read_mrdfile_header,
+    list_mrdfiles_for_user, list_public_mrdfiles, insert_mrdfile_header, read_mrdfile_header,
     get_mrdfile_by_id_with_auth, delete_mrdfiles_by_ids, change_file_visibility
 )
 from app.auth import requires_auth
 
 # flask blueprint for mrds route
 from . import mrds_bp
+
+# Route to list public MRD files — no authentication required
+@mrds_bp.route("/mrd-files/public", methods=["GET"])
+def show_public_files():
+    """
+    Return MRD files with groupName='public' — no authentication required.
+    Used by the guest viewer so unauthenticated users can browse public datasets.
+    """
+    try:
+        proj = {
+            "fileName": 1,
+            "studyDate": 1,
+            "studyTime": 1,
+            "ownerName": 1,
+            "subjectType": 1,
+            "groupName": 1,
+            "isReconstructed": 1,
+            "protocolName": 1,
+            "upload_timestamp": 1,
+            "file_size": 1,
+            "_id": 1
+        }
+        limit = min(int(request.args.get("limit", 50)), 200)
+        skip = int(request.args.get("skip", 0))
+        cursor_list = list_public_mrdfiles(projection=proj, limit=limit, skip=skip)
+        return jsonify(cursor_list)
+    except Exception as e:
+        return jsonify({"error": "Failed to list public files", "details": str(e)}), 400
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])

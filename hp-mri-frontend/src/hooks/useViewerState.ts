@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { MRDFile } from '../types/mrd';
 import { useMRDArrayConcatenation, MRDDataSet, ConcatenatedMRDData } from './useMRDArrayConcatenation';
+import { isAuthenticated } from '../pages/loginpages/cognitoUtils';
 
 export interface WindowState {
   imageArray: number[][][][][][];
@@ -59,7 +60,9 @@ export const useViewerState = () => {
   const fetchMRDFiles = useCallback(async () => {
     setFilesLoading(true);
     try {
-      const response = await axios.get('/api/mrd-files');
+      // Authenticated users see all their accessible files; guests see only public files
+      const endpoint = isAuthenticated() ? '/api/mrd-files' : '/api/mrd-files/public';
+      const response = await axios.get(endpoint);
       const validFiles = response.data.filter((file: MRDFile) => file && file._id);
       setAvailableFiles(validFiles);
     } catch (error) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, useTheme, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
@@ -12,11 +12,12 @@ interface HeaderAccountProps {
 
 const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}) => {
   const theme = useTheme();
-  const userName = getCurrentUserName();
+  const [userName, setUserName] = useState<string | null>(getCurrentUserName);
   const navigate = useNavigate();
   const handleSignOut = () => {
     signOutCognito();
-    navigate('/');  // return to homepage upon sign out
+    setUserName(null);
+    window.dispatchEvent(new Event('auth-change')); // notify other components
   };
 
   return (
@@ -87,11 +88,25 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
               color="secondary"
               size="small"
               onClick={handleSignOut}
-              sx={{ fontWeight: 700, ml: 1, textTransform: 'none', borderRadius: 2 }}
+              sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
             >
               Sign Out
             </Button>
           )}
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => navigate('/')}
+            sx={{
+              fontWeight: 700,
+              textTransform: 'none',
+              borderRadius: 2,
+              backgroundColor: '#d32f2f',
+              '&:hover': { backgroundColor: '#b71c1c' },
+            }}
+          >
+            Exit Tool
+          </Button>
         </Box>
       </Toolbar>
     </AppBar>

@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 import apiClient from '../../api/apiClient';
 import { MRDFile } from '../../types/mrd';
+import { isAuthenticated } from '../loginpages/cognitoUtils';
 
 const formatStudyTime = (timeString: string) => {
   if (!timeString || !timeString.includes(':')) return '';
@@ -76,6 +77,7 @@ const extractUploadDate = (ts: any): Date => {
 };
 
 const RetrievePage: React.FC = () => {
+  const [isGuest, setIsGuest] = useState(() => !isAuthenticated());
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -100,29 +102,37 @@ const RetrievePage: React.FC = () => {
   const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
 
-  const fetchFiles = () => {
-    apiClient.get('/mrd-files')
+  const fetchFiles = (guest: boolean) => {
+    const endpoint = guest ? '/mrd-files/public' : '/mrd-files';
+    apiClient.get(endpoint)
       .then((response) => {
         console.log('mrd-files response: ', response.data);
-        
-        // Filter out files with invalid _id before setting the state
         const validFiles = response.data.filter((file: MRDFile) => {
-          if (file && file._id) {
-            return true;
-          }
+          if (file && file._id) return true;
           console.warn('Filtering out invalid file object:', file);
           return false;
         });
-
         setFiles(validFiles);
       })
       .catch((error) => console.error('Error fetching MRD files:', error));
   };
 
+  // Re-fetch and update guest status whenever auth state changes (e.g. sign out)
   useEffect(() => {
-    fetchFiles();
-    document.title = "MRD Files - HP"; // Dynamically updates the tab title
+    const handleAuthChange = () => {
+      const newIsGuest = !isAuthenticated();
+      setIsGuest(newIsGuest);
+      setFiles([]); // clear stale files immediately
+      fetchFiles(newIsGuest);
+    };
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => window.removeEventListener('auth-change', handleAuthChange);
   }, []);
+
+  useEffect(() => {
+    fetchFiles(isGuest);
+    document.title = "MRD Files - HP";
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredFiles = useMemo(() => {
     if (!search) {
@@ -276,7 +286,7 @@ const RetrievePage: React.FC = () => {
     }
     setIsUploading(false);
     setIsUploadCompleted(true);
-    fetchFiles(); // Refresh the file list
+    fetchFiles(isGuest); // Refresh the file list
   };
 
   const handleUploadStart = (files: any[]) => {
@@ -344,8 +354,15 @@ const RetrievePage: React.FC = () => {
           Retrieve MRD Files
         </Typography>
 
+        {isGuest && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Browsing public files in read-only mode.{' '}
+            <a href="/account" style={{ fontWeight: 600 }}>Sign in</a> to upload, download, or manage files.
+          </Alert>
+        )}
+
         <Grid2 container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
-          <Grid2 size={{xs: 6}}>
+          <Grid2 size={{xs: isGuest ? 12 : 6}}>
             <TextField
               fullWidth
               variant="outlined"
@@ -354,88 +371,79 @@ const RetrievePage: React.FC = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
           </Grid2>
-          <Grid2 size={{xs: 6}} textAlign="right">
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}
-            >
-              <Tooltip title="Upload new file">
-                <Button 
-                  variant="outlined" 
-                  startIcon={<UploadFile />} 
-                  onClick={() => {
-                    console.log('Upload button clicked');
-                    // Clear any previous upload state
-                    setIsUploadCompleted(false);
-                    setUploadCompletionModalOpen(false);
-                    setUploadProgressModalOpen(false);
-                    setUploadModalOpen(true);
-                  }}
-                  sx={{ flex: '1 1 24%', marginTop: '-8px' }}
-                >
-                  Upload
-                </Button>
-              </Tooltip>
-              <Tooltip title="Refresh MRD files">
-                <Button
-                  variant="outlined"
-                  startIcon={<Refresh />}
-                  onClick={fetchFiles}
-                  sx={{
-                    flex: '1 1 24%',
-                    marginTop: '-8px'
-                  }}
-                >
-                  Refresh
-                </Button>
-              </Tooltip>
-              <Tooltip title="Delete selected files">
-                <span>
+          {!isGuest && (
+            <Grid2 size={{xs: 6}} textAlign="right">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                }}
+              >
+                <Tooltip title="Upload new file">
                   <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<Delete />}
-                    disabled={!isAnyFileSelected}
-                    onClick={handleDelete}
-                    sx={{
-                      flex: '1 1 24%',
-                      marginTop: '-8px'
+                    variant="outlined"
+                    startIcon={<UploadFile />}
+                    onClick={() => {
+                      setIsUploadCompleted(false);
+                      setUploadCompletionModalOpen(false);
+                      setUploadProgressModalOpen(false);
+                      setUploadModalOpen(true);
                     }}
+                    sx={{ flex: '1 1 24%', marginTop: '-8px' }}
                   >
-                    Delete
+                    Upload
                   </Button>
-                </span>
-              </Tooltip>
-              <Tooltip title="Download selected files">
-                <span>
+                </Tooltip>
+                <Tooltip title="Refresh MRD files">
                   <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<CloudDownload />}
-                    disabled={!isAnyFileSelected}
-                    sx={{
-                      flex: '1 1 24%',
-                      marginTop: '-8px'
-                    }}
+                    variant="outlined"
+                    startIcon={<Refresh />}
+                    onClick={() => fetchFiles(isGuest)}
+                    sx={{ flex: '1 1 24%', marginTop: '-8px' }}
                   >
-                    Download
+                    Refresh
                   </Button>
-                </span>
-              </Tooltip>
-            </div>
-          </Grid2>
+                </Tooltip>
+                <Tooltip title="Delete selected files">
+                  <span>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<Delete />}
+                      disabled={!isAnyFileSelected}
+                      onClick={handleDelete}
+                      sx={{ flex: '1 1 24%', marginTop: '-8px' }}
+                    >
+                      Delete
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Download selected files">
+                  <span>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<CloudDownload />}
+                      disabled={!isAnyFileSelected}
+                      sx={{ flex: '1 1 24%', marginTop: '-8px' }}
+                    >
+                      Download
+                    </Button>
+                  </span>
+                </Tooltip>
+              </div>
+            </Grid2>
+          )}
         </Grid2>
 
         <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell />
+                {!isGuest && <TableCell />}
                 {[{ key: 'fileName', label: 'File Name' }, { key: 'studyDate', label: 'Study Date' }, { key: 'upload_timestamp', label: 'Upload Date' }, { key: 'ownerName', label: 'Owner Name' }].map(({ key, label }) => (
                   <TableCell key={key} onClick={() => handleSort(key as keyof MRDFile)} sx={{ cursor: 'pointer' }}>
                     <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -472,13 +480,15 @@ const RetrievePage: React.FC = () => {
                     },
                   }}
                 >
-                  <TableCell>
-                    <Checkbox
-                      checked={file.isSelected}
-                      onChange={() => handleSelection(file._id)}
-                      color="primary"
-                    />
-                  </TableCell>
+                  {!isGuest && (
+                    <TableCell>
+                      <Checkbox
+                        checked={file.isSelected}
+                        onChange={() => handleSelection(file._id)}
+                        color="primary"
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Typography
                       variant="body1"

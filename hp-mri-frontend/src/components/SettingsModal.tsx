@@ -30,10 +30,11 @@ import {
   Group as GroupIcon,
   Person as PersonIcon,
   Email as EmailIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  LockOutlined as LockIcon,
 } from '@mui/icons-material';
 import apiClient from '../api/apiClient';
-import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub } from '../pages/loginpages/cognitoUtils';
+import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub, isAuthenticated } from '../pages/loginpages/cognitoUtils';
 import { useNavigate } from 'react-router-dom';
 import { Group } from '../types/group';
 import CreateGroupDialog from './CreateGroupDialog';
@@ -138,6 +139,45 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, py: 2 }}>
+        {/* Guest view — not authenticated */}
+        {!isAuthenticated() && (
+          <Box sx={{ textAlign: 'center', py: 5 }}>
+            <LockIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#011F5B', mb: 1 }}>
+              You're browsing as a guest
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 380, mx: 'auto' }}>
+              Create an account to unlock full features — upload files, manage groups, download data, and more.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Button
+                variant="contained"
+                onClick={() => { navigate('/signup'); onClose(); }}
+                sx={{ fontWeight: 600, borderRadius: 2, px: 3 }}
+              >
+                Create Account
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => { navigate('/account'); onClose(); }}
+                sx={{
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  px: 3,
+                  backgroundColor: '#ffffff',
+                  borderColor: '#011F5B',
+                  color: '#011F5B',
+                  '&:hover': { backgroundColor: '#f0f4ff', borderColor: '#011F5B' },
+                }}
+              >
+                Sign In
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {/* Authenticated view */}
+        {isAuthenticated() && <>
         {/* User Profile Section */}
         <Card sx={{ mb: 3, boxShadow: 1 }}>
           <CardContent>
@@ -314,6 +354,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             <JoinRequestStatus userSub={getCurrentUserSub() || 'unknown-user-sub'} />
           </CardContent>
         </Card>
+        </>}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>

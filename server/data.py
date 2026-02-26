@@ -142,6 +142,37 @@ def get_mrdfile_by_id_with_auth(file_id: str, user_sub: str):
         print(f"Error getting mrd file with auth: {e}")
         return None
 
+def list_public_mrdfiles(projection=None, limit=50, skip=0):
+    """
+    Retrieve MRD files with groupName='public' — no authentication required.
+    Used for guest access to the viewer.
+    """
+    try:
+        db = get_db()
+        query = {"groupName": "public"}
+        sort_condition = {"studyDate": -1, "studyTime": -1}
+        cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
+        cursor_list = list(cursor)
+        for doc in cursor_list:
+            doc['_id'] = str(doc['_id'])
+        return cursor_list
+    except Exception as e:
+        print(f"Error listing public mrd-files: {e}")
+        return []
+
+def get_public_mrdfile_by_id(file_id: str):
+    """
+    Retrieve a file only if groupName='public'. For unauthenticated viewer access.
+    Returns None if the file doesn't exist or is not public.
+    """
+    try:
+        db = get_db()
+        doc = db.mrdfiles.find_one({"_id": ObjectId(file_id), "groupName": "public"})
+        return doc
+    except Exception as e:
+        print(f"Error getting public mrd file: {e}")
+        return None
+
 def delete_mrdfiles_by_ids(file_ids):
     """
     Deletes multiple mrdfile db entries based on a list of ObjectIds.
