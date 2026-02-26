@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Box, Typography } from '@mui/material';
 import { AddCircleOutline } from '@mui/icons-material';
 
@@ -15,8 +16,17 @@ import '../../styles/viewerPage.css';
 const ViewerPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [panelCount, setPanelCount] = useState(1);
+  const location = useLocation();
 
   const viewerState = useViewerState();
+
+  // Auto-load a file passed via route state (e.g., double-click from RetrievePage)
+  useEffect(() => {
+    const preload = (location.state as any)?.preloadFile;
+    if (preload) {
+      viewerState.handleFileSelect(preload, 0);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Global settings state
   const [showHpMriData, setShowHpMriData] = useState(true);

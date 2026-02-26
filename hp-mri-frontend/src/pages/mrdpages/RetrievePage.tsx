@@ -27,14 +27,16 @@ import {
   Snackbar,
   Alert
 } from '@mui/material';
-import { 
-  ArrowUpward, 
-  ArrowDownward, 
-  CloudDownload, 
-  Delete, 
-  UploadFile, 
-  Refresh
+import {
+  ArrowUpward,
+  ArrowDownward,
+  CloudDownload,
+  Delete,
+  UploadFile,
+  Refresh,
+  InfoOutlined,
 } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
 import apiClient from '../../api/apiClient';
 import { MRDFile } from '../../types/mrd';
 import { isAuthenticated } from '../loginpages/cognitoUtils';
@@ -77,6 +79,7 @@ const extractUploadDate = (ts: any): Date => {
 };
 
 const RetrievePage: React.FC = () => {
+  const navigate = useNavigate();
   const [isGuest, setIsGuest] = useState(() => !isAuthenticated());
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
@@ -101,6 +104,7 @@ const RetrievePage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
 
   const fetchFiles = (guest: boolean) => {
     const endpoint = guest ? '/mrd-files/public' : '/mrd-files';
@@ -189,6 +193,20 @@ const RetrievePage: React.FC = () => {
   const goToDetails = (file: MRDFile) => {
     setSelectedFile(file);
     setFileDetailsPanelOpen(true);
+    setActiveFileId(file._id);
+  };
+
+  const handleRowClick = (file: MRDFile) => {
+    setActiveFileId(file._id);
+    // Select this file exclusively for action buttons (mirrors Windows Explorer single-click)
+    setFiles(prev => prev.map(f => ({ ...f, isSelected: f._id === file._id })));
+    if (fileDetailsPanelOpen) {
+      setSelectedFile(file); // live-update panel without reopening
+    }
+  };
+
+  const handleRowDoubleClick = (file: MRDFile) => {
+    navigate('/viewer', { state: { preloadFile: file } });
   };
 
   const isAnyFileSelected = files.some((file) => file.isSelected);
@@ -468,20 +486,25 @@ const RetrievePage: React.FC = () => {
                     </Typography>
                   </TableCell>
                 ))}
+                <TableCell />
               </TableRow>
             </TableHead>
             <TableBody>
               {sortedFiles.map((file) => (
                 <TableRow
                   key={file._id}
+                  onClick={() => handleRowClick(file)}
+                  onDoubleClick={() => handleRowDoubleClick(file)}
                   sx={{
+                    cursor: 'pointer',
+                    backgroundColor: file._id === activeFileId ? alpha('#011F5B', 0.13) : 'inherit',
                     '&:hover': {
-                      backgroundColor: '#f1f1f1',
+                      backgroundColor: file._id === activeFileId ? alpha('#011F5B', 0.18) : '#f1f1f1',
                     },
                   }}
                 >
                   {!isGuest && (
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={file.isSelected}
                         onChange={() => handleSelection(file._id)}
@@ -490,21 +513,26 @@ const RetrievePage: React.FC = () => {
                     </TableCell>
                   )}
                   <TableCell>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        cursor: 'pointer',
-                        color: '#011F5B',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                      onClick={() => goToDetails(file)}
-                    >
+                    <Typography variant="body1">
                       {file.fileName}
                     </Typography>
                   </TableCell>
                   <TableCell>{`${file.studyDate} ${formatStudyTime(file.studyTime)}`}</TableCell>
                   <TableCell>{formatUploadTimestamp(file.upload_timestamp)}</TableCell>
                   <TableCell>{file.ownerName}</TableCell>
+                  <TableCell align="right" sx={{ pr: 1 }}>
+                    <Tooltip title="View file details">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToDetails(file);
+                        }}
+                      >
+                        <InfoOutlined fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
