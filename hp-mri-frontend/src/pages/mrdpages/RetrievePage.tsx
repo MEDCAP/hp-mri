@@ -458,7 +458,7 @@ const RetrievePage: React.FC = () => {
         </Grid2>
 
         <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow>
                 {!isGuest && <TableCell />}
@@ -512,11 +512,7 @@ const RetrievePage: React.FC = () => {
                       />
                     </TableCell>
                   )}
-                  <TableCell>
-                    <Typography variant="body1">
-                      {file.fileName}
-                    </Typography>
-                  </TableCell>
+                  <TableCell>{file.fileName}</TableCell>
                   <TableCell>{`${file.studyDate} ${formatStudyTime(file.studyTime)}`}</TableCell>
                   <TableCell>{formatUploadTimestamp(file.upload_timestamp)}</TableCell>
                   <TableCell>{file.ownerName}</TableCell>
