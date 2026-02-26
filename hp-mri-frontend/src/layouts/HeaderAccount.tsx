@@ -18,6 +18,7 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
     signOutCognito();
     setUserName(null);
     window.dispatchEvent(new Event('auth-change')); // notify other components
+    navigate('/');
   };
 
   return (
@@ -93,20 +94,6 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
               Sign Out
             </Button>
           )}
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => navigate('/')}
-            sx={{
-              fontWeight: 700,
-              textTransform: 'none',
-              borderRadius: 2,
-              backgroundColor: '#d32f2f',
-              '&:hover': { backgroundColor: '#b71c1c' },
-            }}
-          >
-            Exit Tool
-          </Button>
         </Box>
       </Toolbar>
     </AppBar>

@@ -180,7 +180,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
   // Use external upload state if provided, otherwise use internal state
   const isUploadingState = externalIsUploading !== undefined ? externalIsUploading : isUploading;
 
-  console.log('UploadModal render:', { open, isUploadingState, filesCount: files.length });
 
   // Fetch user's groups when modal opens
   React.useEffect(() => {

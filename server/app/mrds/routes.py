@@ -78,6 +78,7 @@ def show_files():
         
         # Get files accessible to user
         cursor_list = list_mrdfiles_for_user(g.user_sub, projection=proj, limit=limit, skip=skip)
+        print('cursor list user', cursor_list)
         return jsonify(cursor_list)
     except Exception as e:
         return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400

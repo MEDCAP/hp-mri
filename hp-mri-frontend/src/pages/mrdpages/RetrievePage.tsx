@@ -36,9 +36,7 @@ import {
   UploadFile,
   Refresh,
   InfoOutlined,
-  HelpOutline,
 } from '@mui/icons-material';
-import MRDTutorial, { TUTORIAL_KEY } from '../../components/MRDTutorial';
 import { alpha } from '@mui/material/styles';
 import apiClient from '../../api/apiClient';
 import { MRDFile } from '../../types/mrd';
@@ -108,15 +106,11 @@ const RetrievePage: React.FC = () => {
   const [fileDetailsPanelOpen, setFileDetailsPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
-  const [tutorialRun, setTutorialRun] = useState(
-    () => !isAuthenticated() && !localStorage.getItem(TUTORIAL_KEY)
-  );
 
   const fetchFiles = (guest: boolean) => {
     const endpoint = guest ? '/mrd-files/public' : '/mrd-files';
     apiClient.get(endpoint)
       .then((response) => {
-        console.log('mrd-files response: ', response.data);
         const validFiles = response.data.filter((file: MRDFile) => {
           if (file && file._id) return true;
           console.warn('Filtering out invalid file object:', file);
@@ -134,9 +128,6 @@ const RetrievePage: React.FC = () => {
       setIsGuest(newIsGuest);
       setFiles([]); // clear stale files immediately
       fetchFiles(newIsGuest);
-      if (newIsGuest && !localStorage.getItem(TUTORIAL_KEY)) {
-        setTutorialRun(true);
-      }
     };
     window.addEventListener('auth-change', handleAuthChange);
     return () => window.removeEventListener('auth-change', handleAuthChange);
@@ -391,7 +382,7 @@ const RetrievePage: React.FC = () => {
         <Grid2 container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
           <Grid2 size={{xs: isGuest ? 12 : 6}}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box data-tutorial="search" sx={{ flexGrow: 1 }}>
+              <Box sx={{ flexGrow: 1 }}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -400,17 +391,11 @@ const RetrievePage: React.FC = () => {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </Box>
-              <Tooltip title="Open tutorial">
-                <IconButton size="small" onClick={() => setTutorialRun(true)} sx={{ color: 'text.secondary' }}>
-                  <HelpOutline fontSize="small" />
-                </IconButton>
-              </Tooltip>
             </Box>
           </Grid2>
           {!isGuest && (
             <Grid2 size={{xs: 6}} textAlign="right">
               <div
-                data-tutorial="action-buttons"
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -476,7 +461,7 @@ const RetrievePage: React.FC = () => {
           )}
         </Grid2>
 
-        <TableContainer data-tutorial="file-table" component={Paper} sx={{ boxShadow: 4 }}>
+        <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -509,7 +494,7 @@ const RetrievePage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedFiles.map((file, index) => (
+              {sortedFiles.map((file) => (
                 <TableRow
                   key={file._id}
                   onClick={() => handleRowClick(file)}
@@ -539,7 +524,6 @@ const RetrievePage: React.FC = () => {
                     <Tooltip title="View file details">
                       <IconButton
                         size="small"
-                        data-tutorial={index === 0 ? 'info-icon' : undefined}
                         onClick={(e) => {
                           e.stopPropagation();
                           goToDetails(file);
@@ -665,8 +649,6 @@ const RetrievePage: React.FC = () => {
         file={selectedFile}
       />
 
-      {/* Tutorial */}
-      <MRDTutorial run={tutorialRun} onFinish={() => setTutorialRun(false)} />
     </div>
   );
 };

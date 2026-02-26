@@ -1,10 +1,8 @@
 """
 JWT Authentication module for Cognito integration
 """
-import json
-import urllib.request
 import jwt
-from jwt import get_unverified_header, ExpiredSignatureError, InvalidTokenError
+from jwt import ExpiredSignatureError, InvalidTokenError, PyJWKClient
 from flask import request, jsonify, g
 from functools import wraps
 
@@ -14,12 +12,27 @@ USER_POOL_ID = 'us-east-1_vUo50ofKI'
 AUDIENCE = '4nvgf7et9f4ui0glr4ddf152r8'  # Client ID
 JWKS_URL = f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}/.well-known/jwks.json'
 
-# Cache JWKS (in production, consider caching with TTL)
+# PyJWT 2.10+ JWKS client (fetches and caches keys; requires cryptography for RS256)
 try:
-    jwks = json.loads(urllib.request.urlopen(JWKS_URL).read())
+    jwks_client = PyJWKClient(JWKS_URL, cache_jwk_set=True, lifespan=3600)
 except Exception as e:
-    print(f"Warning: Could not fetch JWKS: {e}")
-    jwks = {"keys": []}
+    jwks_client = None
+    print(f"Warning: Could not create JWKS client: {e}")
+
+
+def _decode_token(token: str):
+    """Get signing key from JWKS and decode/verify token. Raises on failure."""
+    if not jwks_client:
+        raise RuntimeError("JWKS client not available")
+    signing_key = jwks_client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=AUDIENCE,
+        issuer=f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}",
+    )
+
 
 def requires_auth(f):
     """
@@ -28,59 +41,34 @@ def requires_auth(f):
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            return jsonify({'error': 'Missing or invalid authorization header'}), 401
-        
-        token = auth_header.split(' ', 1)[1]
-        
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Missing or invalid authorization header"}), 401
+
+        token = auth_header.split(" ", 1)[1]
+
         try:
-            # Get unverified header to find the key ID
-            unverified_header = get_unverified_header(token)
-            kid = unverified_header.get('kid')
-            
-            # Find the matching key
-            key = None
-            for k in jwks['keys']:
-                if k['kid'] == kid:
-                    key = k
-                    break
-            
-            if not key:
-                return jsonify({'error': 'Invalid token key'}), 401
-            
-            # Decode and verify the token
-            public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
-            decoded = jwt.decode(
-                token,
-                public_key,
-                algorithms=['RS256'],
-                audience=AUDIENCE,
-                issuer=f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}'
-            )
-            
-            # Set user context
-            g.user_sub = decoded.get('sub')
-            g.user_email = decoded.get('email')
-            g.user_name = decoded.get('name') or decoded.get('email')
-            g.user_groups = decoded.get('cognito:groups', [])
-            
+            decoded = _decode_token(token)
+            g.user_sub = decoded.get("sub")
+            g.user_email = decoded.get("email")
+            g.user_name = decoded.get("name") or decoded.get("email")
+            g.user_groups = decoded.get("cognito:groups", [])
             return f(*args, **kwargs)
-            
+
         except ExpiredSignatureError:
-            return jsonify({'error': 'Token has expired'}), 401
+            return jsonify({"error": "Token has expired"}), 401
         except InvalidTokenError as e:
-            return jsonify({'error': 'Invalid token', 'details': str(e)}), 401
+            return jsonify({"error": "Invalid token", "details": str(e)}), 401
         except Exception as e:
-            return jsonify({'error': 'Authentication failed', 'details': str(e)}), 401
-    
+            return jsonify({"error": "Authentication failed", "details": str(e)}), 401
+
     return wrapper
+
 
 def optional_auth(f):
     """
     Like requires_auth but allows unauthenticated requests.
     Sets g.user_sub = None for guests; validates token if present.
-    Routes using this decorator must check g.user_sub before accessing user-specific data.
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -89,26 +77,15 @@ def optional_auth(f):
         g.user_name = None
         g.user_groups = []
 
-        auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Bearer '):
-            token = auth_header.split(' ', 1)[1]
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
             try:
-                unverified_header = get_unverified_header(token)
-                kid = unverified_header.get('kid')
-                key = next((k for k in jwks['keys'] if k['kid'] == kid), None)
-                if key:
-                    public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
-                    decoded = jwt.decode(
-                        token,
-                        public_key,
-                        algorithms=['RS256'],
-                        audience=AUDIENCE,
-                        issuer=f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}'
-                    )
-                    g.user_sub = decoded.get('sub')
-                    g.user_email = decoded.get('email')
-                    g.user_name = decoded.get('name') or decoded.get('email')
-                    g.user_groups = decoded.get('cognito:groups', [])
+                decoded = _decode_token(token)
+                g.user_sub = decoded.get("sub")
+                g.user_email = decoded.get("email")
+                g.user_name = decoded.get("name") or decoded.get("email")
+                g.user_groups = decoded.get("cognito:groups", [])
             except Exception:
                 pass  # Invalid or expired token — treat as guest
 

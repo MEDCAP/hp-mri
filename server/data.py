@@ -1,6 +1,7 @@
 '''
 mongoDB CRUD operation using application context of flask
 '''
+from webbrowser import get
 from flask import current_app
 from bson import ObjectId
 from datetime import datetime
@@ -75,15 +76,17 @@ def list_mrdfiles_for_user(user_sub: str, projection=None, limit=50, skip=0):
     """
     try:
         db = get_db()
-        
-        # Get user's groups
-        user_groups = get_user_group_names(user_sub)
-        
+
+        # user_groups + public as a list of accessible files 
+        # groupname_scope = get_user_group_names(user_sub).append("public")
+        groupname_scope = get_user_group_names(user_sub)
+        groupname_scope.append("public")
+
         # Build query: user's private files OR files in user's groups OR legacy files (public)
         query = {
             "$or": [
                 {"ownerId": user_sub},  # User's private files
-                {"groupName": {"$in": user_groups}},  # Files in user's groups
+                {"groupName": {"$in": groupname_scope}},  # Files in user's groups
                 {"$and": [
                     {"$or": [{"ownerId": {"$exists": False}}, {"ownerId": None}]},  # No ownerId
                     {"$or": [{"groupName": {"$exists": False}}, {"groupName": None}]}  # No groupName
@@ -154,7 +157,7 @@ def list_public_mrdfiles(projection=None, limit=50, skip=0):
         cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
         cursor_list = list(cursor)
         for doc in cursor_list:
-            doc['_id'] = str(doc['_id'])
+            doc["_id"] = str(doc["_id"])
         return cursor_list
     except Exception as e:
         print(f"Error listing public mrd-files: {e}")
