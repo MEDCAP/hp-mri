@@ -5,15 +5,11 @@ import {
   Card,
   CardContent,
   List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Button,
   Chip,
   Avatar,
   Alert,
   CircularProgress,
-  Divider,
   useTheme,
   alpha
 } from '@mui/material';
@@ -69,7 +65,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
     }
   };
 
-  const handleApprove = async (userSub: string, userName: string) => {
+  const handleApprove = async (userSub: string, _userName: string) => {
     try {
       setActionLoading(userSub);
       
@@ -90,7 +86,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
     }
   };
 
-  const handleDeny = async (userSub: string, userName: string) => {
+  const handleDeny = async (userSub: string, _userName: string) => {
     try {
       setActionLoading(userSub);
       
@@ -273,7 +269,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
                               label={request.status}
                               color={getStatusColor(request.status) as any}
                               size="small"
-                              icon={getStatusIcon(request.status)}
+                              icon={getStatusIcon(request.status) || undefined}
                               sx={{ textTransform: 'capitalize' }}
                             />
                           </Box>

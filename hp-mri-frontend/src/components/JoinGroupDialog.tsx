@@ -15,20 +15,14 @@ import {
   Card,
   CardContent,
   List,
-  ListItem,
-  ListItemText,
-  ListItemButton,
   Chip,
   Avatar,
-  useTheme,
-  alpha
+  useTheme
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Group as GroupIcon,
-  Search as SearchIcon,
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon
+  Search as SearchIcon
 } from '@mui/icons-material';
 import apiClient from '../api/apiClient';
 
@@ -45,7 +39,7 @@ interface SearchGroup {
   description?: string;
   memberCount: number;
   createdAt: string;
-  requestStatus?: 'pending' | 'approved' | 'denied' | 'member';
+  requestStatus?: 'pending' | 'approved' | 'denied' | 'member' | 'none';
 }
 
 const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGroupJoined }) => {
@@ -68,7 +62,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
     }
   }, [open]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     setError(null);
     setSuccess(null);
@@ -147,7 +141,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.post(`/groups/${groupName}/join-requests`);
+      await apiClient.post(`/groups/${groupName}/join-requests`);
       
       setSuccess(`Join request submitted for ${displayName}. Waiting for admin approval.`);
       
@@ -171,7 +165,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.post(`/groups/${groupName}/join-requests/withdraw`);
+      await apiClient.post(`/groups/${groupName}/join-requests/withdraw`);
       setSuccess(`Join request withdrawn for ${displayName}.`);
       
       // Refresh search results to show updated status

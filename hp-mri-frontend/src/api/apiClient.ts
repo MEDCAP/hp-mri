@@ -1,5 +1,5 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { CognitoUserPool, CognitoUser } from 'amazon-cognito-identity-js';
+import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { CognitoUserPool } from 'amazon-cognito-identity-js';
 
 const poolData = {
   UserPoolId: 'us-east-1_vUo50ofKI',
@@ -19,7 +19,7 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor to add JWT token
 apiClient.interceptors.request.use(
-  async (config: AxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     try {
       const user = userPool.getCurrentUser();
       if (user) {
@@ -34,9 +34,10 @@ apiClient.interceptors.request.use(
         });
         
         const idToken = (session as any).getIdToken().getJwtToken();
-        if (config.headers) {
-          config.headers.Authorization = `Bearer ${idToken}`;
+        if (!config.headers) {
+          config.headers = {} as any;
         }
+        (config.headers as any).Authorization = `Bearer ${idToken}`;
       }
     } catch (error) {
       console.error('Error getting session:', error);

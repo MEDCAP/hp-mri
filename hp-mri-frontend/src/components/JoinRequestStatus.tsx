@@ -5,9 +5,6 @@ import {
   Card,
   CardContent,
   List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   Chip,
   Alert,
   CircularProgress,
@@ -176,7 +173,7 @@ const JoinRequestStatus: React.FC<JoinRequestStatusProps> = ({ userSub }) => {
                       label={getStatusText(request.status)}
                       color={getStatusColor(request.status) as any}
                       size="small"
-                      icon={getStatusIcon(request.status)}
+                      icon={getStatusIcon(request.status) || undefined}
                       sx={{ textTransform: 'none' }}
                     />
                   </Box>

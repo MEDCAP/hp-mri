@@ -85,7 +85,7 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
       setCreateLoading(true);
       setError(null);
       
-      const response = await apiClient.post(`/groups/${groupName}/invite-codes`, {
+      await apiClient.post(`/groups/${groupName}/invite-codes`, {
         expiresDays: expiresDays || undefined,
         maxUses: maxUses || undefined
       });

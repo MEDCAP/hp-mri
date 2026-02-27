@@ -22,7 +22,6 @@ import {
   Group,
   AdminPanelSettings,
   People,
-  Edit,
   Delete,
   Visibility
 } from '@mui/icons-material';

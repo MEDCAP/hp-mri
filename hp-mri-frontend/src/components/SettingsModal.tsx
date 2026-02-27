@@ -18,8 +18,6 @@ import {
   Avatar,
   Card,
   CardContent,
-  Tabs,
-  Tab,
   useTheme,
   alpha
 } from '@mui/material';
@@ -55,7 +53,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [joinGroupOpen, setJoinGroupOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -275,7 +272,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                 {groups.map((group, index) => (
                   <React.Fragment key={group._id}>
                     <ListItem
-                      button
                       onClick={() => handleGroupClick(group.name)}
                       sx={{
                         px: 0,

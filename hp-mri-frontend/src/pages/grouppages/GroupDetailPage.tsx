@@ -24,8 +24,6 @@ import {
 import {
   ArrowBack,
   Edit,
-  Delete,
-  AdminPanelSettings,
   PersonAdd,
   PersonRemove,
   Star,

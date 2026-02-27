@@ -14,7 +14,6 @@ import {
   Alert,
   Divider,
   Grid,
-  IconButton,
   Tooltip
 } from '@mui/material';
 import {
@@ -129,7 +128,7 @@ const ConcatenationPanel: React.FC<ConcatenationPanelProps> = ({
             <Box sx={{ maxHeight: 200, overflow: 'auto', border: '1px solid #ddd', borderRadius: 1 }}>
               <List dense>
                 {availableFiles.map((file) => (
-                  <ListItem key={file._id} button onClick={() => handleFileToggle(file)}>
+                  <ListItem key={file._id} onClick={() => handleFileToggle(file)}>
                     <ListItemIcon>
                       <Checkbox
                         edge="start"

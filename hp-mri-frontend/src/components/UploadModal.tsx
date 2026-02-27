@@ -322,7 +322,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
           'Content-Type': 'multipart/form-data',
         },
       })
-      .then(data => {
+      .then(response => {
         // Set progress to 100% and completed status
         setFiles(prev => prev.map(f => 
           f.id === file.id 
@@ -332,7 +332,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         onProgressUpdate?.(file.id, 100);
         
         // Check if this specific file was successful
-        const fileResult = data.results?.find((r: any) => 
+        const fileResult = response.data?.results?.find((r: any) => 
           r.original_filename === file.file.name
         );
         
