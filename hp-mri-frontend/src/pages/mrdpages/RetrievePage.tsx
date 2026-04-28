@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../layouts/HeaderAccount';
 import UploadModal from '../../components/UploadModal';
+import MRDTutorial, { TUTORIAL_KEY } from '../../components/MRDTutorial';
 import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';
 import UploadCompletionModal from '../../components/UploadCompletionModal';
@@ -34,6 +35,7 @@ import {
   ArrowDownward,
   CloudDownload,
   Delete,
+  HelpOutline,
   UploadFile,
   Refresh,
   InfoOutlined,
@@ -83,6 +85,9 @@ const extractUploadDate = (ts: any): Date => {
 const RetrievePage: React.FC = () => {
   const navigate = useNavigate();
   const [isGuest, setIsGuest] = useState(() => !isAuthenticated());
+  const [tutorialRun, setTutorialRun] = useState(
+    () => !isAuthenticated() && !localStorage.getItem(TUTORIAL_KEY)
+  );
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState<MRDFile[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -129,6 +134,9 @@ const RetrievePage: React.FC = () => {
       setIsGuest(newIsGuest);
       setFiles([]); // clear stale files immediately
       fetchFiles(newIsGuest);
+      if (newIsGuest && !localStorage.getItem(TUTORIAL_KEY)) {
+        setTutorialRun(true);
+      }
     };
     window.addEventListener('auth-change', handleAuthChange);
     return () => window.removeEventListener('auth-change', handleAuthChange);
@@ -383,7 +391,7 @@ const RetrievePage: React.FC = () => {
         <Grid2 container spacing={2} alignItems="center" sx={{ marginBottom: 2 }}>
           <Grid2 size={{xs: isGuest ? 12 : 6}}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ flexGrow: 1 }}>
+              <Box data-tutorial="search" sx={{ flexGrow: 1 }}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -392,6 +400,15 @@ const RetrievePage: React.FC = () => {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </Box>
+              <Tooltip title="Open tutorial">
+                <IconButton
+                  size="small"
+                  onClick={() => setTutorialRun(true)}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  <HelpOutline fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Box>
           </Grid2>
           {!isGuest && (
@@ -462,7 +479,7 @@ const RetrievePage: React.FC = () => {
           )}
         </Grid2>
 
-        <TableContainer component={Paper} sx={{ boxShadow: 4 }}>
+        <TableContainer data-tutorial="file-table" component={Paper} sx={{ boxShadow: 4 }}>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -495,7 +512,7 @@ const RetrievePage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedFiles.map((file) => (
+              {sortedFiles.map((file, index) => (
                 <TableRow
                   key={file._id}
                   onClick={() => handleRowClick(file)}
@@ -525,6 +542,7 @@ const RetrievePage: React.FC = () => {
                     <Tooltip title="View file details">
                       <IconButton
                         size="small"
+                        data-tutorial={index === 0 ? 'info-icon' : undefined}
                         onClick={(e) => {
                           e.stopPropagation();
                           goToDetails(file);
@@ -649,6 +667,9 @@ const RetrievePage: React.FC = () => {
         }}
         file={selectedFile}
       />
+
+      {/* Tutorial */}
+      <MRDTutorial run={tutorialRun} onFinish={() => setTutorialRun(false)} />
 
     </div>
   );
