@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaCube, FaFile, FaImages, FaCog } from 'react-icons/fa';
+import { FaCube, FaFile, FaCloudUploadAlt, FaImages, FaCog } from 'react-icons/fa';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Drawer,
@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
   const theme = useTheme()
   const location = useLocation();
   const isMrdSelected = location.pathname.startsWith('/mrd-files');
+  const isUploadSelected = location.pathname.startsWith('/upload');
   const isViewerSelected = location.pathname.startsWith('/viewer');
   const isSimulatorSelected = location.pathname.startsWith('/simulator');
 
@@ -119,6 +120,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
                   fontSize: '1rem',
                   fontWeight: '500',
                   sx: { color: isMrdSelected ? theme.palette.common.white : (background_black ? theme.palette.common.white : 'inherit') },
+                }}
+              />
+            )}
+          </ListItemButton>
+        </ListItem>
+
+        {/* Upload Link */}
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/upload"
+            selected={isUploadSelected}
+            sx={{
+              padding: '10px 16px',
+              '&:hover': {
+                backgroundColor: background_black ? alpha(theme.palette.common.white, 0.08) : theme.palette.action.hover,
+              },
+              '&.Mui-selected': {
+                backgroundColor: '#011F5B',
+                color: '#fff',
+              },
+              '&.Mui-selected:hover': {
+                backgroundColor: background_black ? alpha(theme.palette.primary.main, 0.9) : theme.palette.primary.dark,
+              },
+              '& .MuiListItemText-primary': {
+                color: isUploadSelected ? theme.palette.common.white : (background_black ? theme.palette.common.white : 'inherit'),
+              },
+            }}
+          >
+            <ListItemIcon sx={{ justifyContent: 'center' }}>
+              <FaCloudUploadAlt color={getIconColor(isUploadSelected)} style={{ marginLeft: isOpen ? '0px' : '-5px' }} />
+            </ListItemIcon>
+            {isOpen && (
+              <ListItemText
+                primary="Upload"
+                primaryTypographyProps={{
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  sx: { color: isUploadSelected ? theme.palette.common.white : (background_black ? theme.palette.common.white : 'inherit') },
                 }}
               />
             )}

@@ -29,6 +29,7 @@ import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
 
 // Feature pages
 import RetrievePage from './pages/mrdpages/RetrievePage';
+import UploadWorkflowPage from './pages/mrdpages/UploadWorkflowPage';
 import SimulatorPage from './pages/simulatorpages/SimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
 
@@ -60,6 +61,9 @@ const AppContent: React.FC = () => {
 
           {/* MRD Files - MRD Layout (HeaderAccount) — accessible to guests (public files only) */}
           <Route path="/mrd-files" element={<MRDLayout><RetrievePage /></MRDLayout>} />
+
+          {/* Upload workflow — folder-based upload + reconstruction stepper */}
+          <Route path="/upload" element={<ProtectedRoute><MRDLayout><UploadWorkflowPage /></MRDLayout></ProtectedRoute>} />
 
           {/* Groups - MRD Layout */}
           <Route path="/groups" element={<ProtectedRoute><MRDLayout><GroupsPage /></MRDLayout></ProtectedRoute>} />
