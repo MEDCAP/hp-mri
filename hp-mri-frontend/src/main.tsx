@@ -1,15 +1,25 @@
 // src/main.tsx
 import { Buffer } from 'buffer';
 
+// Node-style globals the Cognito SDK expects to exist on `window` in the browser.
+declare global {
+  interface Window {
+    global: Window;
+    Buffer: typeof Buffer;
+  }
+}
+
 // Polyfills for Cognito SDK
 if (typeof global === 'undefined') {
-  (window as any).global = window;
+  window.global = window;
 }
 if (typeof process === 'undefined') {
-  (window as any).process = { env: {} };
+  // Object.assign avoids clashing with the Node `Process` type that a dependency
+  // merges into Window — the SDK only ever reads `process.env`.
+  Object.assign(window, { process: { env: {} } });
 }
 if (typeof Buffer !== 'undefined') {
-  (window as any).Buffer = Buffer;
+  window.Buffer = Buffer;
 }
 
 import React from 'react';

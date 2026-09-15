@@ -1,10 +1,10 @@
 from flask import jsonify, request, current_app
+import io
 import os
 import boto3
 from bson import json_util, ObjectId
+from bson.errors import InvalidId
 import json
-from werkzeug.utils import secure_filename
-from datetime import datetime
 
 # list, insert mongodb functions
 from data import list_all_mrdfiles, insert_mrdfile_header, read_mrdfile_header
@@ -13,6 +13,38 @@ from data import get_mrdfile_by_id
 
 # flask blueprint for mrds route
 from . import mrds_bp
+
+ALLOWED_EXTENSIONS = {'.bin', '.mrd', '.mrd2'}
+
+
+def _extension_error(filename):
+    """
+    Return an error string if the filename's extension is not an accepted MRD
+    extension, otherwise None.
+    """
+    if not filename:
+        return "filename is required"
+    file_ext = os.path.splitext(filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        supported = ', '.join(sorted(ALLOWED_EXTENSIONS))
+        return f"File type {file_ext} not allowed. Supported: {supported}"
+    return None
+
+
+def _staging_key(upload_id):
+    """S3 key an in-flight presigned upload is written to."""
+    return f"{current_app.config['UPLOAD_STAGING_PREFIX']}{upload_id}"
+
+
+def _parse_upload_id(upload_id):
+    """
+    Validate that upload_id is a well-formed ObjectId before it is used to build
+    an S3 key. Returns the ObjectId or None.
+    """
+    try:
+        return ObjectId(upload_id)
+    except (InvalidId, TypeError):
+        return None
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
@@ -57,131 +89,165 @@ def get_file_details(file_id):
     except Exception as e:
         return jsonify({"error": "Invalid file ID", "details": str(e)}), 400
 
-# Route to upload MRD files
-@mrds_bp.route("/upload", methods=["POST"])
-def upload_file():
+# --- Presigned direct-to-S3 upload ---------------------------------------------
+#
+# The browser PUTs file bytes straight to S3, so the API never sits on the data
+# path and is not bound by the gunicorn request timeout. Three steps:
+#
+#   1. init     mint an upload id + presigned PUT URL into the staging prefix
+#   2. (client) PUT the bytes to S3
+#   3. complete parse the staged object, promote it to mrd_files/{id}, write Mongo
+#
+# Nothing is written to MongoDB until step 3 succeeds, so an abandoned upload
+# leaves no database state. Abandoned staging objects are reaped by the bucket
+# lifecycle rule on UPLOAD_STAGING_PREFIX.
+
+@mrds_bp.route("/uploads/init", methods=["POST"])
+def init_upload():
     """
-    Handle batch upload of MRD files with proper error handling and status tracking
+    Mint a presigned PUT URL for a single MRD file. No database write happens here.
     """
-    if "file" not in request.files:
-        return jsonify({"error": "No files selected"}), 400
-    
-    # Get the current user name from form data (sent from frontend)
-    if "ownerName" not in request.form:
-        return jsonify({"error": "current UserName not found"}), 400
-    current_user_name = request.form.get("ownerName")
-    
-    # Setup AWS S3 client
+    body = request.get_json(silent=True) or {}
+    filename = body.get("filename")
+    owner_name = body.get("ownerName")
+    file_size = body.get("fileSize")
+
+    ext_error = _extension_error(filename)
+    if ext_error:
+        return jsonify({"error": ext_error}), 400
+    if not owner_name:
+        return jsonify({"error": "ownerName is required"}), 400
+
+    max_bytes = current_app.config['MAX_UPLOAD_BYTES']
+    if not isinstance(file_size, int) or file_size <= 0:
+        return jsonify({"error": "fileSize must be a positive integer"}), 400
+    if file_size > max_bytes:
+        return jsonify({
+            "error": f"File exceeds the maximum upload size of {max_bytes} bytes"
+        }), 400
+
+    # The upload id doubles as the eventual Mongo _id and S3 key suffix.
+    upload_id = ObjectId()
+    expires_in = current_app.config['PRESIGN_EXPIRY_SECONDS']
+
+    try:
+        s3 = boto3.client("s3")
+        upload_url = s3.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": current_app.config['S3_BUCKET'],
+                "Key": _staging_key(upload_id),
+                # Must match the Content-Type the browser sends, or S3 rejects
+                # the signature.
+                "ContentType": "application/octet-stream",
+            },
+            ExpiresIn=expires_in,
+        )
+    except Exception as e:
+        return jsonify({"error": "Failed to create upload URL", "details": str(e)}), 500
+
+    return jsonify({
+        "uploadId": str(upload_id),
+        "uploadUrl": upload_url,
+        "expiresIn": expires_in,
+    }), 200
+
+
+@mrds_bp.route("/uploads/<upload_id>/complete", methods=["POST"])
+def complete_upload(upload_id):
+    """
+    Finalize an upload: verify the staged object, parse its MRD header, promote it
+    to mrd_files/{upload_id}, and insert the metadata document.
+    """
+    object_id = _parse_upload_id(upload_id)
+    if object_id is None:
+        return jsonify({"error": "Invalid upload id"}), 400
+
+    body = request.get_json(silent=True) or {}
+    filename = body.get("filename")
+    owner_name = body.get("ownerName")
+
+    ext_error = _extension_error(filename)
+    if ext_error:
+        return jsonify({"error": ext_error}), 400
+    if not owner_name:
+        return jsonify({"error": "ownerName is required"}), 400
+
     s3 = boto3.client("s3")
-    BUCKET = current_app.config['S3_BUCKET']
-    
-    # Create temporary directory for file processing
-    upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmpdata")
-    if not os.path.exists(upload_path):
-        os.makedirs(upload_path)
-    
-    files = request.files.getlist("file")
-    results = []
-    successful_files = 0
-    failed_files = 0
-    
-    # Process each file
-    for file in files:
-        if file.filename == '':
-            continue
-            
-        # Validate file extension
-        allowed_extensions = {'.bin', '.mrd', '.mrd2'}
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        if file_ext not in allowed_extensions:
-            results.append({
-                "original_filename": file.filename,
-                "status": "error",
-                "error": f"File type {file_ext} not allowed. Supported: {', '.join(allowed_extensions)}"
-            })
-            failed_files += 1
-            continue
-        
-        # Save file to temporary location
-        temp_filepath = os.path.join(upload_path, secure_filename(file.filename))
-        file.save(temp_filepath)
-        
+    bucket = current_app.config['S3_BUCKET']
+    staging_key = _staging_key(object_id)
+
+    try:
+        head = s3.head_object(Bucket=bucket, Key=staging_key)
+    except Exception:
+        return jsonify({
+            "error": "Uploaded object not found. The upload may have failed or expired."
+        }), 404
+
+    # A presigned PUT cannot cap its own size, so this is where the limit is
+    # actually enforced.
+    actual_size = head['ContentLength']
+    max_bytes = current_app.config['MAX_UPLOAD_BYTES']
+    if actual_size > max_bytes:
+        s3.delete_object(Bucket=bucket, Key=staging_key)
+        return jsonify({
+            "error": f"File exceeds the maximum upload size of {max_bytes} bytes"
+        }), 400
+
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=staging_key)
+        metadata = read_mrdfile_header(
+            io.BytesIO(obj['Body'].read()),
+            owner_name=owner_name,
+            original_filename=filename,
+            file_size=actual_size,
+        )
+
+        # Server-side copy: the bytes never travel through this process.
+        s3_key = f"mrd_files/{str(object_id)}"
+        s3.copy_object(
+            Bucket=bucket,
+            Key=s3_key,
+            CopySource={"Bucket": bucket, "Key": staging_key},
+        )
+
+        inserted_id = insert_mrdfile_header({**metadata, "s3_key": s3_key}, doc_id=object_id)
+    except Exception as e:
+        return jsonify({"error": "Failed to finalize upload", "details": str(e)}), 500
+
+    # Best effort — a leftover staging object is harmless and the lifecycle rule
+    # will expire it.
+    try:
+        s3.delete_object(Bucket=bucket, Key=staging_key)
+    except Exception as e:
+        print(f"Failed to clean up staging object {staging_key}: {e}")
+
+    # Mongo values (datetime, ObjectId) are not JSON-serializable as-is.
+    serializable_metadata = {k: str(v) for k, v in metadata.items()}
+
+    return jsonify({
+        "fileId": str(inserted_id),
+        "s3_key": s3_key,
+        "metadata": serializable_metadata,
+    }), 201
+
+
+@mrds_bp.route("/uploads/<upload_id>/abort", methods=["POST"])
+def abort_upload(upload_id):
+    """
+    Discard a staged upload after a client-side cancel or failure. Always succeeds;
+    anything missed here is reaped by the staging prefix lifecycle rule.
+    """
+    object_id = _parse_upload_id(upload_id)
+    if object_id is not None:
         try:
-            import time
-            
-            # Step 1: Extract metadata from MRD file (20% of progress)
-            time.sleep(0.3)  # Simulate metadata extraction time
-            db_entry = read_mrdfile_header(temp_filepath, owner_name=current_user_name)
-            # Step 2: Insert metadata into MongoDB (40% of progress)
-            time.sleep(0.2)  # Simulate database operation
-            inserted_id = insert_mrdfile_header(db_entry)
-            
-            # Step 3: Upload to S3 with MongoDB ObjectId as filename (80% of progress)
-            # Simulate upload time based on file size (longer for larger files)
-            file_size_mb = os.path.getsize(temp_filepath) / (1024 * 1024)
-            upload_time = min(1.0, max(0.3, file_size_mb * 0.2))  # 0.3-1.0 seconds based on file size
-            time.sleep(upload_time)
-            s3_key = f"mrd_files/{str(inserted_id)}"
-            s3.upload_file(temp_filepath, BUCKET, s3_key)
-            
-            # Step 4: Update database with S3 key (100% of progress)
-            time.sleep(0.1)  # Simulate final database update
-            from data import get_db
-            db = get_db()
-            db.mrdfiles.update_one(
-                {"_id": inserted_id},
-                {"$set": {"s3_key": s3_key}}
+            boto3.client("s3").delete_object(
+                Bucket=current_app.config['S3_BUCKET'],
+                Key=_staging_key(object_id),
             )
-            
-            # Convert metadata to JSON-serializable format
-            serializable_metadata = {}
-            for key, value in db_entry.items():
-                if hasattr(value, '__str__'):
-                    serializable_metadata[key] = str(value)
-                else:
-                    serializable_metadata[key] = value
-            
-            # Success result
-            results.append({
-                "original_filename": file.filename,
-                "status": "completed",
-                "metadata": serializable_metadata,
-                "db_id": str(inserted_id),
-                "s3_key": s3_key
-            })
-            successful_files += 1
-            
         except Exception as e:
-            # Error result
-            results.append({
-                "original_filename": file.filename,
-                "status": "error",
-                "error": str(e)
-            })
-            failed_files += 1
-            
-        finally:
-            # Always cleanup temporary file
-            if os.path.exists(temp_filepath):
-                os.remove(temp_filepath)
-    
-    # Prepare response
-    response_data = {
-        "message": f"Processed {len(results)} files",
-        "total_files": len(results),
-        "successful_files": successful_files,
-        "failed_files": failed_files,
-        "results": results,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    
-    # Return appropriate status code based on results
-    if failed_files > 0 and successful_files > 0:
-        return jsonify(response_data), 207  # 207 Multi-Status for partial success
-    elif failed_files > 0:
-        return jsonify(response_data), 400  # 400 Bad Request if all files failed
-    else:
-        return jsonify(response_data), 200  # 200 OK if all files succeeded
+            print(f"Failed to abort upload {upload_id}: {e}")
+    return "", 204
 
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
 def delete_files():

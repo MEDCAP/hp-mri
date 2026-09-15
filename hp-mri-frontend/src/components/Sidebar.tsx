@@ -36,14 +36,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
 
   const getIconColor = (selected: boolean) => {
     if (background_black) return theme.palette.common.white;
-    return selected ? theme.palette.common.white : '#011F5B';
+    return selected ? theme.palette.common.white : theme.palette.secondary.main;
   };
 
   return (
     <Drawer
       variant="permanent"
       className="sidebar-drawer"
-      style={{ ['--sidebar-width' as any]: isOpen ? '240px' : '80px' }}
+      style={{ '--sidebar-width': isOpen ? '240px' : '80px' } as React.CSSProperties}
       sx={{
         '& .MuiDrawer-paper': {
           boxShadow: 3,
@@ -90,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
                 backgroundColor: background_black ? alpha(theme.palette.common.white, 0.08) : theme.palette.action.hover,
               },
               '&.Mui-selected': {
-                backgroundColor: '#011F5B',
+                backgroundColor: theme.palette.secondary.main,
                 color: '#fff',
               },
               '&.Mui-selected:hover': {
@@ -129,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
                 backgroundColor: background_black ? alpha(theme.palette.common.white, 0.08) : theme.palette.action.hover,
               },
               '&.Mui-selected': {
-                backgroundColor: '#011F5B',
+                backgroundColor: theme.palette.secondary.main,
                 color: '#fff',
               },
               '&.Mui-selected:hover': {
@@ -168,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
                 backgroundColor: background_black ? alpha(theme.palette.common.white, 0.08) : theme.palette.action.hover,
               },
               '&.Mui-selected': {
-                backgroundColor: '#011F5B',
+                backgroundColor: theme.palette.secondary.main,
                 color: '#fff',
               },
               '&.Mui-selected:hover': {

@@ -5,7 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import theme from './theme'; // './theme' exports MUI theme object
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './auth/ProtectedRoute';
 
 // Layout Components
 import HomePageLayout from './layouts/HomePageLayout';
@@ -13,25 +13,25 @@ import MRDLayout from './layouts/MRDLayout';
 import SimpleLayout from './layouts/SimpleLayout';
 
 // Login Pages
-import AccountPage from './pages/loginpages/AccountPage';
-import SignUpPage from './pages/loginpages/SignUpPage';
-import ConfirmSignUpPage from './pages/loginpages/ConfirmSignUpPage';
+import AccountPage from './features/auth/AccountPage';
+import SignUpPage from './features/auth/SignUpPage';
+import ConfirmSignUpPage from './features/auth/ConfirmSignUpPage';
 
 // Homepage
-import HomePage from './pages/homepages/HomePage';
-import AboutPage from './pages/homepages/MembersPage';
-import ConceptPage from './pages/homepages/ConceptPage';
-import ConvertStorePage from './pages/homepages/ConvertStorePage';
-import ReconstructionToolsPage from './pages/homepages/ReconstructionToolsPage';
-import SimulatePage from './pages/homepages/SimulatePage';
-import PublicationPage from './pages/homepages/PublicationPage';
-import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
+import HomePage from './features/home/HomePage';
+import AboutPage from './features/home/MembersPage';
+import ConceptPage from './features/home/ConceptPage';
+import ConvertStorePage from './features/home/ConvertStorePage';
+import ReconstructionToolsPage from './features/home/ReconstructionToolsPage';
+import SimulatePage from './features/home/SimulatePage';
+import PublicationPage from './features/home/PublicationPage';
+import MRCalculatorPage from './features/calculator/MRCalculatorPage';
 
 // Feature pages
-import RetrievePage from './pages/mrdpages/RetrievePage';
-import SimulatorPage from './pages/simulatorpages/SimulatorPage';
-import NewSimulatorPage from './pages/simulatorpages/NewSimulatorPage';
-import ViewerPage from './pages/viewerpages/ViewerPage';
+import RetrievePage from './features/files/RetrievePage';
+import SimulatorPage from './features/simulator/SimulatorPage';
+import NewSimulatorPage from './features/simulator/NewSimulatorPage';
+import ViewerPage from './features/viewer/ViewerPage';
 
 const APP_VERSION = 'MEDCAP © 2025';
 

@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .cursorrules
 .cursor/*
+.claude/
 
 # Environment variables
 .env
@@ -39,3 +40,5 @@ server/app/images.bin
 server/app/phantom.bin
 server/mrds/__pycache__
 server/.medcap-venv
+
+CLAUDE.md
