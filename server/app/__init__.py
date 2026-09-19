@@ -1,8 +1,31 @@
+import logging
 import os
+import sys
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import DevelopmentConfig, ProductionConfig
 from pymongo import MongoClient
+
+from app.errors import register_error_handlers
+
+
+def _configure_logging(app):
+    """
+    Send application logs to stdout so the ECS log driver collects them.
+
+    Without this the only record of a failure was the traceback each route
+    swallowed and never printed.
+    """
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s: %(message)s"
+    ))
+    level = logging.DEBUG if app.config.get('DEBUG') else logging.INFO
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(level)
+    app.logger.setLevel(level)
+
 
 def create_app():
     app = Flask(__name__)
@@ -21,12 +44,17 @@ def create_app():
     elif FLASK_ENV == "production":
         app.config.from_object(ProductionConfig)
 
-    app.mongo_client = MongoClient(app.config['MONGO_URI']) 
+    _configure_logging(app)
+    register_error_handlers(app)
+
+    app.mongo_client = MongoClient(app.config['MONGO_URI'])
     # Register the mrds blueprint
     from app.mrds import mrds_bp
     app.register_blueprint(mrds_bp, url_prefix="/api")
     from app.viewer import viewer_bp
     app.register_blueprint(viewer_bp, url_prefix="/api")
+    from app.recon import recon_bp
+    app.register_blueprint(recon_bp, url_prefix="/api")
 
     # Health check endpoint for AWS ALB
     @app.route("/api/health", methods=["GET"])
