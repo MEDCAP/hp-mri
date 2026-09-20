@@ -82,3 +82,22 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Merging to main ships dev. Prod waits for a v* tag and a human; see
+  # release.yml.
+  deploy-dev-backend:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, image]
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: dev
+      image_tag: ""
+    secrets: inherit
+
+  deploy-dev-frontend:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: deploy-dev-backend
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      environment: dev
+    secrets: inherit
