@@ -6,6 +6,7 @@ from flask_cors import CORS
 from config import DevelopmentConfig, ProductionConfig
 from pymongo import MongoClient
 
+from app.auth import init_auth
 from app.errors import register_error_handlers
 
 
@@ -46,6 +47,13 @@ def create_app():
 
     _configure_logging(app)
     register_error_handlers(app)
+
+    # Derived rather than configured: the issuer is a function of the pool.
+    app.config['COGNITO_ISSUER'] = (
+        f"https://cognito-idp.{app.config['COGNITO_REGION']}.amazonaws.com/"
+        f"{app.config['COGNITO_USER_POOL_ID']}"
+    )
+    init_auth(app)
 
     app.mongo_client = MongoClient(app.config['MONGO_URI'])
     # Register the mrds blueprint

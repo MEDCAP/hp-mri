@@ -13,12 +13,14 @@ complete as a library/CLI. What is missing here is the decision about how to run
 it: mrd2recon does minutes-long fits, and gunicorn runs with --timeout 60, so
 wiring it straight into this handler would time out. It needs a job queue.
 '''
+from app.auth import require_auth
 from app.errors import ApiError
 
 from app.recon import recon_bp
 
 
 @recon_bp.route("/recon", methods=["POST"])
+@require_auth
 def reconstruct_epsi():
     '''
     Reconstruct EPSI data.

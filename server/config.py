@@ -23,6 +23,17 @@ class Config:
     # and again at complete against the real object size.
     MAX_UPLOAD_BYTES = int(os.getenv('MAX_UPLOAD_BYTES', 2 * 1024 * 1024 * 1024))
 
+    # --- authentication ---------------------------------------------------
+    # The API has no authentication today: Cognito is client-side only and the
+    # backend never validates a token, so every endpoint is open. app/auth.py
+    # implements validation; this flag gates enforcement so the frontend can
+    # start sending tokens before the door is locked. See app/auth.py for the
+    # rollout order.
+    REQUIRE_AUTH = os.getenv('REQUIRE_AUTH', 'false').lower() == 'true'
+    COGNITO_REGION = os.getenv('COGNITO_REGION', 'us-east-1')
+    COGNITO_USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID', 'us-east-1_vUo50ofKI')
+    COGNITO_CLIENT_ID = os.getenv('COGNITO_CLIENT_ID', '4nvgf7et9f4ui0glr4ddf152r8')
+
     # Lifetime of a presigned PUT URL. Note that when signing with temporary
     # federated credentials (see DevelopmentConfig) the URL dies with the session
     # token, whichever comes first.

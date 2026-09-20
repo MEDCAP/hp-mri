@@ -107,6 +107,34 @@ export function getCurrentUserName(): string | null {
   return null;
 }
 
+/**
+ * Current Cognito ID token, refreshed if the cached one has expired.
+ *
+ * Resolves to null when nobody is signed in, or when the refresh token has
+ * also expired — callers should treat that as "send the request anonymously"
+ * rather than as an error, because the backend still accepts anonymous
+ * requests until REQUIRE_AUTH is switched on.
+ */
+export function getIdTokenJwt(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const user = userPool.getCurrentUser();
+    if (!user) {
+      resolve(null);
+      return;
+    }
+
+    // getSession refreshes the session when the ID token has expired, so this
+    // does not need its own expiry handling.
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session || !session.isValid()) {
+        resolve(null);
+        return;
+      }
+      resolve(session.getIdToken().getJwtToken());
+    });
+  });
+}
+
 export const getCurrentUserId = () => {
   const session = localStorage.getItem('amplify-authenticator-authState');
   if (session) {

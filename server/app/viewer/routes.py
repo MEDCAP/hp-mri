@@ -8,6 +8,7 @@ from app.viewer.magnets import (
     clinical_processing,
     mr_solutions_processing,
 )
+from app.auth import require_auth
 from app.errors import BadRequest, NotFound
 from data import list_mrd_arrays, get_mrd_array
 
@@ -50,6 +51,7 @@ def _magnet(magnet_type, capability):
 
 
 @viewer_bp.route("/viewer/<file_id>/arrays", methods=["GET"])
+@require_auth
 def fetch_array_list_from_bucket(file_id: str):
     """
     List every array the viewer can render from an MRD file, without any bulk data.
@@ -63,6 +65,7 @@ def fetch_array_list_from_bucket(file_id: str):
     return jsonify({"file_id": file_id, "arrays": arrays, "unsupported": unsupported}), 200
 
 @viewer_bp.route("/viewer/<file_id>/arrays/<key>", methods=["GET"])
+@require_auth
 def fetch_array_from_bucket(file_id: str, key: str):
     """
     Load one named array from an MRD file as JSON serializable nested lists.
@@ -139,6 +142,7 @@ def get_hp_mri_data(hp_mri_dataset):
 
 # upload dicom files for comparison
 @viewer_bp.route("/viewer-upload", methods=["POST"])
+@require_auth
 def file_upload():
     """
     Upload dicom files from Viewer page to a predefined upload folder.

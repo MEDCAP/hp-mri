@@ -14,6 +14,7 @@ from data import get_mrdfile_by_id, get_db
 # process-wide S3 client
 from data import get_s3_client
 
+from app.auth import require_auth
 from app.errors import ApiError, BadRequest, NotFound
 
 # flask blueprint for mrds route
@@ -78,6 +79,7 @@ def _parse_upload_id(upload_id):
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
+@require_auth
 def show_files():
     """
     Return a list of MRD files with selected fields from MongoDB
@@ -105,6 +107,7 @@ def show_files():
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
+@require_auth
 def get_file_details(file_id):
     # An unparseable id raises InvalidId, which the shared handler turns into a
     # 400; a well-formed id that matches nothing is a 404.
@@ -128,6 +131,7 @@ def get_file_details(file_id):
 # lifecycle rule on UPLOAD_STAGING_PREFIX.
 
 @mrds_bp.route("/uploads/init", methods=["POST"])
+@require_auth
 def init_upload():
     """
     Mint a presigned PUT URL for a single MRD file. No database write happens here.
@@ -159,6 +163,7 @@ def init_upload():
 
 
 @mrds_bp.route("/uploads/<upload_id>/complete", methods=["POST"])
+@require_auth
 def complete_upload(upload_id):
     """
     Finalize an upload: verify the staged object, parse its MRD header, promote it
@@ -232,6 +237,7 @@ def complete_upload(upload_id):
 
 
 @mrds_bp.route("/uploads/<upload_id>/abort", methods=["POST"])
+@require_auth
 def abort_upload(upload_id):
     """
     Discard a staged upload after a client-side cancel or failure. Always succeeds;
@@ -250,6 +256,7 @@ def abort_upload(upload_id):
     return "", 204
 
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
+@require_auth
 def delete_files():
     """
     Batch delete files from S3 and MongoDB.
@@ -325,6 +332,7 @@ def delete_files():
 
 
 @mrds_bp.route("/mrd-file/<file_id>/download", methods=["GET"])
+@require_auth
 def download_file(file_id):
     """
     Not implemented. The path takes an ObjectId string like every other file
