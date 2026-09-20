@@ -14,12 +14,16 @@
    This runs `aws-federated-auth` (profile `aws-medcap-psom-PennResearcher`) and writes
    temporary `AWS_ACCESS_KEY_ID/SECRET/SESSION_TOKEN` into `.env.development` (chmod 600).
    Credentials expire; re-run when Mongo/S3 auth starts failing.
+
+   These are not optional even for a frontend-only change: two magnet modules call S3
+   at **import** time, so `create_app()` fails outright without them.
 3. **Backend**
    ```bash
    cd server
    python -m venv venv && source venv/bin/activate
    pip install -r requirements.txt
    python run.py                      # Flask dev server on :5000
+   pytest                             # 72 tests, no AWS or Mongo needed
    ```
    `FLASK_ENV` defaults to `development` → `DevelopmentConfig` (CORS for :5173/:3000,
    MONGODB-AWS URI built from the env file).
@@ -32,16 +36,37 @@
    `npm run build` = `tsc -b && vite build`; `npm run preview` serves dist on :3000
    (same `/api` proxy). `npm run lint` runs eslint.
 
+## Configuration
+
+Read from the environment, with defaults that suit local development:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `FLASK_ENV` | `development` | The Dockerfile still bakes `production`, so a container ignores this. That is a bug |
+| `MONGO_URI` | — | Built from federated credentials in dev; a SecureString SSM parameter in deployed environments |
+| `MONGO_DB_NAME` | `medcap_dev` | Production genuinely runs against a database named `_dev` |
+| `S3_BUCKET` | `medcap-data` | |
+| `MAX_UPLOAD_BYTES` | 2 GiB | Checked at `init` against the declared size and at `complete` against the real object |
+| `PRESIGN_EXPIRY_SECONDS` | 3600 | Dies with the session token when signing with federated credentials |
+| `REQUIRE_AUTH` | `false` | Enforcement of Cognito token validation. See `server/app/auth.py` for the rollout order |
+| `COGNITO_REGION` / `COGNITO_USER_POOL_ID` / `COGNITO_CLIENT_ID` | live pool | |
+
+Frontend: `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, optional
+`VITE_API_BASE_URL` (defaults to the relative `/api`). See `.env.example`.
+
 ## Versioning
 
-`VERSION` at repo root (currently `2.0.6-preview`) is the single source of truth and is
-used as the backend Docker tag (commit b7aae55).
+`VERSION` at repo root is the single source of truth. `release.yml` refuses any `v*`
+tag that does not match it, which is what makes it load-bearing rather than decorative.
+
+Note the live task definition runs an image tagged by **git SHA**, not by `VERSION` —
+the pipeline below fixes that, but the currently-deployed image predates it.
 
 ## Docker (backend)
 
-`server/Dockerfile`: multi-stage `python:3.12-slim` build, non-root `appuser`, `libgl1`
-for OpenCV, `FLASK_ENV=production`, gunicorn (`--bind 0.0.0.0:5000 --workers=2
---timeout 60`) serving `run:create_app()`.
+`server/Dockerfile`: multi-stage `python:3.12-slim`, non-root `appuser`, `libgl1` for
+OpenCV, gunicorn (`--bind 0.0.0.0:5000 --workers=2 --timeout 60`) serving
+`run:create_app()`.
 
 ```bash
 cd server
@@ -49,44 +74,58 @@ docker build -t medcap-app:$(cat ../VERSION) .
 docker run --rm -p 5000:5000 --env-file .env.development medcap-app:$(cat ../VERSION)
 ```
 
-Note: the image runs `ProductionConfig`, which expects IAM-role-based Mongo auth; running
-locally with `--env-file` provides the AWS creds instead.
+The image sets `ENV FLASK_ENV=production` at build time, so the container loads
+`ProductionConfig` regardless of what you pass at runtime. Remove that line before
+relying on per-environment configuration.
 
 ## CI
 
-`.github/workflows/pylint.yml` — runs pylint on every push (Python 3.12). That is the
-**entire** CI/CD surface: no build, no tests, no image push, no deploy.
+`.github/workflows/`:
 
-## Deployment — current state (honest)
-
-Target architecture (implied by the code) vs what exists:
-
-| Piece | Implied target | Actual state |
+| Workflow | Trigger | Does |
 |---|---|---|
-| Backend hosting | ECS/Fargate behind an ALB (`/api/health` comments mention ALB) | **nothing deployed by code**; CDK stack `aws-deploy-cdk/lib/aws-deploy-cdk-stack.js` is empty |
-| Lambda experiment | `aws-deploy-cdk/app.js` defines a `LambdaTestStack` from `server/aws_lambda/` | that directory **does not exist** |
-| Image registry | ECR push tagged from `VERSION` | no workflow does this |
-| Frontend hosting | S3 + CloudFront (typical for Vite SPA) | undecided/not built; only local `vite preview` |
-| Domain/TLS | — | none defined |
-| Database | MongoDB Atlas `mrd-files.gzajigq.mongodb.net`, MONGODB-AWS auth | **live** (shared by dev and prod) |
-| Object storage | S3 `medcap-data` | **live** |
-| Auth | Cognito user pool (IDs hardcoded in `cognitoUtils.ts`) | live pool; backend does not verify tokens |
+| `ci.yml` | PR, push to main | Backend pylint + pytest, frontend lint + build, backend image build (no push). On main, deploys dev |
+| `terraform.yml` | PR touching `terraform/**` | Plans dev and prod with a read-only role, posts the plan as a PR comment. Applies on main behind environment gates |
+| `deploy-backend.yml` | called / manual | Build → ECR → patch the live task definition's image → roll the service → smoke test |
+| `deploy-frontend.yml` | called / manual | Build with env-specific `VITE_*` → `s3 sync` → CloudFront invalidation |
+| `release.yml` | `v*` tag | Guards the tag against `VERSION`, then deploys prod |
 
-Missing pieces to reach production: CDK resources (ECS service/task, ALB, ECR,
-CloudFront+S3 for the SPA, certs), a GitHub Actions build-push-deploy workflow keyed off
-`VERSION`, environment-specific config (CORS origins, Mongo DB name) via env vars/secrets.
+**Prerequisites none of this runs without:**
 
-## Current branch WIP — `feature/mrs_recon`
+1. `MRD_FORK_DEPLOY_KEY` — a read-only deploy key on `MEDCAP/mrd-fork`. `.gitmodules`
+   uses an SSH URL, which `actions/checkout` cannot authenticate with its `token`
+   input, so the image build fails without it.
+2. `terraform/global` applied, so the OIDC roles exist.
+3. `dev` and `prod` GitHub Environments, with `SITE_BUCKET`, `CF_DISTRIBUTION_ID`,
+   `PUBLIC_BASE_URL` and `VITE_COGNITO_*` set from the Terraform outputs. Put required
+   reviewers on `prod`.
 
-Goal: server-side MRS reconstruction using the new MRD format.
+Release policy: **merging to main ships dev; prod ships on a `v*` tag and a human
+approval.**
 
-- Submodule bumped to `c245089` (merge of `feature/add-image-types`): refined image
-  types / generic NdArray support in the MRD library.
-- `data.py`: `get_image_array_from_mrdfile()` now also collects `ImageUint32` items as
-  `spectrum_array` (reconstruction diagnostic plots) alongside the 6-D float image stack.
-- `server/app/recon/`: routes fixed to bind `@recon_bp` but the endpoint body is still a
-  stub and the blueprint is **not registered** in `app/__init__.py`. The reconstruction
-  engine itself (`app/recon/utils/mrd2recon.py`) is complete as a CLI/library.
-- Next steps implied by the code: register `recon_bp`, wire `POST /api/recon` to
-  `mrd2recon`, decide sync vs job-queue execution (the route docstring sketches an
-  S3 → Tyger buffer pipeline), and connect `ReconstructModal.tsx` (frontend TODO) to it.
+## Infrastructure
+
+Live, and hand-built. `terraform/` adopts it; `terraform/docs/INVENTORY.md` is the
+enumeration, and `terraform/README.md` is the runbook. **Nothing has been applied yet.**
+
+| Piece | State |
+|---|---|
+| Domain | `medcap.ai`, Route53 zone in-account, ACM cert covering the apex and `*.medcap.ai` |
+| Frontend | S3 website bucket `medcap.ai` behind CloudFront `EXE6YNQ2JA1MA` |
+| Backend | ECS Fargate service `medcap-app-service-v3` on cluster `mrissim-test1`, behind `medcap-app-public-alb`, reached via a `/api/*` CloudFront behaviour |
+| Registry | ECR `medcap-app` |
+| Database | MongoDB Atlas, MONGODB-AWS auth against the ECS task role |
+| Object storage | S3 `medcap-data` |
+| Auth | Cognito pool `us-east-1_vUo50ofKI` (~21 users) |
+
+Read `terraform/docs/INVENTORY.md` before touching any of it. The findings there
+include an unauthenticated API behind a spoofable `Referer` check, a task role holding
+`AmazonS3FullAccess`, and a data bucket with no versioning — and, more immediately,
+**the data bucket has no CORS configuration, so the presigned upload flow will fail
+the moment this branch deploys.**
+
+## Current branch WIP — `feature/api-hardening`
+
+Cut from `feature/mrs_recon`. Backend error handling, configuration, tests, CI,
+Terraform and token validation. See `WORKLOG.md` for the commit-by-commit account and
+the decisions still waiting on a human.

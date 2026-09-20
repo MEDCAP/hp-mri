@@ -5,7 +5,7 @@
 ```
 ┌──────────────────────────────┐
 │ React SPA (Vite, port 5173)  │  MUI + Plotly + axios
-│ Cognito auth (client-side)   │  all HTTP via src/api/ (baseURL "/api")
+│ Cognito auth + ID token      │  all HTTP via src/api/ (baseURL "/api")
 └───┬──────────────────────┬───┘
     │ REST, JSON           │ presigned PUT — file bytes go
     │                      │ browser → S3 directly, never
@@ -120,10 +120,29 @@ something went wrong. Returning `str(e)` to the caller — which every handler u
 
 A database outage therefore surfaces as `503`, not as an empty file list.
 
+### Authentication
+
+`app/auth.py` validates Cognito ID tokens: RS256 pinned, issuer and audience checked,
+expiry required, JWKS cached for an hour and refetched once on an unknown `kid` so a
+key rotation does not cause an outage. Access tokens are rejected — they pass every
+other check but carry no identity claims. The SPA attaches the token through an
+interceptor in `src/api/client.ts`.
+
+**Enforcement is off by default** (`REQUIRE_AUTH`). Tokens are validated whenever
+present — a malformed one is a 401 rather than a silent downgrade to anonymous — but a
+request without one still succeeds, and is logged as `ANONYMOUS`. Those log lines are
+the evidence for switching enforcement on; the rollout order is in the module
+docstring.
+
+`@require_auth` is already applied to every route that touches the group's data.
+`GET /api/health` is deliberately open, because the ALB health check cannot present a
+token.
+
 ### Known issues
 
-- **No authentication.** Cognito is entirely client-side; every `/api/*` endpoint is
-  open, and the SPA sends no `Authorization` header. This is the most serious open item.
+- **Enforcement is not yet on.** Until `REQUIRE_AUTH=true`, the only thing in front of
+  the API is a CloudFront Function checking the `Referer` header — which the client
+  sets, so one curl flag defeats it. See finding F1.
 - **`POST /api/viewer-upload` raises `NameError`** — `UPLOAD_FOLDER` is not defined
   anywhere in the tree.
 - **`GET /api/get_imaging_metadata` reads a hardcoded path** on a former developer's
@@ -156,6 +175,7 @@ uses bare axios because a presigned S3 URL must not carry the API client's confi
 | `run.py` | Entry point: `create_app().run(port=5000)`; gunicorn uses `run:create_app()` |
 | `config.py` | `Config` (`S3_BUCKET` and `MONGO_DB_NAME`, both env-overridable, `MAX_CONTENT_LENGTH` 1 MiB, `UPLOAD_STAGING_PREFIX`, `MAX_UPLOAD_BYTES` 2 GiB, `PRESIGN_EXPIRY_SECONDS` 3600) → `DevelopmentConfig` (loads `.env.development`, builds the MONGODB-AWS URI from federated creds, CORS for localhost:5173/3000) / `ProductionConfig` (hardcoded Atlas URI, DEBUG off, **and no CORS origins at all**) |
 | `app/__init__.py` | App factory; configures stdout logging, installs the shared error handlers, registers `mrds_bp` + `viewer_bp` + `recon_bp`; creates `app.mongo_client`; `/api/health`. `CORS()` is still called **only** in the development branch |
+| `app/auth.py` | Cognito ID-token validation, `@require_auth`, and the `REQUIRE_AUTH` flag |
 | `app/errors.py` | Domain exceptions (`ApiError`, `BadRequest`, `NotFound`, `StorageUnavailable`) and `register_error_handlers()` — the single error envelope |
 | `data.py` | The data layer, ~490 lines mixing four concerns: Mongo CRUD (`list_all_mrdfiles`, `get_mrdfile_by_id`, `insert_mrdfile_header`, `insert_mrdfiles_batch`, `delete_mrdfiles_by_ids`), MRD header parsing (`read_mrdfile_header`), S3 fetch with a 3-entry `_MRD_BYTES_CACHE` LRU, and MRD stream walking + numpy reshaping (`_walk_mrd_arrays`, `_describe_item`, `_to_image_6d`, `_to_trace_3d`) behind `list_mrd_arrays` / `get_mrd_array`. `get_db()` reads `MONGO_DB_NAME` from config; `get_s3_client()` is the process-wide boto3 client |
 | `app/viewer/magnets/hupc_processing.py` | Varian HUPC pipeline: procpar parsing, FID→EPSI FFT, DICOM slice rendering. Hardcoded S3 prefix `MRS/s_2023041103/`; module-level mutable globals |
