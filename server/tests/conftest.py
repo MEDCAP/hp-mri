@@ -53,7 +53,9 @@ def app(monkeypatch):
     monkeypatch.setenv("S3_BUCKET", "test-bucket")
 
     with mock.patch("pymongo.MongoClient"):
-        from app import create_app
+        # Deferred on purpose: the magnet stubs above must land in sys.modules
+        # before anything imports the viewer blueprint.
+        from app import create_app  # pylint: disable=import-outside-toplevel
 
         application = create_app()
 

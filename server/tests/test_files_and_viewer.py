@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
+from bson.errors import InvalidId
 from pymongo.errors import PyMongoError
 
 OID = "507f1f77bcf86cd799439011"
@@ -29,8 +30,6 @@ def test_get_file_404s_for_a_well_formed_id_that_matches_nothing(client):
 
 def test_get_file_400s_for_an_unparseable_id(client):
     """InvalidId is translated centrally, so the route needs no try/except."""
-    from bson.errors import InvalidId
-
     with mock.patch("app.mrds.routes.get_mrdfile_by_id", side_effect=InvalidId("bad")):
         response = client.get("/api/mrd-files/nonsense")
 
