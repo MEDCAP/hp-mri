@@ -15,16 +15,31 @@
    temporary `AWS_ACCESS_KEY_ID/SECRET/SESSION_TOKEN` into `.env.development` (chmod 600).
    Credentials expire; re-run when Mongo/S3 auth starts failing.
 
-   These are not optional even for a frontend-only change: two magnet modules call S3
-   at **import** time, so `create_app()` fails outright without them.
+   Needed to reach real data, but no longer needed merely to *start* the app: S3
+   access is resolved on first use, so `create_app()` and the whole test suite work
+   with no credentials present.
 3. **Backend**
    ```bash
    cd server
    python -m venv venv && source venv/bin/activate
    pip install -r requirements.txt
    python run.py                      # Flask dev server on :5000
-   pytest                             # 72 tests, no AWS or Mongo needed
+   pytest                             # 79 tests, no AWS or Mongo needed
    ```
+
+   **Testing write logic.** Those 79 mock the database. To exercise the write
+   path in `data.py` for real, start a throwaway MongoDB and set one variable:
+
+   ```bash
+   docker compose -f ../docker-compose.test.yml up -d
+   MONGO_TEST_URI=mongodb://localhost:27017 pytest   # 101 tests
+   ```
+
+   Each test creates a uniquely named database and drops it in teardown. Never
+   point `MONGO_TEST_URI` at Atlas — the isolation these tests rely on is that
+   they can destroy everything they touch. CI runs them against a `mongo:7`
+   service container on every PR.
+
    `FLASK_ENV` defaults to `development` → `DevelopmentConfig` (CORS for :5173/:3000,
    MONGODB-AWS URI built from the env file).
 4. **Frontend**
@@ -42,7 +57,7 @@ Read from the environment, with defaults that suit local development:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `FLASK_ENV` | `development` | The Dockerfile still bakes `production`, so a container ignores this. That is a bug |
+| `FLASK_ENV` | `development` (`production` in the image) | An unrecognised value is now a startup error rather than a silent no-config |
 | `MONGO_URI` | — | Built from federated credentials in dev; a SecureString SSM parameter in deployed environments |
 | `MONGO_DB_NAME` | `medcap_dev` | Production genuinely runs against a database named `_dev` |
 | `S3_BUCKET` | `medcap-data` | |
@@ -74,9 +89,18 @@ docker build -t medcap-app:$(cat ../VERSION) .
 docker run --rm -p 5000:5000 --env-file .env.development medcap-app:$(cat ../VERSION)
 ```
 
-The image sets `ENV FLASK_ENV=production` at build time, so the container loads
-`ProductionConfig` regardless of what you pass at runtime. Remove that line before
-relying on per-environment configuration.
+The image sets `ENV FLASK_ENV=production` as a **default**, which `docker run -e` and
+an ECS task definition both override. It stays deliberately: a container that loses the
+variable must not fall back to `DevelopmentConfig` and serve traffic with `DEBUG` on.
+To run the image against dev config, pass it explicitly:
+
+```bash
+docker run --rm -p 5000:5000 -e FLASK_ENV=development --env-file .env.development \
+  medcap-app:$(cat ../VERSION)
+```
+
+There is also a `HEALTHCHECK`, so `docker ps` reports whether the app is actually
+serving rather than merely running.
 
 ## CI
 

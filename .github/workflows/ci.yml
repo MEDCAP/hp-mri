@@ -16,9 +16,25 @@ jobs:
   backend:
     name: Backend lint and tests
     runs-on: ubuntu-latest
+
+    # A real MongoDB, so the write path in data.py is actually exercised. The
+    # rest of the suite mocks the database, which cannot catch an insert that
+    # drops a field or a sort that returns the wrong order.
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
-      # No submodule needed: conftest stubs the MRD library's callers, and pylint
-      # excludes app/external via .pylintrc ignore-paths.
+      # No submodule needed here: the tests never read an MRD file, and pylint
+      # excludes app/external via .pylintrc ignore-paths. The image job below
+      # does need it.
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -40,6 +56,10 @@ jobs:
 
       - name: Test
         working-directory: server
+        env:
+          # Without this the integration tests skip rather than fail, which is
+          # right locally and wrong in CI.
+          MONGO_TEST_URI: mongodb://localhost:27017
         run: pytest
 
   frontend:
