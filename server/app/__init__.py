@@ -10,6 +10,12 @@ from app.auth import init_auth
 from app.errors import register_error_handlers
 
 
+_CONFIGS = {
+    "development": DevelopmentConfig,
+    "production": ProductionConfig,
+}
+
+
 def _configure_logging(app):
     """
     Send application logs to stdout so the ECS log driver collects them.
@@ -30,20 +36,23 @@ def _configure_logging(app):
 
 def create_app():
     app = Flask(__name__)
-    # default flask_env is development
+
     FLASK_ENV = os.getenv("FLASK_ENV", default="development")
-    if FLASK_ENV == "development":
-        app.config.from_object(DevelopmentConfig)
-        # Initialize CORS to allow frontend localhost port 5173
-        CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
-        # Create mongodb client using aws-federated login IAM role credentials
-        # if app.config.get('AWS_ACCESS_KEY_ID') and app.config.get('AWS_SECRET_ACCESS_KEY') and app.config.get('AWS_SESSION_TOKEN'):
-        #     # Set AWS credentials as environment variables for MongoDB AWS auth
-        #     os.environ['AWS_ACCESS_KEY_ID'] = app.config['AWS_ACCESS_KEY_ID']
-        #     os.environ['AWS_SECRET_ACCESS_KEY'] = app.config['AWS_SECRET_ACCESS_KEY']
-        #     os.environ['AWS_SESSION_TOKEN'] = app.config['AWS_SESSION_TOKEN']
-    elif FLASK_ENV == "production":
-        app.config.from_object(ProductionConfig)
+    try:
+        # An unrecognised value previously loaded no configuration at all, and
+        # the app then died on the first config lookup with a bare KeyError.
+        app.config.from_object(_CONFIGS[FLASK_ENV])
+    except KeyError:
+        raise RuntimeError(
+            f"FLASK_ENV={FLASK_ENV!r} is not one of {sorted(_CONFIGS)}"
+        ) from None
+
+    # Initialised in every environment. It used to be set up only inside the
+    # development branch, and ProductionConfig defined no origins at all, so a
+    # production deployment had no CORS middleware whatsoever. That is invisible
+    # today because CloudFront makes the SPA and API same-origin, and would
+    # break the moment the API moved to its own hostname.
+    CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
     _configure_logging(app)
     register_error_handlers(app)

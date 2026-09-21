@@ -16,25 +16,35 @@ from data import list_mrd_arrays, get_mrd_array
 from app.viewer import viewer_bp
 
 # Per-magnet capability table, replacing the if/elif chain that used to be
-# written out in each of the handlers below. The zero-returning entries are not
-# oversights: they preserve what the chains did. MR Solutions does have a
-# process_hpmri_data(), but the route has always returned 0 for it, and wiring
-# it up is a behaviour change rather than part of this refactor.
+# written out in each of the handlers below.
+#
+# Entries name (module, attribute) rather than holding the function object, so
+# the lookup happens per call. Capturing the functions here would snapshot them
+# at import, which makes the dispatch untestable without stubbing whole modules.
+#
+# The zero-returning entries are not oversights: they preserve what the chains
+# did. MR Solutions does have a process_hpmri_data(), but the route has always
+# returned 0 for it, and wiring it up is a behaviour change rather than part of
+# this refactor.
+def _zero(*_args, **_kwargs):
+    return 0
+
+
 _MAGNETS = {
     "HUPC": {
-        "count": hupc_processing.count_datasets,
-        "proton": hupc_processing.process_proton_picture,
-        "hp_mri": hupc_processing.process_hp_mri_data,
+        "count": (hupc_processing, "count_datasets"),
+        "proton": (hupc_processing, "process_proton_picture"),
+        "hp_mri": (hupc_processing, "process_hp_mri_data"),
     },
     "Clinical": {
-        "count": lambda: 0,
-        "proton": clinical_processing.process_proton_picture,
-        "hp_mri": lambda dataset, threshold: 0,
+        "count": _zero,
+        "proton": (clinical_processing, "process_proton_picture"),
+        "hp_mri": _zero,
     },
     "MR Solutions": {
-        "count": mr_solutions_processing.count_datasets,
-        "proton": mr_solutions_processing.process_proton_picture,
-        "hp_mri": lambda dataset, threshold: 0,
+        "count": (mr_solutions_processing, "count_datasets"),
+        "proton": (mr_solutions_processing, "process_proton_picture"),
+        "hp_mri": _zero,
     },
 }
 
@@ -45,9 +55,15 @@ def _magnet(magnet_type, capability):
     spelled out at the end of every dispatch chain.
     """
     try:
-        return _MAGNETS[magnet_type][capability]
+        entry = _MAGNETS[magnet_type][capability]
     except KeyError:
         raise BadRequest(f"Invalid magnet type: {magnet_type}") from None
+
+    if callable(entry):
+        return entry
+
+    module, attribute = entry
+    return getattr(module, attribute)
 
 
 @viewer_bp.route("/viewer/<file_id>/arrays", methods=["GET"])

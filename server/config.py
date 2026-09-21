@@ -1,3 +1,12 @@
+"""
+Application configuration.
+
+NOTE: these are class attributes, so every os.getenv below runs once, when this
+module is first imported. The environment must therefore be set before the
+process starts -- which is how ECS and docker run both work, but it does mean
+changing a variable at runtime has no effect, and that anything reloading
+config must reload this module.
+"""
 import os
 from dotenv import load_dotenv
 from urllib.parse import quote_plus
@@ -23,6 +32,15 @@ class Config:
     # and again at complete against the real object size.
     MAX_UPLOAD_BYTES = int(os.getenv('MAX_UPLOAD_BYTES', 2 * 1024 * 1024 * 1024))
 
+    # Comma-separated in the environment; a list in the app. Defined on the
+    # base class so ProductionConfig cannot silently lack it, which is how the
+    # production deployment ended up with no CORS middleware at all.
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv('CORS_ORIGINS', '').split(',')
+        if origin.strip()
+    ]
+
     # --- authentication ---------------------------------------------------
     # The API has no authentication today: Cognito is client-side only and the
     # backend never validates a token, so every endpoint is open. app/auth.py
@@ -47,8 +65,10 @@ class DevelopmentConfig(Config):
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_SESSION_TOKEN = os.getenv('AWS_SESSION_TOKEN')
-    CORS_ORIGINS = ['http://localhost:5173',    # frontend localhost
-                    'http://localhost:3000']    # compiled vite dist folder
+    CORS_ORIGINS = Config.CORS_ORIGINS or [
+        'http://localhost:5173',    # frontend localhost
+        'http://localhost:3000',    # compiled vite dist folder
+    ]
                     
     # Build MongoDB URI using AWS credentials for authentication
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN:

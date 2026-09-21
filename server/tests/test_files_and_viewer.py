@@ -2,7 +2,7 @@
 from unittest import mock
 
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError
 from bson.errors import InvalidId
 from pymongo.errors import PyMongoError
 
@@ -161,11 +161,38 @@ def test_unknown_array_key_is_404_not_500(client):
     assert "nope" in response.get_json()["error"]
 
 
-@pytest.mark.parametrize("magnet", ["HUPC", "Clinical", "MR Solutions"])
-def test_known_magnets_dispatch(client, magnet):
-    response = client.get(f"/api/get_count_datasets/{magnet}")
+@pytest.mark.parametrize(
+    "magnet, target",
+    [
+        ("HUPC", "app.viewer.magnets.hupc_processing.count_datasets"),
+        # Clinical has no count_datasets; the registry supplies a lambda.
+        ("Clinical", None),
+        ("MR Solutions", "app.viewer.magnets.mr_solutions_processing.count_datasets"),
+    ],
+)
+def test_known_magnets_dispatch(client, magnet, target):
+    """
+    The pipeline functions are patched individually rather than the modules
+    being stubbed: these call S3, and the point is to verify dispatch, not to
+    re-test botocore.
+    """
+    patcher = mock.patch(target, return_value=7) if target else mock.MagicMock()
+    with patcher:
+        response = client.get(f"/api/get_count_datasets/{magnet}")
+
     assert response.status_code == 200
     assert "numDatasets" in response.get_json()
+
+
+def test_magnet_pipeline_failure_becomes_503(client):
+    """An unreachable bucket is a storage problem, not a bad request."""
+    with mock.patch(
+        "app.viewer.magnets.hupc_processing.count_datasets",
+        side_effect=EndpointConnectionError(endpoint_url="https://s3"),
+    ):
+        response = client.get("/api/get_count_datasets/HUPC")
+
+    assert response.status_code == 503
 
 
 def test_unknown_magnet_is_one_shared_400_on_every_route(client):

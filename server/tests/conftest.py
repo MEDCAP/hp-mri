@@ -1,48 +1,19 @@
 """
 Shared fixtures.
 
-Two things make this app awkward to test, and both are worked around here
-rather than papered over:
+The magnet modules used to build boto3 clients -- and, in
+mr_solutions_processing, list a bucket -- at module import time, so importing
+the viewer blueprint reached for AWS. These fixtures had to stub all three
+modules wholesale to get an app at all. That is fixed: S3 access is resolved on
+first use, and `create_app()` now works with no credentials present.
 
-1. `app/viewer/magnets/*` construct boto3 clients and, in the case of
-   mr_solutions_processing, call `list_objects_v2` **at module import time**.
-   Importing the viewer blueprint therefore hits S3, so `create_app()` fails
-   outright without live credentials. The `_stub_magnets` fixture replaces those
-   modules before the app is imported. This is a real defect (see
-   terraform/docs/INVENTORY.md), not a testing inconvenience — when it is fixed,
-   delete the stub.
-
-2. `create_app()` constructs a MongoClient eagerly. MongoClient does not connect
-   on construction, but it does start background monitor threads, so it is
-   patched out.
+What remains is patching MongoClient. It does not connect on construction, but
+it does start background monitor threads, and there is no reason for a unit test
+to have them.
 """
-import sys
-import types
 from unittest import mock
 
 import pytest
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _stub_magnets():
-    """Replace the magnet modules before anything imports the viewer blueprint."""
-    names = ("hupc_processing", "clinical_processing", "mr_solutions_processing")
-    for name in names:
-        module = types.ModuleType(f"app.viewer.magnets.{name}")
-        module.count_datasets = lambda: 7
-        module.process_proton_picture = lambda slider, data: ({"proton": slider}, 200)
-        module.process_hp_mri_data = lambda dataset, threshold: (
-            {"dataset": dataset, "threshold": threshold},
-            200,
-        )
-        module.process_hpmri_data = module.process_hp_mri_data
-        sys.modules[f"app.viewer.magnets.{name}"] = module
-
-    package = types.ModuleType("app.viewer.magnets")
-    for name in names:
-        setattr(package, name, sys.modules[f"app.viewer.magnets.{name}"])
-    sys.modules["app.viewer.magnets"] = package
-    yield
 
 
 @pytest.fixture()
@@ -53,14 +24,15 @@ def app(monkeypatch):
     monkeypatch.setenv("S3_BUCKET", "test-bucket")
 
     with mock.patch("pymongo.MongoClient"):
-        # Deferred on purpose: the magnet stubs above must land in sys.modules
-        # before anything imports the viewer blueprint.
         from app import create_app  # pylint: disable=import-outside-toplevel
 
         application = create_app()
 
-    application.config.update(TESTING=True, MONGO_DB_NAME="medcap_test",
-                              S3_BUCKET="test-bucket")
+    application.config.update(
+        TESTING=True,
+        MONGO_DB_NAME="medcap_test",
+        S3_BUCKET="test-bucket",
+    )
     return application
 
 

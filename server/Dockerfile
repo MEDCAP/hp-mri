@@ -36,12 +36,20 @@ COPY --from=build --chown=appuser:appuser /root/.local /home/appuser/.local
 COPY --chown=appuser:appuser app app
 COPY run.py config.py data.py ./
 
-# vite api url set to alb public ip
+# FLASK_ENV is a *default*, not a fixture: `docker run -e FLASK_ENV=...` and an
+# ECS task definition both override it. It stays here on purpose, because a
+# container that loses this variable must not quietly fall back to
+# DevelopmentConfig and serve production traffic with DEBUG on.
 ENV PATH="/home/appuser/.local/bin:${PATH}" \
     FLASK_ENV=production \
     GUNICORN_CMD_ARGS="--bind=0.0.0.0:5000 --workers=2 --timeout 60"
-# Expose port and set CMD
+
 EXPOSE 5000
+
+# The ALB has its own health check; this one makes `docker ps` and local runs
+# tell the truth too.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health').read()" || exit 1
 
 # run gunicorn using set PATH variable
 # app.py as entrypoint and app = create_app()
