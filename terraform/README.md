@@ -52,15 +52,32 @@ Cognito pool and the CloudFront distribution, so the worst mistakes fail loudly.
 
 ## Things that will bite you
 
-**The Atlas mapping.** `ecsTaskExecutionRole` is what MongoDB Atlas trusts for
-`MONGODB-AWS` authentication. Finding F2 says to split it into a real execution
-role and a scoped task role — correct, and it will take production's database
-access away the moment you do, unless you first add the new task role ARN as an
-Atlas database user. Confirm the current mapping in the Atlas console before
-touching that role.
+**The Atlas mapping.** Confirmed: an Atlas database user exists for
+`arn:aws:iam::862065604168:role/ecsTaskExecutionRole`, holding the built-in
+`readWriteAnyDatabase`. That row *is* production's database credential — the
+connection string carries no username or password. Splitting the role (F2)
+removes production's database access the moment it applies, unless the new ARN
+is registered first.
 
-**The dev environment needs the same thing.** A new dev task role means a new
-Atlas database user. Until that exists, dev returns 503 on every request.
+Add-then-switch, in this order, with no downtime:
+
+1. In Atlas, add a database user for
+   `arn:aws:iam::862065604168:role/hpmri-prod-task` with **exactly** the same
+   privileges (`readWriteAnyDatabase`). Both ARNs are valid at once, so this
+   costs nothing and makes step 2 reversible.
+2. Apply the Terraform that switches the task role.
+3. Verify: the service reaches steady state and file listing works.
+4. Remove the old Atlas user.
+5. *Separately*, tighten to `readWrite` on `medcap_dev`. Do not fold this into
+   step 1 — changing principal and privileges together means a failure tells
+   you nothing about which one caused it.
+
+**Dev needs its own user, and it must be scoped.** `readWriteAnyDatabase` is
+cluster-wide, so giving the dev task role the same built-in would let dev write
+to production's collections — which defeats the point of the separate
+environment. Register `arn:aws:iam::862065604168:role/hpmri-dev-task` with
+`readWrite` on `hpmri_dev` only. Until that user exists, dev returns 503 on
+every request that touches the database.
 
 **Task definitions are not imported.** Terraform owns one seed revision; CI
 registers the rest. The ECS service carries

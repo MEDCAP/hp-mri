@@ -164,6 +164,35 @@ ALB in the account is the public one. This looks like an abandoned public→priv
 migration. It has no alias, so nothing routes to it, but it is live and billable.
 Decide: finish the migration, or delete it. Do not import it until that is settled.
 
+### F9 — Atlas grants the production role `readWriteAnyDatabase`
+
+Confirmed in the Atlas console (2026-09-21). Two AWS IAM database users exist:
+
+| Atlas user | Purpose | Privileges |
+|---|---|---|
+| `arn:aws:iam::862065604168:role/ecsTaskExecutionRole` | Production ECS task | `readWriteAnyDatabase` (built-in, only role) |
+| A second AWS IAM principal | Local development, via `server/setup_aws.sh` federated credentials | not recorded |
+
+Two consequences.
+
+**The role split (F2) is confirmed dangerous.** This row *is* production's database
+credential — the connection string carries no username or password. The moment a task
+runs as `hpmri-prod-task`, Atlas sees an unknown ARN and every database request fails.
+Add the new ARN as a database user *before* applying the switch; both can exist at
+once, so that step is free and makes the switch reversible.
+
+**It also undermines the planned dev/prod isolation.** `readWriteAnyDatabase` is
+cluster-wide: it grants read and write on every database except `local` and `config`.
+Putting dev in a separate database on the same cluster therefore separates namespaces
+but not access — a dev task holding the same role could write to production's
+collections. The dev task role must be scoped (`readWrite` on `hpmri_dev`
+specifically), not given the built-in.
+
+Scoping production down to `readWrite` on `medcap_dev` is worth doing too, but as a
+step of its own *after* the switch is verified. Tightening privileges and changing
+principal at the same time means a failure tells you nothing about which change caused
+it.
+
 ### F8 — Smaller items
 
 - Log group `/ecs/medcap-app` has **no retention** — logs are kept forever. A second
@@ -193,8 +222,6 @@ Decide: finish the migration, or delete it. Do not import it until that is settl
 
 - MongoDB Atlas plan and whether a second cluster/database is affordable for `dev`
   (Atlas is outside AWS; not enumerable from here).
-- Which Atlas database user maps to `ecsTaskExecutionRole` for MONGODB-AWS auth — must
-  be confirmed in the Atlas console **before** the role is split (F2), or production
-  loses database access.
+- ~~Which Atlas database user maps to `ecsTaskExecutionRole`~~ — **resolved, see F9.**
 - Purpose of buckets `epsi-kidney-data`, `test-perm-mri`, `cdk-mri-assets-*`.
 - Whether `E1LTBXHERJ8IYX` represents intended future architecture.

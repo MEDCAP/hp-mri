@@ -69,9 +69,14 @@ how much they should worry you:
    across four milestones; drop the flag to create them. Not run, because
    creating that many in a shared org repo while you were away seemed the wrong
    call to make alone.
-3. **The Atlas mapping.** Before splitting `ecsTaskExecutionRole` (F2), confirm
-   in the Atlas console which database user maps to that role ARN for
-   `MONGODB-AWS`. Splitting it blind removes production's database access.
+3. ~~**The Atlas mapping.**~~ **Resolved 2026-09-21 (F9).** An Atlas database
+   user exists for `ecsTaskExecutionRole` with the built-in
+   `readWriteAnyDatabase`, and that row is production's only database
+   credential. Two consequences: the role split needs add-then-switch (the
+   sequence is in `terraform/README.md`), and the dev task role must be scoped
+   to `readWrite` on `hpmri_dev` rather than copying the cluster-wide built-in,
+   or the separate dev database is namespace isolation with no access control
+   behind it.
 4. **Cluster naming.** The live cluster and service are `mrissim-test1` and
    `medcap-app-service-v3`; the module names them `hpmri-prod`. Importing under
    a different name forces a replace, which means downtime. Either match the

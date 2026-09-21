@@ -9,9 +9,16 @@
  * can do:
  *
  *   1. Add module.backend.task_role_arn as a MongoDB Atlas database user with
- *      MONGODB-AWS authentication. Until then every request returns 503.
+ *      MONGODB-AWS authentication, scoped to `readWrite` on `hpmri_dev` ONLY.
+ *      Do not copy production's `readWriteAnyDatabase`: it is cluster-wide, so
+ *      a dev task holding it could write to production's collections, and the
+ *      separate database would be namespace isolation with no access control
+ *      behind it. Until this user exists, every request returns 503.
  *   2. Create the hpmri_dev database. Prod shares one Atlas cluster, so this is
  *      a second database on it rather than a second cluster.
+ *   3. If you want to run dev locally, the developer principal (the second AWS
+ *      IAM user in Atlas, used by server/setup_aws.sh) needs access to
+ *      hpmri_dev too.
  *
  * Deliberately NOT sharing with prod: the data bucket (dev gets a throwaway one
  * with a couple of seeded files rather than a copy of the research data) and
