@@ -77,17 +77,17 @@ how much they should worry you:
    to `readWrite` on `hpmri_dev` rather than copying the cluster-wide built-in,
    or the separate dev database is namespace isolation with no access control
    behind it.
-4. **Cluster naming.** The live cluster and service are `mrissim-test1` and
-   `medcap-app-service-v3`; the module names them `hpmri-prod`. Importing under
-   a different name forces a replace, which means downtime. Either match the
-   existing names or plan a migration window. Blocks import group 3.
+4. ~~**Cluster naming.**~~ **Resolved 2026-09-21.** Rather than import the
+   compute layer under names that would force a replace, it is now built beside
+   the old stack and traffic moves at CloudFront via `api_origin_dns_name`.
+   Clean names, right-sized, split IAM roles, no downtime. The ordered sequence
+   is in `terraform/README.md`.
 5. **Turning on `REQUIRE_AUTH`** once the frontend has been shipping tokens long
    enough for the `ANONYMOUS` log lines to go quiet.
 
 ## Where the worktree is
 
-`.claude/worktrees/api-hardening`, branch `feature/api-hardening`, 11 commits
-ahead of `feature/mrs_recon`.
+`.claude/worktrees/api-hardening`, branch `feature/api-hardening`.
 
 The same edits also still exist uncommitted in the main checkout at
 `/Users/kento/dev/hp-mri` — they were copied here rather than moved, so nothing

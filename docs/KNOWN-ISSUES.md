@@ -25,7 +25,7 @@ here by their F-numbers. The adoption plan is `.claude/ARCHITECT.md`.
 |---|---|---|
 | **D1** | **`medcap-data` has no CORS configuration.** The presigned direct-to-S3 upload flow has the browser PUT straight to the bucket, which CORS will block. **Uploads will fail the moment this branch deploys.** (F4) | Open — Terraform adds it; it has not been applied |
 | **D2** | The `uploads/staging/` lifecycle rule that `server/config.py` documents does not exist, so abandoned uploads accumulate and are billed forever. (F5) | Open — same |
-| **D3** | The live ECS cluster and service are named `mrissim-test1` / `medcap-app-service-v3`; importing them under the module's names would force a **replace**, which for a cluster and service means downtime | Needs a decision — see `terraform/envs/prod/imports.tf` |
+| **D3** | ~~Importing the ECS cluster and service under sane names forces a replace~~ | **Resolved.** The compute layer is built beside the old one and traffic moves at CloudFront, so the names get fixed with no downtime. Sequence in `terraform/README.md` |
 
 ## Runtime bugs (backend)
 
@@ -52,13 +52,20 @@ here by their F-numbers. The adoption plan is `.claude/ARCHITECT.md`.
   thread-safe.
 - **Hardcoded environment**: S3 prefix `MRS/s_2023041103/` in `hupc_processing.py`;
   Windows output paths in `mrd2recon.py`.
-- **`ProductionConfig.MONGO_URI` is still hardcoded**, and the Dockerfile still
-  bakes `FLASK_ENV=production`, so one image cannot serve two environments.
+- **`ProductionConfig.MONGO_URI` is still hardcoded.** (The Dockerfile's
+  `FLASK_ENV=production` is a deliberate default, not a bug: it is overridden by
+  `docker run -e` and by the task definition, and a container that lost it should
+  not fall back to `DEBUG` on.)
 - **No API version prefix**, though the SPA and API deploy independently.
-- **Dead code**: `app/groups/` (never imported), `app/viewer/utils.py` (empty),
-  unused `Flask-Uploads` dependency, stray root `package.json`.
-- **`mrd-python==2.0.1`** is pinned from PyPI while the code imports the vendored
-  `app.external.python.mrd` submodule; the two can drift.
+- **Dead code**: `app/viewer/utils.py` (two lines, an unused import, never imported),
+  the unused `Flask-Uploads` dependency, and the stray root `package.json` whose one
+  dependency the frontend already declares. (`app/groups/` was listed here in June
+  and no longer exists.)
+- **Two MRD libraries are in use at once.** `data.py` imports the vendored submodule
+  (`app.external.python.mrd`) while `recon/utils/mrd2recon.py` and `mrdplot.py` do a
+  bare `import mrd`, which resolves to the pinned PyPI `mrd-python==2.0.1`. So this
+  is not a dormant dependency to delete -- removing it breaks reconstruction. Unify
+  on the submodule first, then drop the pin.
 
 ## Frontend
 

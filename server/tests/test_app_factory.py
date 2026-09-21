@@ -139,6 +139,6 @@ def test_config_is_environment_driven(monkeypatch):
         S3_BUCKET="medcap-data-dev",
     )
     # Both were hardcoded until recently -- the DB name as a function default,
-    # which is why production runs against a database called medcap_dev.
+    # which is why production ran against a database called medcap_dev.
     assert app.config["MONGO_DB_NAME"] == "hpmri_dev"
     assert app.config["S3_BUCKET"] == "medcap-data-dev"

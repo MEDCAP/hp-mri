@@ -52,11 +52,14 @@ variable "image_tag" {
 variable "container_name" {
   description = <<-EOT
     The deploy workflow patches the image field of the container with this name,
-    so the string is part of the CI contract. It is `medcap-app` in the live
-    task definition.
+    so the string is part of the CI contract -- change it here and in
+    .github/workflows/deploy-backend.yml together, or deploys silently stop
+    updating the image.
+
+    The pre-migration task definition called it `medcap-app`.
   EOT
   type        = string
-  default     = "medcap-app"
+  default     = "hpmri-api"
 }
 
 variable "container_port" {
@@ -116,7 +119,7 @@ variable "s3_access_policy_json" {
 }
 
 variable "mongo_db_name" {
-  description = "Prod currently runs against a database literally named medcap_dev."
+  description = "hpmri_prod / hpmri_dev. Production ran against one literally named medcap_dev until the rename."
   type        = string
 }
 

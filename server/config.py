@@ -15,10 +15,14 @@ class Config:
     FLASK_APP='run.py'
     S3_BUCKET = os.getenv('S3_BUCKET', 'medcap-data')
 
-    # Database inside the Atlas cluster. Historically this was hardcoded as a
-    # default argument in data.get_db(), which is why production also runs
-    # against a database named "medcap_dev".
-    MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'medcap_dev')
+    # Database inside the Atlas cluster.
+    #
+    # The default is the DEVELOPMENT database on purpose. It was once hardcoded
+    # as a default argument in data.get_db(), pointing at production -- so
+    # running the app locally with nothing configured wrote to live research
+    # data. Deployed environments set this explicitly in their task definition;
+    # anyone omitting it should land somewhere harmless.
+    MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'hpmri_dev')
 
     # Uploads go browser -> S3 directly via a presigned PUT, so the API only ever
     # receives small JSON bodies. This is a DoS guard, not an upload size limit.

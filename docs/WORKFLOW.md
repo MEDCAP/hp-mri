@@ -59,7 +59,7 @@ Read from the environment, with defaults that suit local development:
 |---|---|---|
 | `FLASK_ENV` | `development` (`production` in the image) | An unrecognised value is now a startup error rather than a silent no-config |
 | `MONGO_URI` | — | Built from federated credentials in dev; a SecureString SSM parameter in deployed environments |
-| `MONGO_DB_NAME` | `medcap_dev` | Production genuinely runs against a database named `_dev` |
+| `MONGO_DB_NAME` | `hpmri_dev` | Defaults to **dev** so an unconfigured run cannot write to production. Deployed environments set it explicitly |
 | `S3_BUCKET` | `medcap-data` | |
 | `MAX_UPLOAD_BYTES` | 2 GiB | Checked at `init` against the declared size and at `complete` against the real object |
 | `PRESIGN_EXPIRY_SECONDS` | 3600 | Dies with the session token when signing with federated credentials |

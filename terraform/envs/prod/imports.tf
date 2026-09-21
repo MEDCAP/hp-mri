@@ -1,38 +1,38 @@
 /**
- * Adoption of the live, hand-built infrastructure.
+ * Adoption of the long-lived production resources.
  *
- * Work through these in groups, one PR per group, in the order below. A group
- * is done when `terraform plan` reads
+ * Only things that are expensive or impossible to recreate are imported, and
+ * each group must plan
  *
  *     0 to add, 0 to change, 0 to destroy
  *
- * Any plan under an import PR that shows a destroy or a replace is a blocker,
- * not something to push past. Resource ids come from docs/INVENTORY.md.
+ * before it merges. Any destroy or replace under an import PR is a blocker.
+ * Resource ids come from docs/INVENTORY.md.
  *
- * To generate a starting point for a resource's HCL:
+ * The compute layer is deliberately NOT here. The live cluster, service, ALB,
+ * target group, security groups and log group all carry names from an earlier
+ * era (mrissim-test1, medcap-app-service-v3), and importing them under sane
+ * names would force a replace -- downtime -- for no benefit over simply
+ * building the new stack beside the old and moving traffic at CloudFront. See
+ * the header of main.tf and the cutover sequence in ../../README.md.
  *
- *     terraform plan -generate-config-out=/tmp/gen.tf
+ * Also not imported:
  *
- * then move the meaningful attributes into the module by hand. Never commit the
- * generated file: it emits every default and no variables.
- *
- * Deliberately absent, with reasons:
- *
- *   medcap-app-task-def:13   Terraform owns a seed revision only; CI registers
- *                            the rest, and the service ignores task_definition.
+ *   medcap-app-task-def:13   Terraform owns a seed revision; CI registers the
+ *                            rest, and the service ignores task_definition.
  *   E1LTBXHERJ8IYX           Second distribution, enabled, pointing at an ALB
- *                            that no longer exists (finding F7). Resolve what
- *                            it is for before adopting it.
- *   ecsTaskExecutionRole     Not adopted as-is. It is both execution and task
- *                            role and carries AmazonS3FullAccess (finding F2);
- *                            the module creates a proper pair instead. Confirm
- *                            the MongoDB Atlas database-user mapping BEFORE
- *                            switching, or production loses database access.
+ *                            that no longer exists (finding F7). Delete it
+ *                            rather than adopt it.
+ *   ecsTaskExecutionRole     Both execution and task role, carrying
+ *                            AmazonS3FullAccess (finding F2). The module
+ *                            builds a properly separated pair instead. Add the
+ *                            new task role ARN to Atlas BEFORE cutting over --
+ *                            see README.md.
  *   The WAF WebACL           CloudFront-managed; referenced, not owned.
  *   The ACM certificate      DNS-validated and stable; read as a data source.
  */
 
-# --- group 1: data ----------------------------------------------------------
+# --- group 1: the data bucket -----------------------------------------------
 
 import {
   to = module.data.aws_s3_bucket.this
@@ -55,10 +55,11 @@ import {
 }
 
 # No import blocks for the CORS or lifecycle configurations: neither exists on
-# the live bucket (findings F4 and F5), so these are genuine creates. Expect
-# this group's plan to show exactly two additions, and nothing else.
+# the live bucket (findings F4 and F5), so those are genuine creates. Expect
+# this group's plan to show exactly two additions and nothing else. The CORS
+# rule is what unblocks the presigned upload flow.
 
-# --- group 2: auth ----------------------------------------------------------
+# --- group 2: the user pool -------------------------------------------------
 
 import {
   to = module.auth.aws_cognito_user_pool.this
@@ -70,73 +71,7 @@ import {
   id = "us-east-1_vUo50ofKI/4nvgf7et9f4ui0glr4ddf152r8"
 }
 
-# --- group 3: network and backend -------------------------------------------
-#
-# The security groups are imported because their rules are already correct: 443
-# on the ALB comes only from CloudFront's prefix list, and the tasks accept
-# traffic only from the ALB.
-
-import {
-  to = module.network.aws_security_group.alb
-  id = "sg-002ff50931724c392"
-}
-
-import {
-  to = module.network.aws_security_group.service
-  id = "sg-0c52dc46530916103"
-}
-
-import {
-  to = module.backend.aws_cloudwatch_log_group.this
-  id = "/ecs/medcap-app"
-}
-
-import {
-  to = module.backend.aws_lb.this
-  id = "arn:aws:elasticloadbalancing:us-east-1:862065604168:loadbalancer/app/medcap-app-public-alb/90bf6b0cc7f07331"
-}
-
-import {
-  to = module.backend.aws_lb_target_group.api
-  id = "arn:aws:elasticloadbalancing:us-east-1:862065604168:targetgroup/medcap-app-public-alb-tg/54ad780f7b9939fa"
-}
-
-import {
-  to = module.backend.aws_ecs_cluster.this
-  id = "mrissim-test1"
-}
-
-import {
-  to = module.backend.aws_ecs_service.api
-  id = "mrissim-test1/medcap-app-service-v3"
-}
-
-# Listener ARNs are not stable across recreations, so they are read at import
-# time rather than hardcoded here:
-#
-#   aws elbv2 describe-listeners \
-#     --load-balancer-arn <alb-arn> \
-#     --query 'Listeners[].{Port:Port,Arn:ListenerArn}'
-#
-# import {
-#   to = module.backend.aws_lb_listener.https
-#   id = "<443 listener arn>"
-# }
-#
-# import {
-#   to = module.backend.aws_lb_listener.http
-#   id = "<80 listener arn>"
-# }
-
-# NOTE: the live cluster is `mrissim-test1` and the service is
-# `medcap-app-service-v3`, while the module would name them hpmri-prod and
-# hpmri-prod-service. Importing under the module's names would force a replace
-# -- which for a cluster and service means downtime. Either set name_prefix to
-# match the existing names, or accept a one-time migration behind a maintenance
-# window. This is the one place where adoption cannot be perfectly silent, and
-# it needs a decision before group 3 is attempted.
-
-# --- group 4: frontend ------------------------------------------------------
+# --- group 3: the site bucket and the distribution --------------------------
 
 import {
   to = module.frontend.aws_s3_bucket.site

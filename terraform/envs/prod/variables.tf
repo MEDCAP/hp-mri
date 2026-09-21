@@ -75,3 +75,18 @@ variable "mongo_uri" {
   type        = string
   sensitive   = true
 }
+
+variable "api_origin_dns_name" {
+  description = <<-EOT
+    The ALB CloudFront sends /api/* to.
+
+    Set to the OLD load balancer during the migration, so the new stack can be
+    built and exercised without moving production traffic. Set it to "" to cut
+    over to the ALB this configuration creates; that empty string is the
+    deploy, and putting the old value back is the rollback.
+
+    Delete the variable once the old ALB is gone.
+  EOT
+  type        = string
+  default     = "medcap-app-public-alb-1585919488.us-east-1.elb.amazonaws.com"
+}

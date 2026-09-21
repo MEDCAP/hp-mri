@@ -96,7 +96,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: taskdef.json
-          container-name: medcap-app
+          container-name: hpmri-api
           image: ${{ steps.ecr.outputs.registry }}/medcap-app:${{ steps.tag.outputs.tag }}
 
       - uses: aws-actions/amazon-ecs-deploy-task-definition@v2

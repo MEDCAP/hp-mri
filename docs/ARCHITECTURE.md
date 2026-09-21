@@ -21,7 +21,7 @@
     │              │       │
 ┌───▼──────────┐ ┌─▼───────▼──────────────┐
 │ MongoDB Atlas│ │ S3 bucket: medcap-data │
-│ db medcap_dev│ │  uploads/staging/{id}  │  presigned landing zone
+│ db hpmri_prod│ │  uploads/staging/{id}  │  presigned landing zone
 │ col mrdfiles │ │  mrd_files/{ObjectId}  │  binary MRD files
 │ (MONGODB-AWS │ │  MRS/s_2023041103/...  │  legacy HUPC DICOM/FID
 │  IAM auth)   │ └────────────────────────┘
@@ -214,7 +214,7 @@ tree. Keep it that way.
 
 ## Data model
 
-Mongo document in `medcap_dev.mrdfiles` (≈ `types/mrd.ts` `MRDFile`):
+Mongo document in `hpmri_prod.mrdfiles` (≈ `types/mrd.ts` `MRDFile`):
 
 ```
 _id: ObjectId            fileName, original_filename

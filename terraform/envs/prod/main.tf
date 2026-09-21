@@ -1,9 +1,25 @@
 /**
  * Production.
  *
- * Every value here is set to match what already exists, so that adoption plans
- * clean. Improvements go in follow-up PRs where the diff shows exactly the one
- * thing changing -- see the notes marked FOLLOW-UP.
+ * Adoption is deliberately split in two.
+ *
+ * The long-lived, hard-to-replace things are IMPORTED and must plan clean: the
+ * data bucket, the Cognito pool holding real accounts, the site bucket, the
+ * CloudFront distribution and the DNS record. Those keep their existing names
+ * because their names are either immutable (S3) or irrelevant (Cognito is
+ * addressed by id).
+ *
+ * The compute layer is BUILT FRESH alongside the old one, not imported. The
+ * live cluster and service are named mrissim-test1 and medcap-app-service-v3,
+ * and adopting them under sane names would force a replace anyway -- so rather
+ * than import a mess and then mutate it, the new stack is created beside the
+ * old and traffic is moved at CloudFront. That also lets the sizing, capacity
+ * provider and IAM role split land as part of the build instead of as three
+ * more changes to live infrastructure.
+ *
+ * The cutover is var.api_origin_dns_name: it points at the OLD ALB until you
+ * have verified the new one, so the first apply builds without moving traffic.
+ * See terraform/README.md for the sequence.
  */
 terraform {
   required_version = "~> 1.9"
@@ -85,24 +101,26 @@ module "backend" {
 
   ecr_repository_url = var.ecr_repository_url
   image_tag          = var.seed_image_tag
-  container_name     = "medcap-app"
 
-  # FOLLOW-UP (finding F6 and the utilisation measurements): the live task is
-  # 4096/8192 on FARGATE_SPOT while using 0.1% CPU and 233 MiB. These values
-  # match production so the import is clean; the module defaults (1024/2048 on
-  # on-demand) are the recommendation, and cost less than this does today.
-  cpu                = 4096
-  memory             = 8192
-  capacity_providers = [{ name = "FARGATE_SPOT", weight = 1, base = 0 }]
+  # Nothing is imported here, so the recommended values apply from the start
+  # rather than arriving as a later change. The old task was 4096/8192 on
+  # FARGATE_SPOT while using 0.1% CPU and 233 MiB over 14 days; 1024/2048
+  # on-demand costs less than that did AND removes the single-spot-task failure
+  # mode (finding F6). Module defaults, stated here because they are a decision.
+  cpu                = 1024
+  memory             = 2048
+  capacity_providers = [{ name = "FARGATE", weight = 1, base = 1 }]
 
   certificate_arn = var.certificate_arn
 
   s3_bucket_name        = module.data.bucket_name
   s3_access_policy_json = module.data.access_policy_json
 
-  # The production database is, genuinely, named medcap_dev. Renaming it is a
-  # data migration, not a config change.
-  mongo_db_name = "medcap_dev"
+  # Renaming this is a data migration, not a config change: production ran
+  # against a database literally named medcap_dev. Run
+  # scripts/rename-mongo-database.sh BEFORE applying this, or the service comes
+  # up pointed at a database that does not exist yet.
+  mongo_db_name = "hpmri_prod"
   cors_origins  = [local.web_origin]
 
   secret_environment = {
@@ -117,11 +135,16 @@ module "frontend" {
   source = "../../modules/frontend-cdn"
 
   site_bucket_name = "medcap.ai"
-  alb_dns_name     = module.backend.alb_dns_name
-  aliases          = ["medcap.ai"]
-  certificate_arn  = var.certificate_arn
-  route53_zone_id  = var.route53_zone_id
-  web_acl_arn      = var.web_acl_arn
+
+  # THE CUTOVER. While this is set, /api/* still goes to the old ALB, so the
+  # new stack can be built and tested without touching live traffic. Setting it
+  # to "" moves production onto the new ALB, and is the only change in that
+  # apply. Reverting it is the rollback.
+  alb_dns_name    = var.api_origin_dns_name != "" ? var.api_origin_dns_name : module.backend.alb_dns_name
+  aliases         = ["medcap.ai"]
+  certificate_arn = var.certificate_arn
+  route53_zone_id = var.route53_zone_id
+  web_acl_arn     = var.web_acl_arn
 
   # Present so the import plans clean. It is a Referer check, not access
   # control -- see finding F1.

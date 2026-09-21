@@ -41,8 +41,32 @@ Cognito pool and the CloudFront distribution, so the worst mistakes fail loudly.
 
 ## Order
 
-`bootstrap` → `global` → prod `data` → `auth` → `network` + `backend-ecs` →
-`frontend-cdn` → then `envs/dev`.
+`bootstrap` → `global` → import `data` → import `auth` → import `frontend-cdn`
+→ build the new compute stack → cut over → clean up → then `envs/dev`.
+
+## The production migration, in order
+
+The compute layer is built beside the old one rather than imported, so this is
+blue-green: nothing moves until step 6, and step 6 is one variable.
+
+| # | Step | How you know it worked |
+|---|---|---|
+| 1 | Import the data bucket, user pool, site bucket and distribution (three PRs, see `envs/prod/imports.tf`) | Each plans `0 to add, 0 to change, 0 to destroy`, except the data bucket which adds exactly the CORS and lifecycle rules |
+| 2 | Copy the database: `./scripts/rename-mongo-database.sh` | Document counts match; `medcap_dev` untouched and still serving |
+| 3 | In Atlas, add a database user for `arn:aws:iam::862065604168:role/hpmri-prod-task` with `readWriteAnyDatabase` | The row exists. It is inert until step 4 creates the role |
+| 4 | Apply, building the new stack (cluster `hpmri-prod`, its own ALB, split IAM roles, 1024/2048 on-demand). `api_origin_dns_name` still points at the OLD ALB | `aws ecs describe-services --cluster hpmri-prod` reports a steady, healthy task. Production is untouched |
+| 5 | Test the new ALB directly, bypassing CloudFront | `curl -H 'Host: medcap.ai' http://<new-alb-dns>/api/health` returns 200 and `"mode":"production"` |
+| 6 | **Cut over:** set `api_origin_dns_name = ""` and apply | `curl https://medcap.ai/api/health` still works, now served by the new stack. This is the only step that touches live traffic |
+| 7 | Watch. Rollback is restoring the old value and applying | |
+| 8 | Delete the old cluster, service, ALB, security groups, log group, the `medcap_dev` database, the `E1LTBXHERJ8IYX` distribution, and `AmazonS3FullAccess` from `ecsTaskExecutionRole` | Nothing breaks. Bill drops |
+
+Step 3 is the one that silently breaks things if skipped: the new task role is a
+principal Atlas has never seen, so the service comes up healthy on its ALB
+health check and then fails every request that touches the database.
+
+Step 2 has a gap worth naming: writes landing in `medcap_dev` between the copy
+and step 6 do not reach `hpmri_prod`. At ~57 requests a day, mostly reads, pick
+a quiet hour and re-run the copy immediately before step 6.
 
 ## Before you start
 
