@@ -201,7 +201,11 @@ def _serialise(value):
 
 def public_job(job):
     """A job document as the API returns it, with an abandoned run read as failed."""
-    job = {**job, "_id": str(job["_id"])}
+    # owner_sub is a Cognito subject id. Every caller can already see every file
+    # and every job, so owner_name stays; the opaque identifier behind it has no
+    # reason to leave the server.
+    job = {k: v for k, v in job.items() if k != "owner_sub"}
+    job["_id"] = str(job["_id"])
 
     if _is_abandoned(job):
         job["status"] = FAILED

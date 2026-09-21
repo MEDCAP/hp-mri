@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from bson import ObjectId
 
 from app.jobs.service import FAILED, QUEUED, RUNNING, SUCCEEDED, public_job, start_job
 from app.tyger.runner import run_chain
@@ -244,3 +245,26 @@ def test_a_missing_job_is_a_not_found(db_client):
 
     assert response.status_code == 404
     assert response.get_json()["code"] == "not_found"
+
+
+def test_the_cognito_subject_id_never_leaves_the_server(db_app, db_client):
+    """
+    Every caller can already see every file and every job, so owner_name is not
+    a secret. The Cognito subject id behind it is an internal identifier no
+    client has a use for.
+    """
+    with db_app.app_context():
+        from data import get_db
+
+        get_db().jobs.insert_one({
+            **_running_job(0), "_id": ObjectId("507f1f77bcf86cd799439011"),
+            "owner_name": "kento", "owner_sub": "9f1c-cognito-subject",
+            "created_at": datetime.now(timezone.utc),
+        })
+
+    response = db_client.get("/api/jobs/507f1f77bcf86cd799439011")
+    body = response.get_data(as_text=True)
+
+    assert response.get_json()["owner_name"] == "kento"
+    assert "owner_sub" not in response.get_json()
+    assert "9f1c-cognito-subject" not in body
