@@ -24,6 +24,7 @@ import { Transition, StyledDialog } from '../../../components/dialogs/AppDialog'
 import { UploadFile as UploadFileType, useUpload } from '../hooks/useUpload';
 import UploadDropzone from './UploadDropzone';
 import UploadFileList from './UploadFileList';
+import UploadFolderList from './UploadFolderList';
 
 const JigglingDialog = styled(StyledDialog)<{ isJiggling: boolean }>(({ theme, isJiggling }) => ({
   '& .MuiDialog-paper': {
@@ -57,25 +58,29 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
   const theme = useTheme();
   const [isJiggling, setIsJiggling] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const {
     files,
+    folders,
     isDragOver,
     isUploading,
     uploadError,
     handleFileSelect,
+    handleFolderSelect,
     handleDragOver,
     handleDragLeave,
     handleDrop,
     removeFile,
+    removeFolder,
     handleUpload,
     overallProgress,
   } = useUpload({ onUploadStart, onUploadComplete, onClose, onProgressUpdate });
 
+  const itemCount = files.length + folders.length;
+
   // Use external upload state if provided, otherwise use internal state
   const isUploadingState = externalIsUploading !== undefined ? externalIsUploading : isUploading;
-
-  console.log('UploadModal render:', { open, isUploadingState, filesCount: files.length });
 
   const handleDialogClose = (_event: object, reason: string) => {
     if (isUploadingState && reason === 'backdropClick') {
@@ -104,7 +109,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         pb: 1
       }}>
         <Typography variant="h6" fontWeight="bold">
-          Upload MRD Files
+          Upload MRD Files and Scans
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           {isUploadingState && onMinimize && (
@@ -138,8 +143,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onBrowseClick={() => fileInputRef.current?.click()}
+          onBrowseFoldersClick={() => folderInputRef.current?.click()}
           fileInputRef={fileInputRef}
+          folderInputRef={folderInputRef}
           onFileInputChange={(e) => handleFileSelect(e.target.files)}
+          onFolderInputChange={(e) => handleFolderSelect(e.target.files)}
         />
 
         {/* Error Alert */}
@@ -152,7 +160,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         )}
 
         {/* Overall Progress Bar */}
-        {isUploadingState && files.length > 0 && (
+        {isUploadingState && itemCount > 0 && (
           <Fade in={true} timeout={400}>
             <Box sx={{ mt: 3, p: 2, backgroundColor: theme.palette.primary.light, borderRadius: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -183,7 +191,9 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
                     Current Stage:
                   </Typography>
                   <Typography variant="body2" color="primary.contrastText" sx={{ mt: 0.5 }}>
-                    {files.find(f => f.status === 'uploading')?.currentStep || 'Processing files...'}
+                    {files.find(f => f.status === 'uploading')?.currentStep
+                      || folders.find(f => f.status === 'converting')?.name
+                      || 'Processing files...'}
                   </Typography>
                 </Box>
               )}
@@ -194,6 +204,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         {/* File List */}
         {files.length > 0 && (
           <UploadFileList files={files} onRemove={removeFile} />
+        )}
+
+        {/* Scan folders, which take the convert path instead */}
+        {folders.length > 0 && (
+          <UploadFolderList folders={folders} onRemove={removeFolder} />
         )}
       </DialogContent>
 
@@ -208,7 +223,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         <Button
           variant="contained"
           onClick={handleUpload}
-          disabled={files.length === 0 || isUploading}
+          disabled={itemCount === 0 || isUploading}
           startIcon={<UploadFile />}
           sx={{
             minWidth: 120,
@@ -218,7 +233,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
             }
           }}
         >
-          {isUploading ? 'Uploading...' : 'Upload Files'}
+          {isUploading ? 'Uploading...' : 'Upload'}
         </Button>
       </DialogActions>
     </JigglingDialog>

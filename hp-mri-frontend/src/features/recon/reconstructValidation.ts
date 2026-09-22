@@ -14,17 +14,18 @@ export function formatValueOnBlur(value: string | number): { value: string; erro
   return { value: numericValue.toFixed(2), error: null };
 }
 
-export function isValidWiggleInput(value: string): boolean {
-  return value === '' || /^(\d*\.?\d*)$/.test(value);
+/**
+ * The recon CLI splits a `-{name}_{modifier}` token at its first underscore, so
+ * an underscore inside the name would be read as the start of the modifier
+ * suffix and the peak would be fitted under the wrong flags.
+ */
+export const PEAK_NAME_HINT =
+  'Letters and digits only, starting with a letter. An underscore is not allowed: the recon CLI splits the peak token at its first underscore and would read the rest of the name as modifier flags.';
+
+export function isValidPeakName(name: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9]*$/.test(name);
 }
 
-export function formatWiggleOnBlur(value: string | number): { value: string; error: string | null } {
-  if (value === '' || value === '.') {
-    return { value: '1.0', error: null };
-  }
-  const numericValue = parseFloat(value.toString());
-  if (isNaN(numericValue) || numericValue < 0) {
-    return { value: '1.0', error: 'Please enter a valid positive number for wiggle factor (e.g., 1.0)' };
-  }
-  return { value: numericValue.toFixed(1), error: null };
+export function isValidTunableInput(value: string): boolean {
+  return value === '' || /^-?\d*\.?\d*$/.test(value);
 }

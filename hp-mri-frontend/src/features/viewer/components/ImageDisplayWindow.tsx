@@ -14,20 +14,27 @@ import {
 } from '@mui/icons-material';
 import ImagingPlotComponent from './ImagingPlotComponent';
 import TracePlotComponent from './TracePlotComponent';
+import SpectrumPlotComponent from './SpectrumPlotComponent';
+import MetaboliteMapComponent from './MetaboliteMapComponent';
+import KSpacePlotComponent from './KSpacePlotComponent';
+import WaveformPlotComponent from './WaveformPlotComponent';
 import InlineControls from './InlineControls';
 import FileDetailsModal from './FileDetailsModal';
 import ArrayMenuButton from './ArrayMenuButton';
-import { ViewerWindowState } from '../hooks/useViewerState';
+import ViewMenuButton from './ViewMenuButton';
+import { ViewerWindowState, ViewKind, VoxelSelection } from '../hooks/useViewerState';
 
 interface ImageDisplayWindowProps {
   window: ViewerWindowState;
   onFileSelect: () => void;
   onSelectArray: (key: string) => void;
+  onSelectView: (kind: ViewKind) => void;
   // Control setters
   setChannelIndex: (value: number[]) => void;
   setSliceIndex: (value: number) => void;
   setMetaboliteIndex: (value: number) => void;
   setMeasurementIndex: (value: number) => void;
+  setVoxel: (voxel: VoxelSelection) => void;
   // Global settings
   alpha: number;
   colorScale: 'Hot' | 'Jet' | 'B&W';
@@ -39,10 +46,12 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
   window,
   onFileSelect,
   onSelectArray,
+  onSelectView,
   setChannelIndex,
   setSliceIndex,
   setMetaboliteIndex,
   setMeasurementIndex,
+  setVoxel,
   alpha,
   colorScale,
   scaleByIntensity,
@@ -53,6 +62,13 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
     arrays,
     arraysLoading,
     selectedArrayKey,
+    viewKind,
+    availableViews,
+    voxel,
+    kspace,
+    waveforms,
+    spectrum,
+    maps,
     kind,
     loading,
     error,
@@ -69,7 +85,25 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
   const [fileDetailsOpen, setFileDetailsOpen] = useState(false);
 
   const isImage = kind === 'image';
-  const hasData = isImage ? imageArray.length > 0 : traceArray.length > 0;
+  const isArrayView = viewKind === 'array';
+  const arrayHasData = isImage ? imageArray.length > 0 : traceArray.length > 0;
+  const hasData = {
+    array: arrayHasData,
+    spectrum: spectrum !== null,
+    maps: maps !== null,
+    kspace: kspace !== null,
+    waveforms: waveforms !== null,
+  }[viewKind];
+
+  // Each view drives the measurement slider off its own array's last axis.
+  const maxMeasurements = (() => {
+    if (viewKind === 'maps') return (maps?.voxels[0]?.[0]?.[0]?.[0]?.[0]?.length ?? 1) - 1;
+    if (viewKind === 'spectrum') return (spectrum?.samples[0]?.[0]?.length ?? 1) - 1;
+    if (!arrayHasData) return 0;
+    return isImage
+      ? (imageArray[0]?.[0]?.[0]?.[0]?.[0]?.length ?? 1) - 1
+      : (traceArray[0]?.[0]?.length ?? 1) - 1;
+  })();
 
   // Memoize the renderers to prevent unnecessary re-renders
   const memoizedImagingPlot = useMemo(() => (
@@ -129,6 +163,42 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
           <Typography variant="body2" sx={{ opacity: 0.7 }}>
             Select an MRD file to display its arrays
           </Typography>
+        </Box>
+      );
+    }
+
+    if (viewKind === 'spectrum' && spectrum) {
+      return (
+        <Box sx={{ width: '100%', height: '100%', pt: 4 }}>
+          <SpectrumPlotComponent spectrum={spectrum} measurementIndex={measurementIndex} />
+        </Box>
+      );
+    }
+
+    if (viewKind === 'maps' && maps) {
+      return (
+        <Box sx={{ width: '100%', height: '100%', pt: 4 }}>
+          <MetaboliteMapComponent
+            maps={maps}
+            measurementIndex={measurementIndex}
+            onVoxelSelect={setVoxel}
+          />
+        </Box>
+      );
+    }
+
+    if (viewKind === 'kspace' && kspace) {
+      return (
+        <Box sx={{ width: '100%', height: '100%', pt: 4 }}>
+          <KSpacePlotComponent kspace={kspace} />
+        </Box>
+      );
+    }
+
+    if (viewKind === 'waveforms' && waveforms) {
+      return (
+        <Box sx={{ width: '100%', height: '100%', pt: 4 }}>
+          <WaveformPlotComponent waveforms={waveforms} />
         </Box>
       );
     }
@@ -264,14 +334,25 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
           )}
         </Box>
 
-        {/* Right side - which array of the file to display */}
+        {/* Right side - which view, and which array when showing one */}
         {selectedFile && (
-          <ArrayMenuButton
-            arrays={arrays}
-            loading={arraysLoading}
-            selectedKey={selectedArrayKey}
-            onSelect={onSelectArray}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+            {isArrayView && (
+              <ArrayMenuButton
+                arrays={arrays}
+                loading={arraysLoading}
+                selectedKey={selectedArrayKey}
+                onSelect={onSelectArray}
+              />
+            )}
+            {availableViews.length > 0 && (
+              <ViewMenuButton
+                views={availableViews}
+                selected={viewKind}
+                onSelect={onSelectView}
+              />
+            )}
+          </Box>
         )}
       </Box>
 
@@ -290,6 +371,9 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
         {/* Controls below the plot */}
         <InlineControls
           kind={kind}
+          viewKind={viewKind}
+          voxel={voxel}
+          setVoxel={setVoxel}
           channelIndex={channelIndex}
           sliceIndex={sliceIndex}
           metaboliteIndex={metaboliteIndex}
@@ -299,14 +383,10 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
           setSliceIndex={setSliceIndex}
           setMetaboliteIndex={setMetaboliteIndex}
           setMeasurementIndex={setMeasurementIndex}
-          maxChannels={hasData && isImage ? imageArray.length - 1 : 0}
-          maxSlices={hasData && isImage ? (imageArray[0]?.length ?? 1) - 1 : 0}
-          maxMetabolites={hasData && isImage ? (imageArray[0]?.[0]?.[0]?.[0]?.length ?? 1) - 1 : 0}
-          maxMeasurements={hasData
-            ? (isImage
-              ? (imageArray[0]?.[0]?.[0]?.[0]?.[0]?.length ?? 1) - 1
-              : (traceArray[0]?.[0]?.length ?? 1) - 1)
-            : 0}
+          maxChannels={arrayHasData && isImage ? imageArray.length - 1 : 0}
+          maxSlices={arrayHasData && isImage ? (imageArray[0]?.length ?? 1) - 1 : 0}
+          maxMetabolites={arrayHasData && isImage ? (imageArray[0]?.[0]?.[0]?.[0]?.length ?? 1) - 1 : 0}
+          maxMeasurements={maxMeasurements}
         />
       </Box>
 

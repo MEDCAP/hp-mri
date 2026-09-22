@@ -1,5 +1,10 @@
 import { apiClient } from './client';
-import { MrdArrayListResponse, MrdArrayResponse } from './types';
+import {
+  MrdArrayListResponse,
+  MrdArrayResponse,
+  KSpaceResponse,
+  WaveformResponse,
+} from './types';
 
 // Array lists are small, so they are cached per file for the session.
 const arrayListCache = new Map<string, MrdArrayListResponse>();
@@ -34,5 +39,24 @@ export async function fetchMrdArray(fileId: string, key: string): Promise<MrdArr
     arrayCache.delete(oldest.value);
   }
   arrayCache.set(cacheKey, response.data);
+  return response.data;
+}
+
+/**
+ * GET /viewer/:id/kspace — the acquisitions folded on the gradient switch.
+ *
+ * Reduced server-side to one summed image per encoding, because a raw file
+ * holds thousands of acquisitions and shipping them as JSON is not viable.
+ * The endpoint 404s for a file with no EPSI readout, which is how a spectral
+ * file looks; callers treat that as "this view does not apply".
+ */
+export async function fetchKSpace(fileId: string): Promise<KSpaceResponse> {
+  const response = await apiClient.get<KSpaceResponse>(`/viewer/${fileId}/kspace`);
+  return response.data;
+}
+
+/** GET /viewer/:id/waveforms — pulse, gradient and acquisition time series. */
+export async function fetchWaveforms(fileId: string): Promise<WaveformResponse> {
+  const response = await apiClient.get<WaveformResponse>(`/viewer/${fileId}/waveforms`);
   return response.data;
 }

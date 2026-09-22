@@ -1,27 +1,48 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   Typography,
-  Box,
   IconButton,
   Paper,
+  Radio,
   Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   useTheme,
   Alert
 } from '@mui/material';
 import {
-  Add as AddIcon,
   Close as CloseIcon,
   PlayArrow as ReconstructIcon
 } from '@mui/icons-material';
-import UploadModal from '../files/components/UploadModal';
-import { UploadFile } from '../files/hooks/useUpload';
 import { Transition, StyledDialog, SectionBox } from '../../components/dialogs/AppDialog';
-import ParameterTable, { Parameter } from './ParameterTable';
-import { isValidValueInput, formatValueOnBlur, isValidWiggleInput, formatWiggleOnBlur } from './reconstructValidation';
+import { getApiErrorMessage } from '../../api/client';
+import { listMrdFiles } from '../../api/mrdFiles';
+import { startRecon } from '../../api/recon';
+import { pollJob } from '../../api/jobs';
+import { Job, MRDFile } from '../../api/types';
+import PipelineBuilder from './PipelineBuilder';
+import ReconProgressModal from './ReconProgressModal';
+import {
+  Parameter,
+  StageForm,
+  StageId,
+  TunableKey,
+  buildPipelineStages,
+  createPeak,
+  createStage,
+  defaultPipeline,
+  referencePeaks,
+  validatePipeline
+} from './pipeline';
+import { formatValueOnBlur, isValidValueInput } from './reconstructValidation';
 
 interface ReconstructModalProps {
   open: boolean;
@@ -29,162 +50,170 @@ interface ReconstructModalProps {
   onReconstructStart?: () => void;
 }
 
-// Factory function to create a default parameter with consistent defaults
-const createDefaultParameter = (id: string): Parameter => ({
-  id,
-  name: '',
-  value: '',           
-  isSource: false,
-  isSmallPeak: false,
-  isProduct: false,
-  wiggle: '1.0',       // default wiggle factor
-});
-
 const ReconstructModal: React.FC<ReconstructModalProps> = ({
   open,
   onClose,
   onReconstructStart,
 }) => {
   const theme = useTheme();
-  const parameterIdCounter = useRef(1);
-  const [parameters, setParameters] = useState<Parameter[]>([
-    createDefaultParameter('1'),
-  ]);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<UploadFile[]>([]);
+  const [stages, setStages] = useState<StageForm[]>(defaultPipeline);
+  const [files, setFiles] = useState<MRDFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [job, setJob] = useState<Job | null>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
+  const pollAbort = useRef<AbortController | null>(null);
 
-  // Add new parameter row
-  const handleAddParameter = () => {    
-    parameterIdCounter.current += 1;
-    setParameters([...parameters, createDefaultParameter(parameterIdCounter.current.toString())]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setFilesLoading(true);
+    listMrdFiles()
+      .then((loaded) => {
+        if (!cancelled) setFiles(loaded);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(getApiErrorMessage(err));
+      })
+      .finally(() => {
+        if (!cancelled) setFilesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  useEffect(() => () => pollAbort.current?.abort(), []);
+
+  const updateReconStage = useCallback(
+    (update: (peaks: Parameter[]) => Parameter[]) => {
+      setStages((prev) =>
+        prev.map((stage) =>
+          stage.id === 'recon' ? { ...stage, peaks: update(stage.peaks) } : stage
+        )
+      );
+    },
+    []
+  );
+
+  const handleAddPeak = () => updateReconStage((peaks) => [...peaks, createPeak()]);
+
+  const handleLoadReferencePeaks = () => updateReconStage(() => referencePeaks());
+
+  const handleRemovePeak = (id: string) =>
+    updateReconStage((peaks) => (peaks.length > 1 ? peaks.filter((peak) => peak.id !== id) : peaks));
+
+  const handlePeakNameChange = (id: string, value: string) =>
+    updateReconStage((peaks) => peaks.map((peak) => (peak.id === id ? { ...peak, name: value } : peak)));
+
+  const handlePeakValueChange = (id: string, value: string) => {
+    if (!isValidValueInput(value)) return;
+    setError(null);
+    updateReconStage((peaks) => peaks.map((peak) => (peak.id === id ? { ...peak, value } : peak)));
   };
 
-  // Remove parameter row
-  const handleRemoveParameter = (id: string) => {
-    if (parameters.length > 1) {
-      setParameters(parameters.filter((param) => param.id !== id));
-    }
-  };
-
-  // Update parameter name
-  const handleNameChange = (id: string, value: string) => {
-    setParameters(
-      parameters.map((param) =>
-        param.id === id ? { ...param, name: value } : param
-      )
+  const handlePeakValueBlur = (id: string) =>
+    updateReconStage((peaks) =>
+      peaks.map((peak) => {
+        if (peak.id !== id) return peak;
+        const formatted = formatValueOnBlur(peak.value);
+        if (formatted.error) setError(formatted.error);
+        return { ...peak, value: formatted.value };
+      })
     );
-  };
 
-  // Update parameter value
-  const handleValueChange = (id: string, value: string) => {
-    if (isValidValueInput(value)) {
-      setParameters(parameters.map(p => p.id === id ? { ...p, value } : p));
-      setError(null);
-    }
-  };
-
-  // Handle blur event to validate and reformat frequency offset
-  const handleValueBlur = (id: string) => {
-    setParameters(parameters.map(param => {
-      if (param.id === id) {
-        const r = formatValueOnBlur(param.value);
-        if (r.error) setError(r.error);
-        return { ...param, value: r.value };
-      }
-      return param;
-    }));
-  };
-
-  // Update wiggle value (allows positive floats/decimals)
-  const handleWiggleChange = (id: string, value: string) => {
-    if (isValidWiggleInput(value)) {
-      setParameters(parameters.map(p => p.id === id ? { ...p, wiggle: value } : p));
-      setError(null);
-    }
-  };
-
-  // Handle blur event for wiggle - validate and format
-  const handleWiggleBlur = (id: string) => {
-    setParameters(parameters.map(param => {
-      if (param.id === id) {
-        const r = formatWiggleOnBlur(param.wiggle);
-        if (r.error) setError(r.error);
-        return { ...param, wiggle: r.value };
-      }
-      return param;
-    }));
-  };
-
-  // Update field boolean value
-  const handleFieldToggle = (
+  const handlePeakFieldToggle = (
     id: string,
     field: 'isSource' | 'isSmallPeak' | 'isProduct'
-  ) => {
-    setParameters(
-      parameters.map((param) =>
-        param.id === id ? { ...param, [field]: !param[field] } : param
+  ) =>
+    updateReconStage((peaks) =>
+      peaks.map((peak) => (peak.id === id ? { ...peak, [field]: !peak[field] } : peak))
+    );
+
+  const handleTunableChange = (key: TunableKey, value: string) =>
+    setStages((prev) =>
+      prev.map((stage) =>
+        stage.id === 'recon' ? { ...stage, tunables: { ...stage.tunables, [key]: value } } : stage
       )
     );
+
+  const handleAddStage = (id: StageId) =>
+    setStages((prev) => (prev.some((stage) => stage.id === id) ? prev : [...prev, createStage(id)]));
+
+  const handleRemoveStage = (id: StageId) =>
+    setStages((prev) => prev.filter((stage) => stage.id !== id));
+
+  const handleMoveStage = (index: number, direction: -1 | 1) =>
+    setStages((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+
+  const resetForm = () => {
+    setStages(defaultPipeline());
+    setSelectedFileId(null);
+    setError(null);
   };
 
-  // Handle file upload completion from UploadModal
-  const handleUploadComplete = useCallback((files: UploadFile[]) => {
-    setSelectedFiles(files);
-    setUploadModalOpen(false);
-    setError(null);
-  }, []);
-
-  // Validate and start reconstruction
-  const handleReconstruct = () => {
-    // Validate that at least one file is selected
-    if (selectedFiles.length === 0) {
-      setError('Please upload at least one file for reconstruction');
-      return;
-    }
-
-    // Validate parameters (at least one parameter with name)
-    const validParameters = parameters.filter(
-      (param) => param.name.trim() !== ''
-    );
-
-    if (validParameters.length === 0) {
-      setError('Please add at least one metabolite parameter with a name');
-      return;
-    }
-
-    // Clear error and proceed
-    setError(null);
-
-    // TODO: Send reconstruction request to backend
-    const reconstructionData = {
-      parameters: validParameters.map((param) => ({
-        name: param.name,
-        value: typeof param.value === 'string' ? parseFloat(param.value) || 0.0 : param.value,
-        isSource: param.isSource,
-        isSmallPeak: param.isSmallPeak,
-        isProduct: param.isProduct,
-        wiggle: typeof param.wiggle === 'string' ? parseFloat(param.wiggle) || 1.0 : param.wiggle,
-      })),
-      files: selectedFiles,
-    };
-
-    console.log('Starting reconstruction with data:', reconstructionData);
-
-    // Notify parent component
-    onReconstructStart?.();
-
-    // Close modal
-    handleClose();
-  };
-
-  // Reset and close modal state
   const handleClose = () => {
-    parameterIdCounter.current = 1;
-    setParameters([createDefaultParameter('1')]);
-    setSelectedFiles([]);
-    setError(null);
+    resetForm();
     onClose();
+  };
+
+  const handleProgressClose = () => {
+    pollAbort.current?.abort();
+    pollAbort.current = null;
+    setProgressOpen(false);
+    setJob(null);
+    setJobError(null);
+  };
+
+  const handleReconstruct = async () => {
+    if (!selectedFileId) {
+      setError('Select the MRD file to reconstruct');
+      return;
+    }
+    const invalid = validatePipeline(stages);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+    setJob(null);
+    setJobError(null);
+
+    let jobId: string;
+    try {
+      ({ jobId } = await startRecon(selectedFileId, buildPipelineStages(stages)));
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+      setSubmitting(false);
+      return;
+    }
+
+    setSubmitting(false);
+    setProgressOpen(true);
+    onReconstructStart?.();
+    resetForm();
+    onClose();
+
+    const controller = new AbortController();
+    pollAbort.current = controller;
+    try {
+      await pollJob(jobId, setJob, controller.signal);
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        setJobError(getApiErrorMessage(err));
+      }
+    }
   };
 
   return (
@@ -215,85 +244,82 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
         </DialogTitle>
 
         <DialogContent sx={{ pt: 2 }}>
-          {/* Error Alert */}
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
               {error}
             </Alert>
           )}
 
-          {/* Parameters Section */}
           <SectionBox>
-            <ParameterTable
-              parameters={parameters}
-              onAdd={handleAddParameter}
-              onNameChange={handleNameChange}
-              onValueChange={handleValueChange}
-              onValueBlur={handleValueBlur}
-              onWiggleChange={handleWiggleChange}
-              onWiggleBlur={handleWiggleBlur}
-              onFieldToggle={handleFieldToggle}
-              onRemove={handleRemoveParameter}
-            />
+            <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>
+              Source MRD File
+            </Typography>
+
+            {filesLoading ? (
+              <Typography variant="body2" color="textSecondary">
+                Loading files...
+              </Typography>
+            ) : files.length === 0 ? (
+              <Alert severity="info" variant="outlined">
+                No MRD files available. Upload and convert a scan first.
+              </Alert>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 280 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox" />
+                      <TableCell>File Name</TableCell>
+                      <TableCell>Study Date</TableCell>
+                      <TableCell>Owner</TableCell>
+                      <TableCell>Size</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {files.map((file) => (
+                      <TableRow
+                        key={file._id}
+                        hover
+                        selected={file._id === selectedFileId}
+                        onClick={() => setSelectedFileId(file._id)}
+                        sx={{ cursor: 'pointer' }}
+                      >
+                        <TableCell padding="checkbox">
+                          <Radio size="small" checked={file._id === selectedFileId} />
+                        </TableCell>
+                        <TableCell>{file.fileName}</TableCell>
+                        <TableCell>{new Date(file.studyDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{file.ownerName}</TableCell>
+                        <TableCell>
+                          {file.file_size
+                            ? `${(Number(file.file_size) / (1024 * 1024)).toFixed(2)} MB`
+                            : 'Unknown'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </SectionBox>
 
           <Divider sx={{ my: 3 }} />
 
-          {/* File Upload Section */}
           <SectionBox>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 2,
-              }}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                Select MRD Files
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setUploadModalOpen(true)}
-                size="small"
-              >
-                Select Files
-              </Button>
-            </Box>
-
-            {selectedFiles.length > 0 ? (
-              <Box>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                  {selectedFiles.length} file(s) selected
-                </Typography>
-                <Box sx={{ maxHeight: 150, overflow: 'auto' }}>
-                  {selectedFiles.map((file) => (
-                    <Paper
-                      key={file.id}
-                      variant="outlined"
-                      sx={{
-                        p: 1.5,
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <Typography variant="body2">{file.file.name}</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {(file.file.size / 1024 / 1024).toFixed(2)} MB
-                      </Typography>
-                    </Paper>
-                  ))}
-                </Box>
-              </Box>
-            ) : (
-              <Alert severity="info" variant="outlined">
-                No files selected. Click "Select Files" to upload MRD files for
-                reconstruction.
-              </Alert>
-            )}
+            <PipelineBuilder
+              stages={stages}
+              onAddStage={handleAddStage}
+              onRemoveStage={handleRemoveStage}
+              onMoveStage={handleMoveStage}
+              onAddPeak={handleAddPeak}
+              onLoadReferencePeaks={handleLoadReferencePeaks}
+              onPeakNameChange={handlePeakNameChange}
+              onPeakValueChange={handlePeakValueChange}
+              onPeakValueBlur={handlePeakValueBlur}
+              onPeakFieldToggle={handlePeakFieldToggle}
+              onRemovePeak={handleRemovePeak}
+              onTunableChange={handleTunableChange}
+            />
           </SectionBox>
         </DialogContent>
 
@@ -305,7 +331,7 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
             variant="contained"
             onClick={handleReconstruct}
             startIcon={<ReconstructIcon />}
-            disabled={selectedFiles.length === 0}
+            disabled={!selectedFileId || stages.length === 0 || submitting}
             sx={{
               minWidth: 140,
               background: theme.palette.primary.main,
@@ -319,15 +345,14 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
         </DialogActions>
       </StyledDialog>
 
-      {/* Reuse UploadModal for file selection */}
-      <UploadModal
-        open={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-        onUploadComplete={handleUploadComplete}
+      <ReconProgressModal
+        open={progressOpen}
+        onClose={handleProgressClose}
+        job={job}
+        error={jobError}
       />
     </>
   );
 };
 
 export default ReconstructModal;
-

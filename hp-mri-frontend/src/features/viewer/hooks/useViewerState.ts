@@ -1,14 +1,134 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MRDFile } from '../../../types/mrd';
 import { listMrdFiles } from '../../../api/mrdFiles';
-import { fetchMrdArrayList, fetchMrdArray } from '../../../api/viewer';
-import { getApiErrorMessage } from '../../../api/client';
 import {
+  fetchMrdArrayList,
+  fetchMrdArray,
+  fetchKSpace,
+  fetchWaveforms,
+} from '../../../api/viewer';
+import { getApiErrorMessage } from '../../../api/client';
+import { metaNumber, metaNumbers, metaString, metaStrings } from '../../../api/meta';
+import {
+  KSpaceResponse,
   MrdArrayDescriptor,
   MrdArrayKind,
   MrdImageData,
   MrdTraceData,
+  WaveformResponse,
 } from '../../../api/types';
+
+/** What a panel is showing. Most files support only 'array'. */
+export type ViewKind = 'array' | 'kspace' | 'spectrum' | 'maps' | 'waveforms';
+
+/** A voxel of a metabolite map, in tile coordinates rather than montage ones. */
+export interface VoxelSelection {
+  row: number;
+  col: number;
+}
+
+/**
+ * The arrays and meta the spectrum view draws, gathered from the several
+ * arrays the fit writes: the spectrum itself, the model, and the centers.
+ */
+export interface SpectrumBundle {
+  /** [series][sample][measurement] of the summed spectrum. */
+  samples: MrdTraceData;
+  transform: MrdArrayDescriptor['transform'];
+  xscalePpm: number[];
+  biggestPeakIndex: number | null;
+  biggestPeakName: string | null;
+  fitSamples: MrdTraceData | null;
+  fitLoss: number | null;
+  /** The fitted peak centers in ppm, one per peak. */
+  centersPpm: number[] | null;
+  peakNames: string[];
+  /** The offsets the peaks were named by, which only the maps array carries. */
+  peakOffsetsPpm: number[];
+}
+
+/** The metabolite maps and the peak names that label their rows. */
+export interface MapsBundle {
+  voxels: MrdImageData;
+  peakNames: string[];
+}
+
+const arrayBySuffix = (
+  arrays: MrdArrayDescriptor[],
+  suffix: string
+): MrdArrayDescriptor | null => arrays.find(array => array.name.endsWith(suffix)) ?? null;
+
+const mapsDescriptor = (arrays: MrdArrayDescriptor[]): MrdArrayDescriptor | null =>
+  arrayBySuffix(arrays, '_amplitude') ?? arrayBySuffix(arrays, '_area');
+
+/** A 1-D array however the trace layout carried it: one series, or one sample each. */
+const traceVector = (data: MrdTraceData): number[] =>
+  data.length === 1
+    ? data[0].map(sample => sample[0] ?? 0)
+    : data.map(series => series[0]?.[0] ?? 0);
+
+const waveformTraceCount = (waveforms: WaveformResponse): number =>
+  waveforms.pulses.length + waveforms.gradients.length + waveforms.acquisitions.length;
+
+const decideViews = (
+  arrays: MrdArrayDescriptor[],
+  kspace: KSpaceResponse | null,
+  waveforms: WaveformResponse | null
+): ViewKind[] => {
+  const views: ViewKind[] = [];
+  if (arrays.length > 0) views.push('array');
+  if (arrayBySuffix(arrays, '_global_spect')) views.push('spectrum');
+  if (mapsDescriptor(arrays)) views.push('maps');
+  if (kspace) views.push('kspace');
+  // acquisitions counts too: the pinned MRD fork emits no Pulse or Gradient
+  // item, so gating on those two would hide the view on every real file.
+  if (waveforms && waveformTraceCount(waveforms) > 0) views.push('waveforms');
+  return views;
+};
+
+const loadSpectrumBundle = async (
+  fileId: string,
+  arrays: MrdArrayDescriptor[]
+): Promise<SpectrumBundle | null> => {
+  const spectrumDesc = arrayBySuffix(arrays, '_global_spect');
+  if (!spectrumDesc) return null;
+
+  const fitDesc = arrayBySuffix(arrays, '_global_spect_fit');
+  const centersDesc = arrayBySuffix(arrays, '_lorentzian_centers_ppm');
+  const mapsDesc = mapsDescriptor(arrays);
+
+  const [spectrum, fit, centers] = await Promise.all([
+    fetchMrdArray(fileId, spectrumDesc.key),
+    fitDesc ? fetchMrdArray(fileId, fitDesc.key) : Promise.resolve(null),
+    centersDesc ? fetchMrdArray(fileId, centersDesc.key) : Promise.resolve(null),
+  ]);
+  if (spectrum.kind !== 'trace') return null;
+
+  return {
+    samples: spectrum.data,
+    transform: spectrum.transform,
+    xscalePpm: metaNumbers(spectrumDesc.meta, 'xscale_ppm'),
+    biggestPeakIndex: metaNumber(spectrumDesc.meta, 'biggest_peak_index'),
+    biggestPeakName: metaString(spectrumDesc.meta, 'biggest_peak_name'),
+    fitSamples: fit && fit.kind === 'trace' ? fit.data : null,
+    fitLoss: metaNumber(fitDesc?.meta, 'fit_loss') ?? metaNumber(spectrumDesc.meta, 'fit_loss'),
+    centersPpm: centers && centers.kind === 'trace' ? traceVector(centers.data) : null,
+    peakNames: metaStrings(centersDesc?.meta, 'peak_names'),
+    peakOffsetsPpm: metaNumbers(mapsDesc?.meta, 'peak_offsets_ppm'),
+  };
+};
+
+const loadMapsBundle = async (
+  fileId: string,
+  arrays: MrdArrayDescriptor[]
+): Promise<MapsBundle | null> => {
+  const desc = mapsDescriptor(arrays);
+  if (!desc) return null;
+
+  const array = await fetchMrdArray(fileId, desc.key);
+  if (array.kind !== 'image') return null;
+  return { voxels: array.data, peakNames: metaStrings(desc.meta, 'peak_names') };
+};
 
 // Per-panel viewer state. Each panel holds one MRD file and one array from it.
 export interface ViewerWindowState {
@@ -17,6 +137,14 @@ export interface ViewerWindowState {
   arrays: MrdArrayDescriptor[];
   arraysLoading: boolean;
   selectedArrayKey: string | null;
+  /** Which view the panel is showing, and which its file supports. */
+  viewKind: ViewKind;
+  availableViews: ViewKind[];
+  voxel: VoxelSelection | null;
+  kspace: KSpaceResponse | null;
+  waveforms: WaveformResponse | null;
+  spectrum: SpectrumBundle | null;
+  maps: MapsBundle | null;
   /** Which of the two renderers the loaded array needs. */
   kind: MrdArrayKind;
   imageArray: MrdImageData;
@@ -52,6 +180,13 @@ const createInitialWindow = (): ViewerWindowState => ({
   arrays: [],
   arraysLoading: false,
   selectedArrayKey: null,
+  viewKind: 'array',
+  availableViews: [],
+  voxel: null,
+  kspace: null,
+  waveforms: null,
+  spectrum: null,
+  maps: null,
   kind: 'image',
   imageArray: [],
   traceArray: [],
@@ -65,6 +200,14 @@ const createInitialWindow = (): ViewerWindowState => ({
   error: null,
   fileSelectorOpen: false,
 });
+
+const RESET_INDICES = {
+  channelIndex: [0],
+  sliceIndex: 0,
+  metaboliteIndex: 0,
+  measurementIndex: 0,
+  voxel: null,
+} satisfies Partial<ViewerWindowState>;
 
 export const useViewerState = () => {
   // Per-panel viewer state (length WINDOW_COUNT)
@@ -125,10 +268,7 @@ export const useViewerState = () => {
         traceArray: array.kind === 'trace' ? array.data : [],
         labels: array.labels,
         valueRange: [array.value_min, array.value_max],
-        channelIndex: [0],
-        sliceIndex: 0,
-        metaboliteIndex: 0,
-        measurementIndex: 0,
+        ...RESET_INDICES,
       });
     } catch (error) {
       console.error(`Error fetching MRD array for window ${index + 1}:`, error);
@@ -140,18 +280,40 @@ export const useViewerState = () => {
 
   // List the arrays in a file, then load the most useful one
   const loadArrayList = useCallback(async (fileId: string, index: number) => {
-    updateWindow(index, { arraysLoading: true, error: null, arrays: [], selectedArrayKey: null });
+    updateWindow(index, {
+      arraysLoading: true,
+      error: null,
+      arrays: [],
+      selectedArrayKey: null,
+      availableViews: [],
+      viewKind: 'array',
+      kspace: null,
+      waveforms: null,
+      spectrum: null,
+      maps: null,
+    });
 
     try {
-      const { arrays } = await fetchMrdArrayList(fileId);
-      updateWindow(index, { arrays, arraysLoading: false });
+      // The two extra views are probed alongside the list rather than after it,
+      // and neither probe failing says anything about the arrays themselves.
+      const [{ arrays }, kspace, waveforms] = await Promise.all([
+        fetchMrdArrayList(fileId),
+        fetchKSpace(fileId).catch(() => null),
+        fetchWaveforms(fileId).catch(() => null),
+      ]);
+      const availableViews = decideViews(arrays, kspace, waveforms);
+      updateWindow(index, { arrays, arraysLoading: false, availableViews, kspace, waveforms });
 
       if (arrays.length === 0) {
-        updateWindow(index, {
-          error: 'This file contains no arrays the viewer can display',
-          imageArray: [],
-          traceArray: [],
-        });
+        if (availableViews.length === 0) {
+          updateWindow(index, {
+            error: 'This file contains nothing the viewer can display',
+            imageArray: [],
+            traceArray: [],
+          });
+          return;
+        }
+        updateWindow(index, { viewKind: availableViews[0], ...RESET_INDICES });
         return;
       }
 
@@ -166,6 +328,41 @@ export const useViewerState = () => {
       });
     }
   }, [updateWindow, selectArray]);
+
+  // Switch a panel to another view of the same file, loading what it needs
+  const selectView = useCallback(async (index: number, kind: ViewKind) => {
+    const win = windows[index];
+    const fileId = win?.selectedFile?._id;
+    updateWindow(index, { viewKind: kind, error: null, ...RESET_INDICES });
+    if (!fileId) return;
+
+    if (kind === 'spectrum' && !win.spectrum) {
+      updateWindow(index, { loading: true });
+      try {
+        updateWindow(index, { spectrum: await loadSpectrumBundle(fileId, win.arrays) });
+      } catch (error) {
+        updateWindow(index, { error: `Failed to load spectrum: ${getApiErrorMessage(error)}` });
+      } finally {
+        updateWindow(index, { loading: false });
+      }
+      return;
+    }
+
+    if (kind === 'maps' && !win.maps) {
+      updateWindow(index, { loading: true });
+      try {
+        updateWindow(index, { maps: await loadMapsBundle(fileId, win.arrays) });
+      } catch (error) {
+        updateWindow(index, { error: `Failed to load metabolite maps: ${getApiErrorMessage(error)}` });
+      } finally {
+        updateWindow(index, { loading: false });
+      }
+    }
+  }, [windows, updateWindow]);
+
+  const setVoxel = useCallback((index: number, voxel: VoxelSelection | null) => {
+    updateWindow(index, { voxel });
+  }, [updateWindow]);
 
   // Open/close a window's file selector dialog
   const setFileSelectorOpen = useCallback((index: number, open: boolean) => {
@@ -218,11 +415,12 @@ export const useViewerState = () => {
     setSliceIndex,
     setMetaboliteIndex,
     setMeasurementIndex,
+    setVoxel,
 
     // Available files
     availableFiles, filesLoading,
 
     // Actions
-    selectArray, handleFileSelect, fetchMRDFiles
+    selectArray, selectView, handleFileSelect, fetchMRDFiles
   };
 };
