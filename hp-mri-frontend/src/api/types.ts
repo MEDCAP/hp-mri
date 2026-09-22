@@ -132,7 +132,8 @@ export type PeakModifier = 's' | 't' | 'm';
 export interface ReconPeak {
   name: string;
   ppm: number;
-  modifiers: PeakModifier[];
+  /** Concatenated modifier letters, e.g. 'tm', which become the `-ala_tm` suffix. */
+  modifiers: string;
 }
 
 /**

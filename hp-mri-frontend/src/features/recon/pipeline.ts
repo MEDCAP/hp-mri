@@ -118,7 +118,10 @@ function toReconPeak(peak: Parameter): ReconPeak {
   return {
     name: peak.name.trim(),
     ppm: Number(peak.value),
-    modifiers: peakModifiers(peak),
+    // Concatenated, not a list: the modifiers are the suffix of the CLI flag the
+    // recon stage builds, so "t" and "m" become `-ala_tm`. The form keeps them
+    // as an array because they are three checkboxes.
+    modifiers: peakModifiers(peak).join(''),
   };
 }
 
