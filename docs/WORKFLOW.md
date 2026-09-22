@@ -7,7 +7,18 @@
    git clone <repo> && cd hp-mri
    git submodule update --init        # pulls MEDCAP/mrd-fork into server/app/external
    ```
-2. **AWS credentials** (needed for S3 + MongoDB Atlas, both use IAM auth)
+2. **Tyger CLI**, needed only to run the conversion and reconstruction pipeline
+   ```bash
+   tyger login status        # https://spinhance.tyger.cloud
+   ```
+   `app/tyger/runner.py` shells out to this binary, and the backend image ships it
+   pinned to v0.14.5 by checksum. Without it the file browser and viewer work as
+   normal and only the convert and recon routes fail.
+
+   The pipeline cannot actually run today: every `ghcr.io/medcap/*` image returns
+   403 to an anonymous pull and the cluster has no pull secret for that namespace,
+   so a run transfers its buffer and then dies in `ImagePullBackOff`.
+3. **AWS credentials** (needed for S3 + MongoDB Atlas, both use IAM auth)
    ```bash
    cd server && ./setup_aws.sh
    ```
@@ -18,7 +29,7 @@
    Needed to reach real data, but no longer needed merely to *start* the app: S3
    access is resolved on first use, so `create_app()` and the whole test suite work
    with no credentials present.
-3. **Backend**
+4. **Backend**
    ```bash
    cd server
    python -m venv venv && source venv/bin/activate
@@ -42,7 +53,7 @@
 
    `FLASK_ENV` defaults to `development` → `DevelopmentConfig` (CORS for :5173/:3000,
    MONGODB-AWS URI built from the env file).
-4. **Frontend**
+5. **Frontend**
    ```bash
    cd hp-mri-frontend
    npm install

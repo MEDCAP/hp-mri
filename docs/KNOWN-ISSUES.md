@@ -38,10 +38,22 @@ here by their F-numbers. The adoption plan is `.claude/ARCHITECT.md`.
 
 ## Backend structure / debt
 
-- **Reconstruction has no execution model.** `mrd2recon` runs minutes-long fits;
-  gunicorn runs `--timeout 60` and the ALB idle timeout matches. `POST /api/recon`
-  is registered and returns 501 until this is resolved — it needs a job queue
-  (AWS Batch or a Step Functions-invoked Fargate task), not a bigger container.
+- **Reconstruction runs on threads, not a queue.** Closed the 501: the fits run as
+  container stages on a tyger cluster and `POST /api/recon` answers `202 {jobId}`,
+  so the 60-second gunicorn and ALB timeouts no longer bound the work. What is left
+  is durability. The job is advanced by a `threading.Thread` in the web worker, so a
+  worker restart abandons it; a read detects that by stage timeout and reports the
+  job failed, which is a presentation fix rather than a durable one. AWS Batch or a
+  Step Functions-invoked Fargate task is still the right end state.
+- **The pipeline images are not pullable.** Every `ghcr.io/medcap/*` image returns
+  403 to an anonymous pull and the tyger cluster holds no pull secret for that
+  namespace, so a run reaches the cluster, transfers its buffer, and then dies in
+  `ImagePullBackOff`. Nothing in the convert or recon path has been verified end to
+  end because of this. Push the images or give the cluster a credential.
+- **Two codespecs in `mrs_to_mrd/tyger_deploy/` are stale.** `convert_epsi` and
+  `convert_spectral` name images with no build target in that repo's Dockerfile and
+  pass `--input/--output`, which `MRStomrd2.py`'s parser does not accept. Only
+  `convert` is registered here. Each becomes one table row once its image exists.
 - **Global mutable state** in `lorn.py`, `mrd2recon.py`, `hupc_processing.py`.
   Non-reentrant and unsafe across gunicorn workers. This is most of the remaining
   pylint gap, and is left visible rather than disabled away.

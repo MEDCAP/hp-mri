@@ -53,6 +53,7 @@ Owns file metadata and the upload lifecycle.
 | GET | `/api/mrd-files/<file_id>` | Full metadata for one file (ObjectId) |
 | POST | `/api/uploads/init` | Validate filename/owner/size, mint a presigned PUT → `{uploadId, uploadUrl, expiresIn}`. No database write |
 | POST | `/api/uploads/<upload_id>/complete` | `head_object` the staged file (this is where the size limit is actually enforced), parse the MRD header, server-side `copy_object` to `mrd_files/{id}`, insert the Mongo doc → `201 {fileId, s3_key, metadata}` |
+| POST | `/api/uploads/<upload_id>/convert` | Aggregate a staged `.tar` of one scan directory into a single `.mrd2` through the tyger `convert` stage, then store it as an ordinary file. Runs for minutes, so it answers `202 {jobId}` and the work happens on a job |
 | POST | `/api/uploads/<upload_id>/abort` | Discard a staged object after a client cancel. Always `204`; anything missed is reaped by the staging lifecycle rule |
 | DELETE | `/api/mrd-file` | Batch delete `{ids: [...]}` from S3 + Mongo, per-file result list |
 | GET | `/api/mrd-file/<file_id>/download` | Not implemented — returns `501`. (The path previously declared an `<int:>` converter, which would have rejected every real ObjectId.) |
@@ -71,8 +72,10 @@ Owns MRD array extraction and the legacy per-magnet pipelines.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/viewer/<file_id>/arrays` | Describe every renderable array without bulk data → `{file_id, arrays, unsupported}` |
+| GET | `/api/viewer/<file_id>/arrays` | Describe every renderable array without bulk data → `{file_id, arrays, unsupported}`. Each descriptor carries the array's MRD `meta`, which is where the ppm axis and the peak names live |
 | GET | `/api/viewer/<file_id>/arrays/<key>` | One named array: descriptor + `value_min`/`value_max` + `data`. Values are **unscaled** — callers set their own colour scale |
+| GET | `/api/viewer/<file_id>/kspace` | The readout folded on the gradient switch, summed over views and repetitions server-side, so a figure that needs thousands of acquisitions costs one small array per encoding → `{nswitch, encodings}`. `404` when the file carries no EPSI readout |
+| GET | `/api/viewer/<file_id>/waveforms` | Pulse, gradient and acquisition time-series, decimated server-side, with the decimation stated in the response. The pinned MRD fork carries no `Pulse` or `Gradient` item today, so those two groups come back empty |
 | GET | `/api/get_count_datasets/<magnet_type>` | Dataset count; HUPC / Clinical / MR Solutions dispatch |
 | POST | `/api/get_proton_picture/<int:n>` | Proton DICOM slice as PNG; HUPC implemented |
 | POST | `/api/get_hp_mri_data/<int:n>` | EPSI spectral data with threshold; HUPC implemented, others return 0 |
@@ -89,12 +92,50 @@ measurements and discarded units) is why `value_min`/`value_max` are returned in
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/recon` | EPSI reconstruction. Registered, returns `501` until the execution model is decided |
+| POST | `/api/recon` | Run a chain of tyger stages over a stored file → `202 {jobId}`. Body `{fileId, stages: [{id, params}]}`, typically `shift` then `recon` |
 
-The engine (`app/recon/utils/mrd2recon.py`) is complete as a library and CLI. What
-blocks the endpoint is scheduling, not maths: `mrd2recon` runs minutes-long fits and
-gunicorn runs with `--timeout 60`, so this needs a job queue rather than a synchronous
-handler.
+The reconstruction does not run in this process. It runs as container stages on a tyger
+cluster, and `app/recon/utils/mrd2recon.py` is not imported by the route; the code that
+runs is the `ghcr.io/medcap/mrs-recon` image. The chain streams S3 → temp → stages →
+temp → S3, so a scan is never held in memory as a whole.
+
+The output is stored as an ordinary mrdfile document, which is what makes it appear in
+the file list and the viewer like any other file. `parentFileId` and `reconStages` on
+that document trace it back to the scan it came from.
+
+### `jobs` blueprint — `server/app/jobs/`
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/jobs/<job_id>` | One job: status, per-stage status, `output_file_id` once it succeeds |
+| GET | `/api/jobs?fileId=&status=` | Recent jobs, newest first |
+
+`service.start_job(kind, payload, work_fn)` is the seam both `convert` and `recon` use.
+It validates stage ids and their parameters synchronously, so a bad request fails the
+POST rather than a background thread nobody is waiting on, then runs `work_fn` on a
+thread that holds its own app context and its own boto3 session.
+
+A thread is not a queue, and the docstring says so. Gunicorn runs 2 sync workers with
+`--timeout 60`, so a worker restart abandons whatever was in flight. Rather than a
+reaper, a read compares a running job's current stage against that stage's timeout and
+reports the job failed once it is past it. That is a presentation fix for a durability
+problem.
+
+### `tyger` package — `server/app/tyger/`
+
+`stages.py` declares each pipeline stage as one row in a table (image, cpu, memory, node
+pool, cluster, timeout, and how to build its argv) and renders a codespec per run,
+because the peak arguments vary and the codespecs cannot stay static files. It is also
+where untrusted input stops: everything built there becomes argv on a container, so a
+peak name is matched against a pattern and refused rather than escaped.
+
+Three stages are registered, not the five `mrs_to_mrd/tyger_deploy/` suggests. That
+repo's Dockerfile builds only `convert`, `shift` and `recon`; the epsi and spectral
+codespecs name images that were never built and pass `--input/--output`, which the
+converter's parser does not accept.
+
+`runner.py` shells out to the tyger CLI, which ships in the image pinned by checksum,
+and chains stages over file objects.
 
 `simulator` and `groups` are dead and unregistered: `simulator/routes.py` decorates
 with `@mrds_bp` without importing it and reads an undefined `db_simulator`, so the
@@ -174,7 +215,7 @@ uses bare axios because a presigned S3 URL must not carry the API client's confi
 |---|---|
 | `run.py` | Entry point: `create_app().run(port=5000)`; gunicorn uses `run:create_app()` |
 | `config.py` | `Config` (`S3_BUCKET` and `MONGO_DB_NAME`, both env-overridable, `MAX_CONTENT_LENGTH` 1 MiB, `UPLOAD_STAGING_PREFIX`, `MAX_UPLOAD_BYTES` 2 GiB, `PRESIGN_EXPIRY_SECONDS` 3600) → `DevelopmentConfig` (loads `.env.development`, builds the MONGODB-AWS URI from federated creds, CORS for localhost:5173/3000) / `ProductionConfig` (hardcoded Atlas URI, DEBUG off, **and no CORS origins at all**) |
-| `app/__init__.py` | App factory; configures stdout logging, installs the shared error handlers, registers `mrds_bp` + `viewer_bp` + `recon_bp`; creates `app.mongo_client`; `/api/health`. `CORS()` is still called **only** in the development branch |
+| `app/__init__.py` | App factory; configures stdout logging, installs the shared error handlers, registers `mrds_bp` + `viewer_bp` + `recon_bp` + `jobs_bp`; creates `app.mongo_client`; `/api/health`. `CORS()` is still called **only** in the development branch |
 | `app/auth.py` | Cognito ID-token validation, `@require_auth`, and the `REQUIRE_AUTH` flag |
 | `app/errors.py` | Domain exceptions (`ApiError`, `BadRequest`, `NotFound`, `StorageUnavailable`) and `register_error_handlers()` — the single error envelope |
 | `data.py` | The data layer, ~490 lines mixing four concerns: Mongo CRUD (`list_all_mrdfiles`, `get_mrdfile_by_id`, `insert_mrdfile_header`, `insert_mrdfiles_batch`, `delete_mrdfiles_by_ids`), MRD header parsing (`read_mrdfile_header`), S3 fetch with a 3-entry `_MRD_BYTES_CACHE` LRU, and MRD stream walking + numpy reshaping (`_walk_mrd_arrays`, `_describe_item`, `_to_image_6d`, `_to_trace_3d`) behind `list_mrd_arrays` / `get_mrd_array`. `get_db()` reads `MONGO_DB_NAME` from config; `get_s3_client()` is the process-wide boto3 client |
