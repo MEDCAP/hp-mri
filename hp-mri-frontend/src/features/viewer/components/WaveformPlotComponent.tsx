@@ -2,10 +2,10 @@ import React, { useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { Data, Layout } from 'plotly.js';
 import { Box, Typography } from '@mui/material';
-import { WaveformResponse, WaveformTrace } from '../../../api/types';
+import { WaveformGroup, WaveformResponse, WaveformTrace } from '../../../api/types';
 import { usePlotSize } from '../hooks/usePlotSize';
 
-const GROUP_LABELS: { key: keyof WaveformResponse; label: string }[] = [
+const GROUP_LABELS: { key: WaveformGroup; label: string }[] = [
   { key: 'pulses', label: 'pulses' },
   { key: 'gradients', label: 'gradients' },
   { key: 'acquisitions', label: 'acquisitions' },
@@ -15,7 +15,13 @@ interface WaveformPlotProps {
   waveforms: WaveformResponse;
 }
 
-/** Pulses, gradients and acquisitions against time, stacked on a shared axis. */
+/**
+ * Pulses, gradients and acquisitions against time, stacked on a shared axis.
+ *
+ * Only the groups that carry traces are laid out. The pinned MRD fork emits no
+ * Pulse or Gradient item, so on every real file today this is the acquisitions
+ * alone, which is an honest empty group rather than a missing plot.
+ */
 const WaveformPlotComponent: React.FC<WaveformPlotProps> = ({ waveforms }) => {
   const { containerRef, width, height } = usePlotSize();
 
@@ -36,7 +42,7 @@ const WaveformPlotComponent: React.FC<WaveformPlotProps> = ({ waveforms }) => {
           type: 'scatter' as const,
           mode: 'lines' as const,
           line: { width: 1 },
-          name: `${group.label} ${index}`,
+          name: trace.name || `${group.label} ${index}`,
           xaxis: 'x',
           yaxis: row === 0 ? 'y' : `y${row + 1}`,
         }))

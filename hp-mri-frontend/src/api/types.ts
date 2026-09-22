@@ -178,15 +178,36 @@ export interface KSpaceResponse {
   encodings: KSpaceEncoding[];
 }
 
-/** One decimated time series. */
+/** One time series, decimated server-side. `t` is in seconds. */
 export interface WaveformTrace {
+  name: string;
   t: number[];
   values: number[];
+  /** Samples the trace was decimated from, and the stride that took. */
+  samples: number;
+  stride: number;
 }
 
-/** Response body for GET /viewer/:id/waveforms. */
+/** What the server dropped to keep the response a sane size. */
+export interface WaveformDecimation {
+  max_points_per_trace: number;
+  max_items_per_group: number;
+  items_omitted: number;
+}
+
+/**
+ * Response body for GET /viewer/:id/waveforms.
+ *
+ * `pulses` and `gradients` are empty on every real file today: the pinned MRD
+ * fork carries no Pulse or Gradient stream item at all, so only `acquisitions`
+ * has traces. That is an empty group, not a failure.
+ */
 export interface WaveformResponse {
   pulses: WaveformTrace[];
   gradients: WaveformTrace[];
   acquisitions: WaveformTrace[];
+  decimation: WaveformDecimation;
 }
+
+/** The groups of WaveformResponse that hold traces. */
+export type WaveformGroup = 'pulses' | 'gradients' | 'acquisitions';

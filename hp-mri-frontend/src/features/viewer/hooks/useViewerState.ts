@@ -67,6 +67,9 @@ const traceVector = (data: MrdTraceData): number[] =>
     ? data[0].map(sample => sample[0] ?? 0)
     : data.map(series => series[0]?.[0] ?? 0);
 
+const waveformTraceCount = (waveforms: WaveformResponse): number =>
+  waveforms.pulses.length + waveforms.gradients.length + waveforms.acquisitions.length;
+
 const decideViews = (
   arrays: MrdArrayDescriptor[],
   kspace: KSpaceResponse | null,
@@ -77,9 +80,9 @@ const decideViews = (
   if (arrayBySuffix(arrays, '_global_spect')) views.push('spectrum');
   if (mapsDescriptor(arrays)) views.push('maps');
   if (kspace) views.push('kspace');
-  if (waveforms && (waveforms.pulses.length > 0 || waveforms.gradients.length > 0)) {
-    views.push('waveforms');
-  }
+  // acquisitions counts too: the pinned MRD fork emits no Pulse or Gradient
+  // item, so gating on those two would hide the view on every real file.
+  if (waveforms && waveformTraceCount(waveforms) > 0) views.push('waveforms');
   return views;
 };
 
