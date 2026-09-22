@@ -4,6 +4,7 @@ import {
   Typography,
   TextField,
   IconButton,
+  Button,
   Table,
   TableBody,
   TableCell,
@@ -11,33 +12,25 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Radio,
+  Checkbox,
   Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  HelpOutline as HelpIcon
+  HelpOutline as HelpIcon,
+  Science as ReferenceIcon
 } from '@mui/icons-material';
-
-export interface Parameter {
-  id: string;
-  name: string;            // name of the metabolite
-  value: number | string;  // ppm offset of the metabolite (frequency offset)
-  isSource: boolean;       // flag if the metabolite is source of the HP imaging
-  isSmallPeak: boolean;    // flag if the metabolite not the tallest peak
-  isProduct: boolean;      // flag if the metabolite is the product of the metabolism
-  wiggle: number | string; // wiggle factor to allow +-variations of peak ppm from offset
-}
+import { Parameter } from './pipeline';
+import { PEAK_NAME_HINT, isValidPeakName } from './reconstructValidation';
 
 interface ParameterTableProps {
   parameters: Parameter[];
   onAdd: () => void;
+  onLoadReference: () => void;
   onNameChange: (id: string, value: string) => void;
   onValueChange: (id: string, value: string) => void;
   onValueBlur: (id: string) => void;
-  onWiggleChange: (id: string, value: string) => void;
-  onWiggleBlur: (id: string) => void;
   onFieldToggle: (id: string, field: 'isSource' | 'isSmallPeak' | 'isProduct') => void;
   onRemove: (id: string) => void;
 }
@@ -45,11 +38,10 @@ interface ParameterTableProps {
 const ParameterTable: React.FC<ParameterTableProps> = ({
   parameters,
   onAdd,
+  onLoadReference,
   onNameChange,
   onValueChange,
   onValueBlur,
-  onWiggleChange,
-  onWiggleBlur,
   onFieldToggle,
   onRemove,
 }) => {
@@ -63,18 +55,24 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
           mb: 2,
         }}
       >
-        <Typography variant="h6" fontWeight="medium">
-          Metabolite Parameters
+        <Typography variant="subtitle1" fontWeight="medium">
+          Metabolite Peaks
         </Typography>
-        <Tooltip title="Add parameter">
-          <IconButton
-            color="primary"
-            onClick={onAdd}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
             size="small"
+            variant="outlined"
+            startIcon={<ReferenceIcon />}
+            onClick={onLoadReference}
           >
-            <AddIcon />
-          </IconButton>
-        </Tooltip>
+            Load reference peaks
+          </Button>
+          <Tooltip title="Add peak">
+            <IconButton color="primary" onClick={onAdd} size="small">
+              <AddIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
       <TableContainer component={Paper} variant="outlined">
@@ -82,7 +80,12 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>
-                Metabolite Name
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Metabolite Name
+                  <Tooltip title={PEAK_NAME_HINT} placement="top">
+                    <HelpIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+                  </Tooltip>
+                </Box>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>
                 Frequency Offset (ppm)
@@ -98,7 +101,7 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
               <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 90 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                   Small Peak
-                  <Tooltip title="Check if this metabolite is the small peaks to fit to" placement="top">
+                  <Tooltip title="Check if this metabolite is one of the small peaks to fit to" placement="top">
                     <HelpIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
                   </Tooltip>
                 </Box>
@@ -111,99 +114,78 @@ const ParameterTable: React.FC<ParameterTableProps> = ({
                   </Tooltip>
                 </Box>
               </TableCell>
-              <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 80 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                  Wiggle
-                  <Tooltip title="Allowed variation in PPM from offset for peak fitting (default value is 1.0=±1/2 ppm variation)" placement="top">
-                    <HelpIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
-                  </Tooltip>
-                </Box>
-              </TableCell>
               <TableCell align="center" sx={{ width: 50 }}>
                 Actions
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {parameters.map((param) => (
-              <TableRow key={param.id}>
-                <TableCell>
-                  <TextField
-                    size="small"
-                    fullWidth
-                    placeholder="e.g., Pyruvate, Lactate"
-                    value={param.name}
-                    onChange={(e) =>
-                      onNameChange(param.id, e.target.value)
-                    }
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>
-                  <TextField
-                    size="small"
-                    fullWidth
-                    placeholder="0.00"
-                    value={param.value}
-                    onChange={(e) =>
-                      onValueChange(param.id, e.target.value)
-                    }
-                    onBlur={() => onValueBlur(param.id)}
-                    variant="outlined"
-                    type="text"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <Radio
-                    checked={param.isSource}
-                    onChange={() => onFieldToggle(param.id, 'isSource')}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <Radio
-                    checked={param.isSmallPeak}
-                    onChange={() => onFieldToggle(param.id, 'isSmallPeak')}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <Radio
-                    checked={param.isProduct}
-                    onChange={() => onFieldToggle(param.id, 'isProduct')}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <TextField
-                    size="small"
-                    placeholder="1.0"
-                    value={param.wiggle}
-                    onChange={(e) =>
-                      onWiggleChange(param.id, e.target.value)
-                    }
-                    onBlur={() => onWiggleBlur(param.id)}
-                    variant="outlined"
-                    type="text"
-                    sx={{ width: 80 }}
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <Tooltip title="Remove parameter">
-                    <span>
-                      <IconButton
-                        size="small"
-                        onClick={() => onRemove(param.id)}
-                        disabled={parameters.length === 1}
-                        color="error"
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
+            {parameters.map((param) => {
+              const nameError = param.name.trim() !== '' && !isValidPeakName(param.name.trim());
+              return (
+                <TableRow key={param.id}>
+                  <TableCell>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="e.g., pyr, lac"
+                      value={param.name}
+                      onChange={(e) => onNameChange(param.id, e.target.value)}
+                      error={nameError}
+                      helperText={nameError ? 'Letters and digits only, no underscore' : ''}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="0.00"
+                      value={param.value}
+                      onChange={(e) => onValueChange(param.id, e.target.value)}
+                      onBlur={() => onValueBlur(param.id)}
+                      variant="outlined"
+                      type="text"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={param.isSource}
+                      onChange={() => onFieldToggle(param.id, 'isSource')}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={param.isSmallPeak}
+                      onChange={() => onFieldToggle(param.id, 'isSmallPeak')}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={param.isProduct}
+                      onChange={() => onFieldToggle(param.id, 'isProduct')}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Remove peak">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => onRemove(param.id)}
+                          disabled={parameters.length === 1}
+                          color="error"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
