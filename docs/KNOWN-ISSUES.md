@@ -88,7 +88,10 @@ occurrences.
 | # | Issue | Location |
 |---|---|---|
 | FE-1 | GIF export is a no-op — the handler is literally `const onExportGif = () => {};` and `gif.js.optimized` is never imported | `features/viewer/ViewerPage.tsx:99` |
-| FE-2 | Reconstruction never calls the backend | `features/recon/ReconstructModal.tsx:159` (blocked on the recon execution model) |
+| FE-2 | ~~Reconstruction never calls the backend~~ Closed: `ReconstructModal` posts a user-built pipeline to `POST /api/recon` and follows the job stage by stage | `features/recon/` |
+| FE-4 | The fitted spectrum shows magnitude only. `data.py` reduces every complex array to its magnitude before shipping it, so `*_global_spect` and its fit arrive as one series and the fit's phase behaviour is invisible. The plot says so in its subtitle rather than inventing an imaginary trace. Fixing it means the viewer endpoints shipping complex arrays as two series | `data.py`, `features/viewer/components/SpectrumPlotComponent.tsx` |
+| FE-5 | Metabolite maps arrive flattened. A `(npeaks, nreps, ny, nx)` array comes through the array endpoint with its two leading axes folded into the channel axis, so the component reconstructs `channel = ipeak * nreps + irep` from `peak_names`. A maps array with no `peak_names` meta falls back to a weaker layout. The endpoint should say which axis is which | `data.py`, `features/viewer/components/MetaboliteMapComponent.tsx` |
+| FE-6 | The four MRS plot components have never rendered real data, because no file has been reconstructed yet (see the registry issue above). The peak delta labels in particular need a side-by-side against `mrdplot.py --save` on the same file before anyone trusts a number they print | `features/viewer/components/` |
 | FE-3 | `SimulatorPage` calls a route that does not exist | `api/simulator.ts` (blocked on B4) |
 | FE-4 | Cognito pool and client IDs are hardcoded as fallbacks; remove once every build supplies `VITE_COGNITO_*` | `config/env.ts:9-10` |
 | FE-6 | Sign-up and account pages are TODO stubs | `features/auth/` |
