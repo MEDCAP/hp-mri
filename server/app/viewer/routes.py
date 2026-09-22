@@ -10,7 +10,7 @@ from app.viewer.magnets import (
 )
 from app.auth import require_auth
 from app.errors import BadRequest, NotFound
-from data import list_mrd_arrays, get_mrd_array
+from data import list_mrd_arrays, get_mrd_array, reduce_kspace, waveform_traces
 
 
 from app.viewer import viewer_bp
@@ -98,6 +98,45 @@ def fetch_array_from_bucket(file_id: str, key: str):
         # A bare KeyError elsewhere is a defect; here it is a real 404, so it is
         # translated at the only place that knows which of the two it is.
         raise NotFound(f"Unknown array key: {key}") from None
+
+
+@viewer_bp.route("/viewer/<file_id>/kspace", methods=["GET"])
+@require_auth
+def fetch_kspace(file_id: str):
+    """
+    The file's k-space, folded on the gradient switch and summed on the server.
+
+    The acquisitions themselves are not offered as arrays and are not offered
+    here either: a raw file holds thousands, and this is the reduction they are
+    read through.
+
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - nswitch: the switch count the converter recorded
+        - encodings: one entry per encoding space, each
+          {ref, name, total, discard_pre, kept, echo, signal, brightest} where
+          signal is nswitch x total summed over views and repetitions, and
+          brightest is the peak column of each switch
+    """
+    kspace = reduce_kspace(file_id)
+    if kspace is None:
+        raise NotFound("This file carries no EPSI readout.")
+    return jsonify(kspace), 200
+
+
+@viewer_bp.route("/viewer/<file_id>/waveforms", methods=["GET"])
+@require_auth
+def fetch_waveforms(file_id: str):
+    """
+    The file's pulse, gradient and acquisition time-series, decimated.
+
+    @param file_id: file_id in mongodb of the mrd file
+    @return
+        - pulses / gradients / acquisitions: traces of
+          {name, t, values, samples, stride}, t in seconds
+        - decimation: the thinning applied, and what was left out
+    """
+    return jsonify(waveform_traces(file_id)), 200
 
 
 @viewer_bp.route("/get_count_datasets/<magnet_type>", methods=["GET"])

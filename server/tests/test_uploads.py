@@ -5,10 +5,12 @@ The validation cases are the reason `_validated_upload_fields` exists: init and
 complete used to check the same fields separately and word the failures
 differently.
 """
+import io
 from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
+from bson import ObjectId
 
 OID = "507f1f77bcf86cd799439011"
 
@@ -179,6 +181,137 @@ def test_complete_promotes_by_server_side_copy_and_inserts_metadata(client):
     # The document id must equal the upload id, or the S3 key and the Mongo _id
     # diverge and the file becomes unreachable.
     assert str(insert.call_args.kwargs["doc_id"]) == OID
+
+
+# --- upload kinds and conversion ---------------------------------------------
+#
+# A raw scan is a folder tarred in the browser, so it arrives through the same
+# presigned upload as an .mrd2 and differs only in what it is allowed to be
+# called and what happens to it afterwards.
+
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ({"filename": "scan.tar", "ownerName": "kento", "fileSize": 1},
+         "File type .tar not allowed. Supported: .bin, .mrd, .mrd2"),
+        ({"filename": "scan.mrd2", "ownerName": "kento", "fileSize": 1,
+          "kind": "raw-tar"},
+         "File type .mrd2 not allowed. Supported: .tar"),
+        ({"filename": "scan.tar", "ownerName": "kento", "fileSize": 1,
+          "kind": "zip"},
+         "Upload kind zip not allowed. Supported: mrd, raw-tar"),
+    ],
+)
+def test_init_holds_each_kind_to_its_own_extensions(client, body, expected):
+    response = client.post("/api/uploads/init", json=body)
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected
+
+
+def test_init_signs_a_raw_tar_upload(client):
+    s3 = mock.Mock()
+    s3.generate_presigned_url.return_value = "https://s3.example/put"
+
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3):
+        response = client.post(
+            "/api/uploads/init",
+            json={"filename": "ischemia_121_1.tar", "ownerName": "kento",
+                  "fileSize": 1024, "kind": "raw-tar"},
+        )
+
+    assert response.status_code == 200
+
+
+def test_complete_never_accepts_a_tar_whatever_the_body_says(client):
+    """
+    complete promotes the staged object as a readable MRD file, so its kind is
+    not the client's to choose.
+    """
+    response = client.post(
+        f"/api/uploads/{OID}/complete",
+        json={"filename": "scan.tar", "ownerName": "kento", "kind": "raw-tar"},
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == (
+        "File type .tar not allowed. Supported: .bin, .mrd, .mrd2"
+    )
+
+
+@pytest.mark.parametrize(
+    "upload_id, body, expected",
+    [
+        ("not-an-objectid",
+         {"filename": "scan.tar", "ownerName": "kento", "converter": "convert"},
+         "Invalid upload id"),
+        (OID, {"filename": "scan.mrd2", "ownerName": "kento", "converter": "convert"},
+         "File type .mrd2 not allowed. Supported: .tar"),
+        (OID, {"filename": "scan.tar", "ownerName": "kento"},
+         "converter is required"),
+        (OID, {"filename": "scan.tar", "ownerName": "kento",
+               "converter": "convert_epsi"},
+         "'convert_epsi' is not a converter. Supported: convert."),
+        # A real stage, but not one that turns a tar into an MRD stream. Refused
+        # at the request rather than inside the container, where the recon image
+        # would fail on an input it cannot read.
+        (OID, {"filename": "scan.tar", "ownerName": "kento",
+               "converter": "recon"},
+         "'recon' is not a converter. Supported: convert."),
+    ],
+)
+def test_convert_rejects_bad_input(client, upload_id, body, expected):
+    response = client.post(f"/api/uploads/{upload_id}/convert", json=body)
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected
+
+
+def test_convert_runs_the_converter_and_stores_the_result_as_a_file(
+    db_app, db_client, monkeypatch, fake_s3, await_job
+):
+    """
+    The whole convert path with the tyger call and S3 replaced: the staged tar
+    goes through the converter, the output lands at mrd_files/{upload id}, the
+    document carries that key, and the staging object is dropped.
+    """
+    def fake_chain(stage_specs, source_fp, stage_context=None):
+        assert [spec["id"] for spec in stage_specs] == ["convert"]
+        with stage_context("convert"):
+            assert source_fp.read() == b"tar bytes"
+        return io.BytesIO(b"mrd2 bytes")
+
+    monkeypatch.setattr("app.mrds.routes.run_chain", fake_chain)
+    monkeypatch.setattr(
+        "app.mrds.routes.read_mrdfile_header",
+        lambda source, **kwargs: {"fileName": "MID1-epsi",
+                                  "ownerName": kwargs["owner_name"],
+                                  "file_size": kwargs["file_size"]},
+    )
+
+    staging_key = f"{db_app.config['UPLOAD_STAGING_PREFIX']}{OID}"
+    fake_s3.staged[staging_key] = b"tar bytes"
+
+    response = db_client.post(
+        f"/api/uploads/{OID}/convert",
+        json={"filename": "scan.tar", "ownerName": "kento", "converter": "convert"},
+    )
+    assert response.status_code == 202
+
+    job = await_job(response.get_json()["jobId"])
+    assert job["status"] == "succeeded", job.get("error")
+    assert job["kind"] == "convert"
+    assert job["staging_upload_id"] == OID
+    assert job["output_file_id"] == OID
+    assert [s["status"] for s in job["stages"]] == ["succeeded"]
+
+    with db_app.app_context():
+        from data import get_db  # pylint: disable=import-outside-toplevel
+
+        document = get_db().mrdfiles.find_one({"_id": ObjectId(OID)})
+
+    assert document["s3_key"] == f"mrd_files/{OID}"
+    assert document["ownerName"] == "kento"
+    assert document["file_size"] == len(b"mrd2 bytes")
+    assert fake_s3.uploaded[f"mrd_files/{OID}"] == b"mrd2 bytes"
+    assert staging_key in fake_s3.deleted
 
 
 def test_abort_is_always_204_even_for_a_junk_id(client):

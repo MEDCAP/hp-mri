@@ -119,11 +119,11 @@ def test_download_is_honestly_not_implemented(client):
     assert response.get_json()["code"] == "not_implemented"
 
 
-def test_recon_is_registered_and_reports_501(client):
-    """Registered so it reports its status, instead of 404ing as if unknown."""
+def test_recon_is_registered(client):
+    """Its own behaviour lives in tests/test_recon.py; this is the wiring."""
     response = client.post("/api/recon", json={})
-    assert response.status_code == 501
-    assert response.get_json()["code"] == "not_implemented"
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "fileId is required"
 
 
 def test_health_reports_the_mode(client):
