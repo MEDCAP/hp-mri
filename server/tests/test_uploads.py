@@ -249,7 +249,13 @@ def test_complete_never_accepts_a_tar_whatever_the_body_says(client):
          "converter is required"),
         (OID, {"filename": "scan.tar", "ownerName": "kento",
                "converter": "convert_epsi"},
-         "'convert_epsi' is not a pipeline stage."),
+         "'convert_epsi' is not a converter. Supported: convert."),
+        # A real stage, but not one that turns a tar into an MRD stream. Refused
+        # at the request rather than inside the container, where the recon image
+        # would fail on an input it cannot read.
+        (OID, {"filename": "scan.tar", "ownerName": "kento",
+               "converter": "recon"},
+         "'recon' is not a converter. Supported: convert."),
     ],
 )
 def test_convert_rejects_bad_input(client, upload_id, body, expected):

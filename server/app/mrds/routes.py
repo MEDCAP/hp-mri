@@ -19,6 +19,7 @@ from app.auth import require_auth
 from app.errors import ApiError, BadRequest, NotFound
 from app.jobs.service import start_job
 from app.tyger.runner import run_chain
+from app.tyger.stages import get_converter
 
 # flask blueprint for mrds route
 from . import mrds_bp
@@ -280,6 +281,7 @@ def convert_upload(upload_id):
     converter = (request.get_json(silent=True) or {}).get("converter")
     if not converter:
         raise BadRequest("converter is required")
+    get_converter(converter)
 
     # Read here rather than in the thread: the closure below runs on its own app
     # context, and these are the request's answers to the same questions.
@@ -293,18 +295,20 @@ def convert_upload(upload_id):
             handle.s3.download_fileobj(bucket, staging_key, staged)
             staged.seek(0)
             with run_chain(stages, staged, stage_context=handle.stage) as converted:
-                mrd_bytes = converted.read()
+                size = converted.seek(0, os.SEEK_END)
+                converted.seek(0)
+                metadata = read_mrdfile_header(
+                    converted,
+                    owner_name=owner_name,
+                    original_filename=filename,
+                    file_size=size,
+                )
 
-        metadata = read_mrdfile_header(
-            io.BytesIO(mrd_bytes),
-            owner_name=owner_name,
-            original_filename=filename,
-            file_size=len(mrd_bytes),
-        )
+                # Uploaded before the document is written, so a listed file
+                # always has an object behind it.
+                converted.seek(0)
+                handle.s3.upload_fileobj(converted, bucket, s3_key)
 
-        # Uploaded before the document is written, so a listed file always has
-        # an object behind it.
-        handle.s3.upload_fileobj(io.BytesIO(mrd_bytes), bucket, s3_key)
         insert_mrdfile_header({**metadata, "s3_key": s3_key}, doc_id=object_id)
         _discard_staged(handle.s3, bucket, staging_key)
         return str(object_id)

@@ -15,7 +15,6 @@ trace it back to the scan it came from.
 The engine in app/recon/utils/ is not imported here and is not what runs. The
 reconstruction lives in the ghcr.io/medcap/mrs-recon image.
 '''
-import io
 import os
 import tempfile
 
@@ -72,18 +71,20 @@ def reconstruct_epsi():
             handle.s3.download_fileobj(bucket, source_key, raw)
             raw.seek(0)
             with run_chain(stages, raw, stage_context=handle.stage) as result:
-                mrd_bytes = result.read()
+                size = result.seek(0, os.SEEK_END)
+                result.seek(0)
+                metadata = read_mrdfile_header(
+                    result,
+                    owner_name=owner_name,
+                    original_filename=filename,
+                    file_size=size,
+                )
 
-        metadata = read_mrdfile_header(
-            io.BytesIO(mrd_bytes),
-            owner_name=owner_name,
-            original_filename=filename,
-            file_size=len(mrd_bytes),
-        )
+                # Uploaded before the document is written, so a listed file
+                # always has an object behind it.
+                result.seek(0)
+                handle.s3.upload_fileobj(result, bucket, output_key)
 
-        # Uploaded before the document is written, so a listed file always has
-        # an object behind it.
-        handle.s3.upload_fileobj(io.BytesIO(mrd_bytes), bucket, output_key)
         insert_mrdfile_header(
             {**metadata, "s3_key": output_key, "parentFileId": str(file_id),
              "reconStages": stages},
