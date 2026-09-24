@@ -134,12 +134,23 @@ adoption plan is clean. Flip it in a PR whose whole diff is that line.
 
 Finding F3."
 
-issue "Confirm the viewer is meant to be open to guests" \
-  "security,frontend" "Security" \
-"/viewer is not wrapped in ProtectedRoute, and the viewer API uses @optional_auth.
-Given the guest access / public datasets feature, that is probably intended --
-guests view public data. Confirm it, and confirm that @optional_auth routes check
-per-file visibility server-side, so a guest cannot view a private file by id."
+issue "Restrict who can delete a file" \
+  "security,backend" "Security" \
+"DELETE /api/mrd-file authorises with get_mrdfile_by_id_with_auth -- the READ
+check. It admits the owner, any member of the file's group, and, for legacy
+files with neither ownerId nor groupName, any signed-in user. So group members
+can delete each other's files, and anyone can delete every pre-groups file.
+
+Confirmed against a real MongoDB: backend/api-tests carries two strict xfails
+(test_a_group_member_cannot_delete_another_members_file,
+test_any_user_cannot_delete_a_legacy_file) that assert the intended behaviour
+and fail today.
+
+Contrast change_file_visibility, which requires ownership -- a group member
+cannot make a file private, but can delete it. Decide the policy (owner only?
+owner or group admin? who owns legacy files?), fix the route, and remove the
+xfail markers. medcap-data has no versioning (finding F3), so today these
+deletes are unrecoverable."
 
 # --- deploy blockers --------------------------------------------------------
 
