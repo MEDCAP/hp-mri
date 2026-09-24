@@ -26,11 +26,14 @@ def _configure_logging(app):
     handler.setFormatter(logging.Formatter(
         "%(asctime)s %(levelname)s %(name)s: %(message)s"
     ))
-    level = logging.DEBUG if app.config.get('DEBUG') else logging.INFO
     root = logging.getLogger()
     root.handlers = [handler]
-    root.setLevel(level)
-    app.logger.setLevel(level)
+    # Libraries stay at INFO even in development: pymongo alone logs every
+    # topology heartbeat at DEBUG, which buries everything else.
+    root.setLevel(logging.INFO)
+    level = logging.DEBUG if app.config.get('DEBUG') else logging.INFO
+    for name in ("app", "data", app.logger.name):
+        logging.getLogger(name).setLevel(level)
 
 
 def create_app():
