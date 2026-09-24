@@ -1,0 +1,184 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "terraform/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to apply
+        type: choice
+        options: [dev, prod]
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  # Every job here assumes the GitHub OIDC roles from terraform/global exist.
+  # Until DEPLOY_ENABLED=true, they are skipped rather than failing -- including
+  # on the very PR that introduces the Terraform.
+  plan:
+    if: github.event_name == 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    name: Plan (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, prod]
+    defaults:
+      run:
+        working-directory: terraform/envs/${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Read-only plus state. A leaked token from this job cannot change
+          # anything, which is the whole reason plan and apply are separate.
+          role-to-assume: arn:aws:iam::862065604168:role/gha-terraform-plan
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version_file: terraform/.terraform-version
+
+      - name: Format
+        run: terraform fmt -check -recursive ../..
+
+      - run: terraform init -input=false
+      - run: terraform validate
+
+      - name: Plan
+        id: plan
+        run: |
+          terraform plan -input=false -lock-timeout=5m -no-color -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Comment
+        uses: actions/github-script@v7
+        env:
+          TF_ENV: ${{ matrix.env }}
+        with:
+          script: |
+            const fs = require('fs');
+            const env = process.env.TF_ENV;
+            const marker = `<!-- tf-plan-${env} -->`;
+
+            let plan = fs.readFileSync(
+              `${process.env.GITHUB_WORKSPACE}/terraform/envs/${env}/plan.txt`, 'utf8');
+            const limit = 60000;
+            if (plan.length > limit) {
+              plan = plan.slice(0, limit) + '\n... truncated, see the job log ...';
+            }
+
+            // A clean plan is the merge criterion for an import PR, so say so
+            // loudly rather than making a reviewer read for it.
+            const clean = /No changes\.|0 to add, 0 to change, 0 to destroy/.test(plan);
+            const destructive = /(\d+) to destroy/.exec(plan);
+            const destroys = destructive ? Number(destructive[1]) : 0;
+
+            const header = clean
+              ? `### \`${env}\`: no changes`
+              : destroys > 0
+                ? `### \`${env}\`: **${destroys} to destroy — review carefully**`
+                : `### \`${env}\`: changes pending`;
+
+            const body = [
+              marker,
+              header,
+              '',
+              '<details><summary>Plan output</summary>',
+              '',
+              '```terraform',
+              plan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: context.issue.number, body,
+              });
+            }
+
+  apply-dev:
+    if: >-
+      (github.event_name == 'push' || inputs.environment == 'dev')
+      && vars.DEPLOY_ENABLED == 'true'
+    name: Apply (dev)
+    runs-on: ubuntu-latest
+    # No required reviewers on this environment.
+    environment: dev
+    concurrency:
+      group: tf-apply-dev
+      # Never cancel an apply mid-flight.
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: terraform/envs/dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::862065604168:role/gha-terraform-apply-dev
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version_file: terraform/.terraform-version
+
+      - run: terraform init -input=false
+      # Re-planned here rather than reusing the PR artifact: plan files carry
+      # secrets and go stale after merge. The reviewer gate below covers the
+      # window that opens up.
+      - run: terraform apply -input=false -auto-approve -lock-timeout=5m
+
+  apply-prod:
+    if: >-
+      (github.event_name == 'push' || inputs.environment == 'prod')
+      && vars.DEPLOY_ENABLED == 'true'
+    name: Apply (prod)
+    needs: apply-dev
+    runs-on: ubuntu-latest
+    # Configure this GitHub Environment with required reviewers.
+    environment: prod
+    concurrency:
+      group: tf-apply-prod
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: terraform/envs/prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::862065604168:role/gha-terraform-apply-prod
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version_file: terraform/.terraform-version
+
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -auto-approve -lock-timeout=5m

@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend lint and tests
+    runs-on: ubuntu-latest
+
+    # A real MongoDB, so the write path in data.py is actually exercised. The
+    # rest of the suite mocks the database, which cannot catch an insert that
+    # drops a field or a sort that returns the wrong order.
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      # No submodule needed here: the tests never read an MRD file, and pylint
+      # excludes app/external via .pylintrc ignore-paths. The image job below
+      # does need it.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      # The old workflow installed only pylint, so every third-party import was
+      # unresolved and the lint was close to meaningless.
+      - name: Install dependencies
+        run: pip install -r server/requirements.txt pylint pytest
+
+      # `pylint server`, not `pylint $(git ls-files '*.py')` -- ignore-paths does
+      # not apply to files named explicitly, so the globbed form would lint the
+      # vendored submodule.
+      - name: Lint
+        run: pylint server
+
+      - name: Test
+        working-directory: server
+        env:
+          # Without this the integration tests skip rather than fail, which is
+          # right locally and wrong in CI.
+          MONGO_TEST_URI: mongodb://localhost:27017
+        # Exit 5 means "no tests collected". dev has no test suite until
+        # backend/api-tests lands, and this workflow must not fail on its own
+        # merge for that reason. Remove the tolerance once tests exist.
+        run: |
+          set +e
+          pytest
+          code=$?
+          if [ "$code" -eq 5 ]; then
+            echo "::notice::No tests collected yet."
+            exit 0
+          fi
+          exit "$code"
+
+  frontend:
+    name: Frontend lint, types and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hp-mri-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: hp-mri-frontend/package-lock.json
+
+      - run: npm ci
+
+      # Non-blocking for now: dev carries ~94 lint errors (87 of them
+      # no-explicit-any) in files the frontend reconciliation replaces with the
+      # refactored versions, which are already clean. Fixing them here first
+      # would be thrown away. Make this blocking once that reconciliation lands.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      # `npm run build` is `tsc -b && vite build`, so this is the type check too.
+      - run: npm run build
+
+  image:
+    name: Backend image builds
+    runs-on: ubuntu-latest
+    steps:
+      # This one genuinely needs the submodule: the Dockerfile COPYs app/,
+      # including app/external.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ssh-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Merging to dev ships the dev environment. Prod waits for a v* tag and a
+  # human; see release.yml.
+  deploy-dev-backend:
+    # Inert until the infrastructure exists: set the repository variable
+    # DEPLOY_ENABLED=true once terraform/global is applied and the dev GitHub
+    # Environment is configured. Without the gate, merging this workflow would
+    # immediately try to deploy to a cluster that does not exist.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      && vars.DEPLOY_ENABLED == 'true'
+    needs: [backend, frontend, image]
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: dev
+      image_tag: ""
+    secrets: inherit
+
+  deploy-dev-frontend:
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      && vars.DEPLOY_ENABLED == 'true'
+    needs: deploy-dev-backend
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      environment: dev
+    secrets: inherit

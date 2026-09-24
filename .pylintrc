@@ -1,0 +1,51 @@
+[MAIN]
+# app/external is the vendored MEDCAP/mrd-fork submodule -- generated YARDL code
+# that must never be linted here. Note this only takes effect because CI now runs
+# `pylint server` rather than `pylint $(git ls-files '*.py')`: ignore-paths does
+# not apply to files listed explicitly on the command line.
+ignore-paths=^server/app/external/.*$,
+             ^.*/__pycache__/.*$,
+             ^.*/venv/.*$,
+             ^.*/\.medcap/.*$,
+             ^.*/node_modules/.*$
+
+# gunicorn runs `run:create_app()` from server/, so `app` and `data` are
+# top-level imports rather than package-relative ones.
+init-hook=import sys; sys.path.insert(0, "server")
+
+# A floor the current code clears today (6.84 on dev), meant to be ratcheted up
+# as debt is paid down -- not a target. Much of the gap is module-level mutable
+# state in the scientific modules, which is a real defect under multiple
+# gunicorn workers rather than lint noise, so it is not disabled away.
+fail-under=6.5
+
+jobs=0
+
+[MESSAGES CONTROL]
+disable=missing-module-docstring,
+        too-few-public-methods,
+        duplicate-code,
+        # Third-party and the vendored MRD library are not installed in the lint job.
+        import-error,
+        # `from . import routes` at the foot of a blueprint's __init__ is the
+        # documented Flask pattern; pylint reads it as a cycle.
+        cyclic-import,
+        # pytest fixtures shadow by design.
+        redefined-outer-name,
+        # Test names are the documentation; a docstring is added where the case
+        # is non-obvious, not mechanically.
+        missing-function-docstring,
+        # The scientific modules legitimately carry long argument lists.
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        too-many-statements
+
+[FORMAT]
+max-line-length=120
+
+[BASIC]
+good-names=i,j,k,n,x,y,z,df,fs,tr,te,db,s3,id,_
+
+[DESIGN]
+max-attributes=12
