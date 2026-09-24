@@ -23,7 +23,7 @@ Version:
 
 # Import statements
 import numpy as np
-from flask import jsonify, send_file
+from flask import current_app, jsonify, send_file
 import os
 import traceback
 from PIL import Image
@@ -31,7 +31,7 @@ from PIL import Image
 import pydicom
 import io
 from pathlib import Path
-import boto3
+from data import get_s3_client
 
 local = False   # set to true to test files stored locally
 if local:
@@ -40,23 +40,45 @@ if local:
     DATASET_FOLDER = Path(
         "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/data MRS/epsi/"
     )
-    DATASET = [
-        folder
-        for folder in os.listdir(DATASET_FOLDER)
-        if os.path.isdir(DATASET_FOLDER / folder)
-    ]
 else:
-    s3 = boto3.client('s3')
-    BUCKET_NAME = "medcap-data"
     DICOM_FOLDER = "MRS/proton/"
     DATASET_FOLDER = "MRS/epsi/"
-    # Get the list of dataset folders in the bucket/MRS/epsi/
-    response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DATASET_FOLDER, Delimiter='/')
-    DATASET = [obj['Prefix'] for obj in response.get('CommonPrefixes', [])]
+
+
+# The S3 client and the dataset listing are resolved on first use rather than at
+# import. They used to run at module scope, which meant importing this module --
+# and therefore calling create_app() at all -- required live AWS credentials and
+# a reachable bucket. That made the app unstartable locally, coupled ECS task
+# startup to S3, and forced the test suite to stub this module wholesale.
+def _bucket():
+    """Bucket name from config, rather than a third hardcoded copy."""
+    return current_app.config["S3_BUCKET"]
+
+
+_DATASET_CACHE = None
+
+
+def _datasets():
+    """Dataset folders under the EPSI prefix, listed once per process."""
+    global _DATASET_CACHE
+
+    if local:
+        return [
+            folder
+            for folder in os.listdir(DATASET_FOLDER)
+            if os.path.isdir(DATASET_FOLDER / folder)
+        ]
+
+    if _DATASET_CACHE is None:
+        response = get_s3_client().list_objects_v2(
+            Bucket=_bucket(), Prefix=DATASET_FOLDER, Delimiter="/"
+        )
+        _DATASET_CACHE = [obj["Prefix"] for obj in response.get("CommonPrefixes", [])]
+    return _DATASET_CACHE
 
 # read s3 file decode as binary
 def read_binary_from_s3(bucket, filepath):
-    response = s3.get_object(Bucket=bucket, Key=filepath)
+    response = get_s3_client().get_object(Bucket=bucket, Key=filepath)
     return response['Body'].read()
 
 class MRSSolutionsDataProcessor:
@@ -92,7 +114,7 @@ class MRSSolutionsDataProcessor:
 
         """
         if local:   # test data files stored locally
-            folder_path = DATASET_FOLDER / DATASET[epsi_index]
+            folder_path = DATASET_FOLDER / _datasets()[epsi_index]
             files = [f for f in os.listdir(folder_path) if f.endswith(".MRD")]
             if not files:
                 raise FileNotFoundError(f"No MRD file found in directory: {folder_path}")
@@ -100,11 +122,11 @@ class MRSSolutionsDataProcessor:
                 fdbytes = fd.read()    
         else:   # retrieve data files from s3 bucket
             # Index subfolder path of s3 bucket under MRS/epsi/
-            folder_path = DATASET[epsi_index]
+            folder_path = _datasets()[epsi_index]
             # look for file with .MRD extension
-            response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
+            response = get_s3_client().list_objects_v2(Bucket=_bucket(), Prefix=folder_path)
             filename = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.MRD')]
-            fdbytes = read_binary_from_s3(BUCKET_NAME, filename[0])
+            fdbytes = read_binary_from_s3(_bucket(), filename[0])
 
         self.samples = np.frombuffer(fdbytes[0:4], dtype="int32")[0]
         self.views = np.frombuffer(fdbytes[4:8], dtype="int32")[0]
@@ -173,7 +195,7 @@ def get_num_slider_values():
         dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
     else:
         # List all DICOM files in the S3 bucket under the specified DICOM folder
-        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DICOM_FOLDER)
+        response = get_s3_client().list_objects_v2(Bucket=_bucket(), Prefix=DICOM_FOLDER)
         dicom_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.dcm')]
     return len(dicom_files)
 
@@ -191,7 +213,7 @@ def count_datasets():
     #     dataset_count += 1
 
     # return dataset_count
-    return len(DATASET)
+    return len(_datasets())
 
 
 def process_proton_picture(slider_value, data):
@@ -213,7 +235,7 @@ def process_proton_picture(slider_value, data):
                 return jsonify({"error": "DICOM file not found"}), 404
             dcm = pydicom.dcmread(dicom_path)
         else:
-            s3.download_file(BUCKET_NAME, dicom_path, filename)
+            get_s3_client().download_file(_bucket(), dicom_path, filename)
             dcm = pydicom.dcmread(filename)        # Image processing logic
             os.remove(filename)
         slice_image = dcm.pixel_array
