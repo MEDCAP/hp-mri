@@ -58,6 +58,9 @@ here by their F-numbers. The adoption plan is `.claude/ARCHITECT.md`.
   not fall back to `DEBUG` on.)
 - **No API version prefix**, though the SPA and API deploy independently.
 - **Dead code**: `app/viewer/utils.py` (two lines, an unused import, never imported),
+  — but note `app/groups/` is **live on `dev`**, behind a real groups feature. This
+  document was written against the `mrs_recon` line, where it was never registered.
+  See `docs/MERGE-PLAN.md`, collision C3.
   the unused `Flask-Uploads` dependency, and the stray root `package.json` whose one
   dependency the frontend already declares. (`app/groups/` was listed here in June
   and no longer exists.)
