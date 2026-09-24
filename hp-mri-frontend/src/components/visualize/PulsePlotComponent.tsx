@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Plot from 'react-plotly.js';
-import axios from 'axios';
+import { getPulseArray } from '../../api/viewer';
+import { getApiErrorMessage } from '../../api/client';
+import { PulseArrayResponse } from '../../api/types';
 import { Box, Button, Typography } from '@mui/material';
 
 interface PulsePlotProps {
@@ -8,19 +10,14 @@ interface PulsePlotProps {
   sidebarWidth?: number; // Add sidebar width prop to trigger re-renders
 }
 
-interface PulseApiResponse {
-  pulse_data: number[][]; // shape: [channels][samples]
-  pulse_phase: number[];  // shape: [samples]
-}
-
 // Simple in-memory cache: fileId -> response
-const pulseCache: Record<string, PulseApiResponse> = {};
+const pulseCache: Record<string, PulseArrayResponse> = {};
 
 export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId, sidebarWidth = 0 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [pulseData, setPulseData] = useState<number[][]>([]);
-  const [pulsePhase, setPulsePhase] = useState<number[]>([]);
+  const [pulseData, setPulseData] = useState<PulseArrayResponse['pulse_data']>([]);
+  const [pulsePhase, setPulsePhase] = useState<PulseArrayResponse['pulse_phase']>([]);
   const [selectedType, setSelectedType] = useState<'pulse_data' | 'pulse_phase'>('pulse_data');
 
   useEffect(() => {
@@ -41,13 +38,13 @@ export const PulsePlotComponent: React.FC<PulsePlotProps> = ({ fileId, sidebarWi
       try {
         setLoading(!cached); // show loader only if not cached
         setError(null);
-        const resp = await axios.get<PulseApiResponse>(`/api/viewer/get_pulse_array/${fileId}`);
-        setPulseData(resp.data.pulse_data || []);
-        setPulsePhase(resp.data.pulse_phase || []);
-        pulseCache[fileId] = resp.data; // update cache
-      } catch (e: any) {
+        const data = await getPulseArray(fileId);
+        setPulseData(data.pulse_data || []);
+        setPulsePhase(data.pulse_phase || []);
+        pulseCache[fileId] = data; // update cache
+      } catch (e) {
         if (!cached) {
-          setError(e?.response?.data?.error || e?.message || 'Failed to fetch pulse data');
+          setError(getApiErrorMessage(e));
         }
       } finally {
         setLoading(false);

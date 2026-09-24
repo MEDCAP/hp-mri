@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { listMrdFiles } from '../api/mrdFiles';
+import { getImageArray, getPulseArray, getGradientArray } from '../api/viewer';
+import { getApiErrorMessage } from '../api/client';
 import { MRDFile } from '../types/mrd';
 import { useMRDArrayConcatenation, MRDDataSet, ConcatenatedMRDData } from './useMRDArrayConcatenation';
-import { isAuthenticated } from '../pages/loginpages/cognitoUtils';
 
 export interface WindowState {
   imageArray: number[][][][][][];
@@ -60,10 +61,9 @@ export const useViewerState = () => {
   const fetchMRDFiles = useCallback(async () => {
     setFilesLoading(true);
     try {
-      // Authenticated users see all their accessible files; guests see only public files
-      const endpoint = isAuthenticated() ? '/api/mrd-files' : '/api/mrd-files/public';
-      const response = await axios.get(endpoint);
-      const validFiles = response.data.filter((file: MRDFile) => file && file._id);
+      // The backend scopes the list by the token: guests get the public group.
+      const files = await listMrdFiles();
+      const validFiles = files.filter((file: MRDFile) => file && file._id);
       setAvailableFiles(validFiles);
     } catch (error) {
       console.error('Error fetching MRD files:', error);
@@ -75,14 +75,14 @@ export const useViewerState = () => {
   const fetchCompleteMRDData = useCallback(async (fileId: string): Promise<MRDDataSet | null> => {
     try {
       const [imageResponse, pulseResponse, gradientResponse] = await Promise.allSettled([
-        axios.get(`/api/viewer/${fileId}`),
-        axios.get(`/api/viewer/get_pulse_array/${fileId}`),
-        axios.get(`/api/viewer/get_gradient_array/${fileId}`)
+        getImageArray(fileId),
+        getPulseArray(fileId),
+        getGradientArray(fileId)
       ]);
 
-      const imageData = imageResponse.status === 'fulfilled' ? imageResponse.value.data : null;
-      const pulseData = pulseResponse.status === 'fulfilled' ? pulseResponse.value.data : null;
-      const gradientData = gradientResponse.status === 'fulfilled' ? gradientResponse.value.data : null;
+      const imageData = imageResponse.status === 'fulfilled' ? imageResponse.value : null;
+      const pulseData = pulseResponse.status === 'fulfilled' ? pulseResponse.value : null;
+      const gradientData = gradientResponse.status === 'fulfilled' ? gradientResponse.value : null;
 
       if (!imageData || !imageData.image_array) {
         console.warn(`No image data found for file ${fileId}`);
@@ -113,12 +113,11 @@ export const useViewerState = () => {
   const fetchMRDImageArray = useCallback(async (fileId: string, windowIndex: number) => {
     updateWindow(windowIndex, { loading: true, error: null });
     try {
-      const response = await axios.get(`/api/viewer/${fileId}`);
-      const { image_array, nmr_labels } = response.data;
+      const { image_array, nmr_labels } = await getImageArray(fileId);
 
       if (image_array && Array.isArray(image_array)) {
         updateWindow(windowIndex, {
-          imageArray: image_array as number[][][][][][],
+          imageArray: image_array,
           nmrLabels: nmr_labels || [],
           metaboliteIndex: 0,
           loading: false,
@@ -128,9 +127,7 @@ export const useViewerState = () => {
       }
     } catch (error) {
       console.error(`Error fetching MRD image array for window ${windowIndex}:`, error);
-      const msg = axios.isAxiosError(error)
-        ? `Failed to fetch image: ${error.response?.data?.error || error.message}`
-        : 'An unexpected error occurred while fetching the image';
+      const msg = `Failed to fetch image: ${getApiErrorMessage(error)}`;
       updateWindow(windowIndex, { error: msg, loading: false });
     }
   }, [updateWindow]);
@@ -211,8 +208,11 @@ export const useViewerState = () => {
     }
   }, [pulseSourceFileId, windows]);
 
+  // Re-fetch on sign-in, sign-out or an expired session: the list is scoped by the token.
   useEffect(() => {
     fetchMRDFiles();
+    window.addEventListener('auth-change', fetchMRDFiles);
+    return () => window.removeEventListener('auth-change', fetchMRDFiles);
   }, [fetchMRDFiles]);
 
   return {

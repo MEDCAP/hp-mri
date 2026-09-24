@@ -18,7 +18,7 @@ import {
   AccessTime as AccessTimeIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import apiClient from '../api/apiClient';
+import { listMyJoinRequests } from '../api/groups';
 
 interface JoinRequestStatus {
   groupName: string;
@@ -46,8 +46,7 @@ const JoinRequestStatus: React.FC<JoinRequestStatusProps> = ({ userSub }) => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get('/groups/my-join-requests');
-      setRequests(response.data.joinRequests);
+      setRequests(await listMyJoinRequests());
       
     } catch (error: any) {
       console.error('Error loading join request status:', error);

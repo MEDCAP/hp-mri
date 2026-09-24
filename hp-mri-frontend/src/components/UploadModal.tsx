@@ -35,7 +35,8 @@ import {
 import { TransitionProps } from '@mui/material/transitions';
 import { getCurrentUserName } from '../pages/loginpages/cognitoUtils';
 import { Group } from '../types/group';
-import apiClient from '../api/apiClient';
+import { listGroups } from '../api/groups';
+import { uploadMrdFiles } from '../api/mrdFiles';
 
 // Styled components for enhanced Material Design
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -190,8 +191,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
 
   const fetchUserGroups = async () => {
     try {
-      const response = await apiClient.get('/groups');
-      setUserGroups(response.data);
+      setUserGroups(await listGroups());
     } catch (error) {
       console.error('Error fetching groups:', error);
       setUserGroups([]);
@@ -316,12 +316,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
       // Start progress updates
       setTimeout(updateProgress, 100);
       
-      // Make API call using apiClient (includes JWT token)
-      apiClient.post('/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+      uploadMrdFiles(formData)
       .then(response => {
         // Set progress to 100% and completed status
         setFiles(prev => prev.map(f => 
@@ -332,7 +327,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         onProgressUpdate?.(file.id, 100);
         
         // Check if this specific file was successful
-        const fileResult = response.data?.results?.find((r: any) => 
+        const fileResult = response.results?.find((r) => 
           r.original_filename === file.file.name
         );
         

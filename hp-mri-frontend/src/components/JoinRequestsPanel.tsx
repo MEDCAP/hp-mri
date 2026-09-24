@@ -20,15 +20,8 @@ import {
   Email as EmailIcon,
   AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
-import apiClient from '../api/apiClient';
-
-interface JoinRequest {
-  userSub: string;
-  userName: string;
-  userEmail: string;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'denied';
-}
+import { listJoinRequests, approveJoinRequest, denyJoinRequest } from '../api/groups';
+import { JoinRequest } from '../types/group';
 
 interface JoinRequestsPanelProps {
   groupName: string;
@@ -54,9 +47,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
       setError(null);
       
       console.log('DEBUG: Loading join requests for group:', groupName);
-      const response = await apiClient.get(`/groups/${groupName}/join-requests`);
-      console.log('DEBUG: Join requests response:', response.data);
-      setRequests(response.data.joinRequests);
+      setRequests(await listJoinRequests(groupName));
     } catch (error: any) {
       console.error('Error loading join requests:', error);
       setError('Failed to load join requests');
@@ -69,7 +60,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
     try {
       setActionLoading(userSub);
       
-      await apiClient.post(`/groups/${groupName}/join-requests/${userSub}/approve`);
+      await approveJoinRequest(groupName, userSub);
       
       // Update the request status locally
       setRequests(prev => prev.map(req => 
@@ -90,7 +81,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
     try {
       setActionLoading(userSub);
       
-      await apiClient.post(`/groups/${groupName}/join-requests/${userSub}/deny`);
+      await denyJoinRequest(groupName, userSub);
       
       // Update the request status locally
       setRequests(prev => prev.map(req => 

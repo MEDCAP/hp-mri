@@ -24,22 +24,19 @@ import {
   Group as GroupIcon,
   Search as SearchIcon
 } from '@mui/icons-material';
-import apiClient from '../api/apiClient';
+import {
+  joinByCode,
+  searchGroups,
+  listMyJoinRequests,
+  requestToJoin,
+  withdrawJoinRequest,
+} from '../api/groups';
+import { SearchGroup } from '../types/group';
 
 interface JoinGroupDialogProps {
   open: boolean;
   onClose: () => void;
   onGroupJoined: () => void;
-}
-
-interface SearchGroup {
-  _id: string;
-  name: string;
-  displayName: string;
-  description?: string;
-  memberCount: number;
-  createdAt: string;
-  requestStatus?: 'pending' | 'approved' | 'denied' | 'member' | 'none';
 }
 
 const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGroupJoined }) => {
@@ -78,11 +75,9 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.post('/groups/join-by-code', {
-        code: inviteCode.trim()
-      });
+      const joined = await joinByCode(inviteCode.trim());
 
-      setSuccess(`Successfully joined ${response.data.displayName}!`);
+      setSuccess(`Successfully joined ${joined.displayName}!`);
       setInviteCode('');
       
       // Notify parent component
@@ -109,17 +104,14 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       setLoading(true);
       setError(null);
 
-      const [searchResponse, requestsResponse] = await Promise.all([
-        apiClient.get(`/groups/search?q=${encodeURIComponent(searchQuery)}`),
-        apiClient.get('/groups/my-join-requests')
+      const [groups, userRequests] = await Promise.all([
+        searchGroups(searchQuery),
+        listMyJoinRequests()
       ]);
       
-      const groups = searchResponse.data.groups;
-      const userRequests = requestsResponse.data.joinRequests;
-      
       // Add request status to each group
-      const groupsWithStatus = groups.map((group: SearchGroup) => {
-        const request = userRequests.find((req: any) => req.groupName === group.name);
+      const groupsWithStatus = groups.map((group): SearchGroup => {
+        const request = userRequests.find((req) => req.groupName === group.name);
         return {
           ...group,
           requestStatus: request ? request.status : 'none'
@@ -141,7 +133,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       setLoading(true);
       setError(null);
 
-      await apiClient.post(`/groups/${groupName}/join-requests`);
+      await requestToJoin(groupName);
       
       setSuccess(`Join request submitted for ${displayName}. Waiting for admin approval.`);
       
@@ -165,7 +157,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       setLoading(true);
       setError(null);
 
-      await apiClient.post(`/groups/${groupName}/join-requests/withdraw`);
+      await withdrawJoinRequest(groupName);
       setSuccess(`Join request withdrawn for ${displayName}.`);
       
       // Refresh search results to show updated status

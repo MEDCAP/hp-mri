@@ -31,7 +31,15 @@ import {
   ExitToApp
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
-import apiClient from '../../api/apiClient';
+import {
+  getGroup,
+  listMembers,
+  updateGroup,
+  addMember,
+  removeMember,
+  promoteAdmin,
+  demoteAdmin,
+} from '../../api/groups';
 import { Group as GroupType, GroupMember } from '../../types/group';
 import JoinRequestsPanel from '../../components/JoinRequestsPanel';
 import ManageInviteCodesDialog from '../../components/ManageInviteCodesDialog';
@@ -39,7 +47,7 @@ import { getCurrentUserSub } from '../loginpages/cognitoUtils';
 
 const GroupDetailPage: React.FC = () => {
   const navigate = useNavigate();
-  const { groupName } = useParams<{ groupName: string }>();
+  const { groupName = '' } = useParams<{ groupName: string }>(); // always set: the route is /groups/:groupName
   const [group, setGroup] = useState<GroupType | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,24 +68,18 @@ const GroupDetailPage: React.FC = () => {
   const fetchGroupDetails = async () => {
     try {
       setLoading(true);
-      const [groupResponse, membersResponse] = await Promise.all([
-        apiClient.get(`/groups/${groupName}`),
-        apiClient.get(`/groups/${groupName}/members`)
+      const [groupData, memberList] = await Promise.all([
+        getGroup(groupName),
+        listMembers(groupName)
       ]);
       
-      setGroup(groupResponse.data);
-      setMembers(membersResponse.data.members);
+      setGroup(groupData);
+      setMembers(memberList);
       
       // Check if current user is admin or member
       const currentUserSub = getCurrentUserSubLocal();
-      console.log('DEBUG: Current user sub:', currentUserSub);
-      console.log('DEBUG: Group admins:', groupResponse.data.admins);
-      console.log('DEBUG: Group members:', groupResponse.data.members);
-      console.log('DEBUG: Is user admin?', groupResponse.data.admins.includes(currentUserSub));
-      console.log('DEBUG: Is user member?', groupResponse.data.members.includes(currentUserSub));
-      
-      setIsUserAdmin(groupResponse.data.admins.includes(currentUserSub));
-      setIsUserMember(groupResponse.data.members.includes(currentUserSub));
+      setIsUserAdmin(groupData.admins.includes(currentUserSub));
+      setIsUserMember(groupData.members.includes(currentUserSub));
       
       setError(null);
     } catch (error: any) {
@@ -94,7 +96,7 @@ const GroupDetailPage: React.FC = () => {
 
   const handleUpdateGroup = async (updates: { displayName?: string; description?: string }) => {
     try {
-      await apiClient.patch(`/groups/${groupName}`, updates);
+      await updateGroup(groupName, updates);
       fetchGroupDetails();
       setEditDialogOpen(false);
     } catch (error: any) {
@@ -107,9 +109,7 @@ const GroupDetailPage: React.FC = () => {
     if (!userSubToInvite.trim()) return;
 
     try {
-      await apiClient.post(`/groups/${groupName}/members`, {
-        userSub: userSubToInvite.trim()
-      });
+      await addMember(groupName, userSubToInvite.trim());
       setUserSubToInvite('');
       setInviteDialogOpen(false);
       fetchGroupDetails();
@@ -125,7 +125,7 @@ const GroupDetailPage: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/groups/${groupName}/members/${userSub}`);
+      await removeMember(groupName, userSub);
       fetchGroupDetails();
     } catch (error: any) {
       console.error('Error removing member:', error);
@@ -135,9 +135,7 @@ const GroupDetailPage: React.FC = () => {
 
   const handlePromoteToAdmin = async (userSub: string) => {
     try {
-      await apiClient.post(`/groups/${groupName}/admins`, {
-        userSub
-      });
+      await promoteAdmin(groupName, userSub);
       fetchGroupDetails();
     } catch (error: any) {
       console.error('Error promoting member:', error);
@@ -151,7 +149,7 @@ const GroupDetailPage: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/groups/${groupName}/admins/${userSub}`);
+      await demoteAdmin(groupName, userSub);
       fetchGroupDetails();
     } catch (error: any) {
       console.error('Error demoting admin:', error);
@@ -165,7 +163,7 @@ const GroupDetailPage: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/groups/${groupName}/members/${getCurrentUserSubLocal()}`);
+      await removeMember(groupName, getCurrentUserSubLocal());
       navigate('/groups');
     } catch (error: any) {
       console.error('Error leaving group:', error);

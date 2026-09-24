@@ -31,7 +31,7 @@ import {
   Settings as SettingsIcon,
   LockOutlined as LockIcon,
 } from '@mui/icons-material';
-import apiClient from '../api/apiClient';
+import { listGroups } from '../api/groups';
 import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub, isAuthenticated } from '../pages/loginpages/cognitoUtils';
 import { useNavigate } from 'react-router-dom';
 import { Group } from '../types/group';
@@ -71,8 +71,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const loadGroups = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/groups');
-      setGroups(response.data);
+      setGroups(await listGroups());
     } catch (error) {
       console.error('Error loading groups:', error);
     } finally {

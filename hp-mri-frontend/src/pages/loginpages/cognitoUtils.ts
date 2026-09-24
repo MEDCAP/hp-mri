@@ -2,12 +2,14 @@ import {
   CognitoUserPool,
   CognitoUserAttribute,
   CognitoUser,
-  AuthenticationDetails
+  AuthenticationDetails,
+  CognitoUserSession
 } from 'amazon-cognito-identity-js';
+import { cognitoConfig } from '../../config/env';
 
 const poolData = {
-  UserPoolId: 'us-east-1_vUo50ofKI',
-  ClientId: '4nvgf7et9f4ui0glr4ddf152r8',
+  UserPoolId: cognitoConfig.userPoolId,
+  ClientId: cognitoConfig.clientId,
 };
 
 const userPool = new CognitoUserPool(poolData);
@@ -165,15 +167,24 @@ export function getIdToken(): Promise<string | null> {
       return;
     }
     
-    user.getSession((err: any, session: any) => {
-      if (err) {
-        reject(err);
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session) {
+        reject(err ?? new Error('No session'));
       } else {
         const idToken = session.getIdToken().getJwtToken();
         resolve(idToken);
       }
     });
   });
+}
+
+/**
+ * End a session the backend no longer accepts and tell the app, which falls
+ * back to the guest (public-only) view.
+ */
+export function expireSession() {
+  signOutCognito();
+  window.dispatchEvent(new Event('auth-change'));
 }
 
 // Export userPool for use in other modules

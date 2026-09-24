@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../layouts/HeaderAccount';
@@ -39,7 +38,7 @@ import {
   InfoOutlined,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
-import apiClient from '../../api/apiClient';
+import { listMrdFiles, deleteMrdFiles } from '../../api/mrdFiles';
 import { MRDFile } from '../../types/mrd';
 import { isAuthenticated } from '../loginpages/cognitoUtils';
 
@@ -108,11 +107,11 @@ const RetrievePage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<MRDFile | null>(null);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
 
-  const fetchFiles = (guest: boolean) => {
-    const endpoint = guest ? '/mrd-files/public' : '/mrd-files';
-    apiClient.get(endpoint)
-      .then((response) => {
-        const validFiles = response.data.filter((file: MRDFile) => {
+  // The backend scopes the list by the token: guests get the public group.
+  const fetchFiles = () => {
+    listMrdFiles()
+      .then((data) => {
+        const validFiles = data.filter((file: MRDFile) => {
           if (file && file._id) return true;
           console.warn('Filtering out invalid file object:', file);
           return false;
@@ -128,16 +127,16 @@ const RetrievePage: React.FC = () => {
       const newIsGuest = !isAuthenticated();
       setIsGuest(newIsGuest);
       setFiles([]); // clear stale files immediately
-      fetchFiles(newIsGuest);
+      fetchFiles();
     };
     window.addEventListener('auth-change', handleAuthChange);
     return () => window.removeEventListener('auth-change', handleAuthChange);
   }, []);
 
   useEffect(() => {
-    fetchFiles(isGuest);
+    fetchFiles();
     document.title = "MRD Files - HP";
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredFiles = useMemo(() => {
     if (!search) {
@@ -240,15 +239,14 @@ const RetrievePage: React.FC = () => {
     })));
     
     try {
-      const response = await axios.delete('/api/mrd-file', { 
-        data: { ids: selectedFileIds } 
-      });
+      const response = await deleteMrdFiles(selectedFileIds);
       
               // Update file statuses based on backend response
-        if (response.data.file_results) {
+        const fileResults = response.file_results;
+        if (fileResults) {
           const updatedStatuses = fileDeleteStatuses.map(status => {
             const selectedFile = selectedFiles.find(f => f.fileName === status.fileName);
-            const fileResult = response.data.file_results.find((fr: any) => 
+            const fileResult = fileResults.find((fr) => 
               selectedFile && fr.file_name === selectedFile.fileName
             );
             
@@ -267,7 +265,7 @@ const RetrievePage: React.FC = () => {
       
       // Wait a moment to show the final statuses, then close dialog
       setTimeout(() => {
-        setDeleteSuccess(response.data.message);
+        setDeleteSuccess(response.message ?? null);
         setDeleteDialogOpen(false);
         setIsDeleting(false);
         
@@ -305,7 +303,7 @@ const RetrievePage: React.FC = () => {
     }
     setIsUploading(false);
     setIsUploadCompleted(true);
-    fetchFiles(isGuest); // Refresh the file list
+    fetchFiles(); // Refresh the file list
   };
 
   const handleUploadStart = (files: any[]) => {
@@ -424,7 +422,7 @@ const RetrievePage: React.FC = () => {
                   <Button
                     variant="outlined"
                     startIcon={<Refresh />}
-                    onClick={() => fetchFiles(isGuest)}
+                    onClick={() => fetchFiles()}
                     sx={{ flex: '1 1 24%', marginTop: '-8px' }}
                   >
                     Refresh

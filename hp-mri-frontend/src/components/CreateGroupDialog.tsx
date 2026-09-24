@@ -15,7 +15,7 @@ import {
   Close as CloseIcon,
   Group as GroupIcon
 } from '@mui/icons-material';
-import apiClient from '../api/apiClient';
+import { createGroup } from '../api/groups';
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -53,13 +53,11 @@ const CreateGroupDialog: React.FC<CreateGroupDialogProps> = ({ open, onClose, on
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.post('/groups', {
+      await createGroup({
         name: formData.name.trim(),
         displayName: formData.displayName.trim(),
         description: formData.description.trim() || undefined
       });
-
-      console.log('Group created successfully:', response.data);
       
       // Reset form
       setFormData({ name: '', displayName: '', description: '' });

@@ -28,16 +28,8 @@ import {
   AccessTime as TimeIcon,
   People as PeopleIcon
 } from '@mui/icons-material';
-import apiClient from '../api/apiClient';
-
-interface InviteCode {
-  code: string;
-  createdBy: string;
-  createdAt: string;
-  expiresAt?: string;
-  maxUses?: number;
-  usedCount: number;
-}
+import { listInviteCodes, createInviteCode, revokeInviteCode } from '../api/groups';
+import { InviteCode } from '../types/group';
 
 interface ManageInviteCodesDialogProps {
   open: boolean;
@@ -70,8 +62,7 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get(`/groups/${groupName}/invite-codes`);
-      setInviteCodes(response.data.inviteCodes || []);
+      setInviteCodes(await listInviteCodes(groupName));
     } catch (error: any) {
       console.error('Error loading invite codes:', error);
       setError('Failed to load invite codes');
@@ -85,8 +76,8 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
       setCreateLoading(true);
       setError(null);
       
-      await apiClient.post(`/groups/${groupName}/invite-codes`, {
-        expiresDays: expiresDays || undefined,
+      await createInviteCode(groupName, {
+        expiresInDays: expiresDays || undefined,
         maxUses: maxUses || undefined
       });
       
@@ -111,7 +102,7 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
     }
 
     try {
-      await apiClient.delete(`/groups/${groupName}/invite-codes/${code}`);
+      await revokeInviteCode(groupName, code);
       setSuccess('Invite code revoked successfully!');
       loadInviteCodes(); // Refresh the list
     } catch (error: any) {

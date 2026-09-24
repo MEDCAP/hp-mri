@@ -26,7 +26,7 @@ import {
   Visibility
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../../api/apiClient';
+import { listGroups, createGroup, deleteGroup } from '../../api/groups';
 import { Group as GroupType, CreateGroupRequest } from '../../types/group';
 
 const GroupsPage: React.FC = () => {
@@ -50,8 +50,7 @@ const GroupsPage: React.FC = () => {
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/groups');
-      setGroups(response.data);
+      setGroups(await listGroups());
       setError(null);
     } catch (error: any) {
       console.error('Error fetching groups:', error);
@@ -70,7 +69,7 @@ const GroupsPage: React.FC = () => {
     try {
       setIsCreating(true);
       setCreateError(null);
-      await apiClient.post('/groups', newGroup);
+      await createGroup(newGroup);
       setCreateDialogOpen(false);
       setNewGroup({ name: '', displayName: '', description: '' });
       fetchGroups();
@@ -88,7 +87,7 @@ const GroupsPage: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/groups/${groupName}`);
+      await deleteGroup(groupName);
       fetchGroups();
     } catch (error: any) {
       console.error('Error deleting group:', error);
