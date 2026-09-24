@@ -1,6 +1,7 @@
 """
 Group management routes
 """
+import logging
 from flask import jsonify, request, g
 from bson import ObjectId
 import re
@@ -12,8 +13,13 @@ from data import (
     update_group_properties, delete_group, generate_invite_code, get_group_invite_codes,
     revoke_invite_code, validate_invite_code, use_invite_code, create_join_request,
     get_pending_join_requests, approve_join_request, deny_join_request, search_groups,
-    get_group_settings, update_group_settings, get_user_join_requests
+    get_group_settings, update_group_settings, get_user_join_requests,
+    # Was called by the withdraw route but never imported, so that route raised
+    # NameError on every request.
+    withdraw_join_request,
 )
+
+logger = logging.getLogger(__name__)
 
 def validate_group_name(name: str) -> bool:
     """Validate group name format (alphanumeric, hyphens, underscores only)"""
@@ -26,8 +32,9 @@ def list_user_groups():
     try:
         groups = get_user_groups(g.user_sub)
         return jsonify(groups), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch groups", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch groups")
+        return jsonify({"error": "Failed to fetch groups"}), 500
 
 @groups_bp.route("/groups", methods=["POST"])
 @requires_auth
@@ -56,8 +63,9 @@ def create_new_group():
         group_id = create_group(name, display_name, description, g.user_sub)
         return jsonify({"message": "Group created successfully", "groupId": str(group_id)}), 201
         
-    except Exception as e:
-        return jsonify({"error": "Failed to create group", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to create group")
+        return jsonify({"error": "Failed to create group"}), 500
 
 @groups_bp.route("/groups/<group_name>", methods=["GET"])
 @requires_auth
@@ -72,8 +80,9 @@ def get_group_details(group_name):
             return jsonify({"error": "Group not found"}), 404
         
         return jsonify(group), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch group", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch group")
+        return jsonify({"error": "Failed to fetch group"}), 500
 
 @groups_bp.route("/groups/<group_name>", methods=["PATCH"])
 @requires_auth
@@ -105,8 +114,9 @@ def update_group(group_name):
         else:
             return jsonify({"error": "Failed to update group"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to update group", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to update group")
+        return jsonify({"error": "Failed to update group"}), 500
 
 @groups_bp.route("/groups/<group_name>", methods=["DELETE"])
 @requires_auth
@@ -122,8 +132,9 @@ def delete_group_route(group_name):
         else:
             return jsonify({"error": "Cannot delete group with files or failed to delete"}), 400
             
-    except Exception as e:
-        return jsonify({"error": "Failed to delete group", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to delete group")
+        return jsonify({"error": "Failed to delete group"}), 500
 
 @groups_bp.route("/groups/<group_name>/members", methods=["GET"])
 @requires_auth
@@ -146,8 +157,9 @@ def list_group_members(group_name):
             })
         
         return jsonify({"members": members}), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch members", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch members")
+        return jsonify({"error": "Failed to fetch members"}), 500
 
 @groups_bp.route("/groups/<group_name>/members", methods=["POST"])
 @requires_auth
@@ -171,8 +183,9 @@ def invite_member(group_name):
         else:
             return jsonify({"error": "Failed to add member"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to add member", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to add member")
+        return jsonify({"error": "Failed to add member"}), 500
 
 @groups_bp.route("/groups/<group_name>/members/<user_sub>", methods=["DELETE"])
 @requires_auth
@@ -188,8 +201,9 @@ def remove_member(group_name, user_sub):
         else:
             return jsonify({"error": "Failed to remove member"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to remove member", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to remove member")
+        return jsonify({"error": "Failed to remove member"}), 500
 
 @groups_bp.route("/groups/<group_name>/admins", methods=["POST"])
 @requires_auth
@@ -213,8 +227,9 @@ def promote_member(group_name):
         else:
             return jsonify({"error": "Failed to promote member"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to promote member", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to promote member")
+        return jsonify({"error": "Failed to promote member"}), 500
 
 @groups_bp.route("/groups/<group_name>/admins/<user_sub>", methods=["DELETE"])
 @requires_auth
@@ -230,8 +245,9 @@ def demote_admin_route(group_name, user_sub):
         else:
             return jsonify({"error": "Failed to demote admin"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to demote admin", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to demote admin")
+        return jsonify({"error": "Failed to demote admin"}), 500
 
 # ===== INVITE CODE ROUTES =====
 
@@ -267,8 +283,9 @@ def create_invite_code(group_name):
         else:
             return jsonify({"error": "Failed to create invite code"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to create invite code", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to create invite code")
+        return jsonify({"error": "Failed to create invite code"}), 500
 
 @groups_bp.route("/groups/<group_name>/invite-codes", methods=["GET"])
 @requires_auth
@@ -281,8 +298,9 @@ def list_invite_codes(group_name):
         codes = get_group_invite_codes(group_name, g.user_sub)
         return jsonify({"inviteCodes": codes}), 200
         
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch invite codes", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch invite codes")
+        return jsonify({"error": "Failed to fetch invite codes"}), 500
 
 @groups_bp.route("/groups/<group_name>/invite-codes/<code>", methods=["DELETE"])
 @requires_auth
@@ -298,8 +316,9 @@ def revoke_invite_code_route(group_name, code):
         else:
             return jsonify({"error": "Failed to revoke invite code"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to revoke invite code", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to revoke invite code")
+        return jsonify({"error": "Failed to revoke invite code"}), 500
 
 @groups_bp.route("/groups/join-by-code", methods=["POST"])
 @requires_auth
@@ -324,8 +343,9 @@ def join_by_code():
         else:
             return jsonify({"error": "Invalid or expired invite code"}), 400
             
-    except Exception as e:
-        return jsonify({"error": "Failed to join group", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to join group")
+        return jsonify({"error": "Failed to join group"}), 500
 
 # ===== JOIN REQUEST ROUTES =====
 
@@ -338,8 +358,9 @@ def search_groups_route():
         groups = search_groups(query, g.user_sub)
         return jsonify({"groups": groups}), 200
         
-    except Exception as e:
-        return jsonify({"error": "Failed to search groups", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to search groups")
+        return jsonify({"error": "Failed to search groups"}), 500
 
 @groups_bp.route("/groups/<group_name>/join-requests", methods=["POST"])
 @requires_auth
@@ -350,7 +371,7 @@ def request_to_join(group_name):
         user_name = g.user_name or g.user_email or "Unknown User"
         user_email = g.user_email or "unknown@example.com"
         
-        print(f"DEBUG: Creating join request for user_sub={g.user_sub}, group={group_name}")
+        logger.debug(f"Creating join request for user_sub={g.user_sub}, group={group_name}")
         
         success = create_join_request(group_name, g.user_sub, user_name, user_email)
         if success:
@@ -362,29 +383,29 @@ def request_to_join(group_name):
             else:
                 return jsonify({"error": "Join request already pending or group not discoverable"}), 400
             
-    except Exception as e:
-        print(f"DEBUG: Exception in request_to_join: {e}")
-        return jsonify({"error": "Failed to submit join request", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to submit join request")
+        return jsonify({"error": "Failed to submit join request"}), 500
 
 @groups_bp.route("/groups/<group_name>/join-requests", methods=["GET"])
 @requires_auth
 def list_join_requests(group_name):
     """List pending join requests (admin only)"""
     try:
-        print(f"DEBUG: list_join_requests called for group={group_name}, user_sub={g.user_sub}")
+        logger.debug(f"list_join_requests called for group={group_name}, user_sub={g.user_sub}")
         is_admin = is_group_admin(group_name, g.user_sub)
-        print(f"DEBUG: is_group_admin result: {is_admin}")
+        logger.debug(f"is_group_admin result: {is_admin}")
         
         if not is_admin:
             return jsonify({"error": "Admin access required"}), 403
         
         requests = get_pending_join_requests(group_name, g.user_sub)
-        print(f"DEBUG: Found {len(requests)} pending requests")
+        logger.debug(f"Found {len(requests)} pending requests")
         return jsonify({"joinRequests": requests}), 200
         
-    except Exception as e:
-        print(f"DEBUG: Exception in list_join_requests: {e}")
-        return jsonify({"error": "Failed to fetch join requests", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch join requests")
+        return jsonify({"error": "Failed to fetch join requests"}), 500
 
 @groups_bp.route("/groups/<group_name>/join-requests/<user_sub>/approve", methods=["POST"])
 @requires_auth
@@ -400,8 +421,9 @@ def approve_join_request_route(group_name, user_sub):
         else:
             return jsonify({"error": "Failed to approve join request"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to approve join request", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to approve join request")
+        return jsonify({"error": "Failed to approve join request"}), 500
 
 @groups_bp.route("/groups/<group_name>/join-requests/<user_sub>/deny", methods=["POST"])
 @requires_auth
@@ -417,8 +439,9 @@ def deny_join_request_route(group_name, user_sub):
         else:
             return jsonify({"error": "Failed to deny join request"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to deny join request", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to deny join request")
+        return jsonify({"error": "Failed to deny join request"}), 500
 
 # ===== GROUP SETTINGS ROUTES =====
 
@@ -436,8 +459,9 @@ def get_group_settings_route(group_name):
         else:
             return jsonify({"error": "Group not found"}), 404
             
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch group settings", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch group settings")
+        return jsonify({"error": "Failed to fetch group settings"}), 500
 
 @groups_bp.route("/groups/<group_name>/settings", methods=["PATCH"])
 @requires_auth
@@ -467,8 +491,9 @@ def update_group_settings_route(group_name):
         else:
             return jsonify({"error": "Failed to update group settings"}), 500
             
-    except Exception as e:
-        return jsonify({"error": "Failed to update group settings", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to update group settings")
+        return jsonify({"error": "Failed to update group settings"}), 500
 
 # ===== USER JOIN REQUEST STATUS =====
 
@@ -480,8 +505,9 @@ def get_my_join_requests():
         requests = get_user_join_requests(g.user_sub)
         return jsonify({"joinRequests": requests}), 200
         
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch join requests", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to fetch join requests")
+        return jsonify({"error": "Failed to fetch join requests"}), 500
 
 @groups_bp.route("/groups/<group_name>/join-requests/withdraw", methods=["POST"])
 @requires_auth
@@ -493,6 +519,7 @@ def withdraw_join_request_route(group_name):
             return jsonify({"message": "Join request withdrawn"}), 200
         else:
             return jsonify({"error": "No pending request found to withdraw"}), 400
-    except Exception as e:
-        return jsonify({"error": "Failed to withdraw join request", "details": str(e)}), 500
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Failed to withdraw join request")
+        return jsonify({"error": "Failed to withdraw join request"}), 500
 

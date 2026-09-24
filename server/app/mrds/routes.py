@@ -1,20 +1,47 @@
 from flask import jsonify, request, current_app, g
+import logging
 import os
-import boto3
 from bson import json_util, ObjectId
+from bson.errors import InvalidId
+from botocore.exceptions import BotoCoreError, ClientError
 import json
+from pymongo.errors import PyMongoError
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
 # list, insert mongodb functions
 from data import (
     list_mrdfiles_for_user, list_public_mrdfiles, insert_mrdfile_header, read_mrdfile_header,
-    get_mrdfile_by_id_with_auth, delete_mrdfiles_by_ids, change_file_visibility
+    get_mrdfile_by_id_with_auth, change_file_visibility, get_db, get_s3_client
 )
 from app.auth import requires_auth
+from app.errors import ApiError, BadRequest, NotFound
 
 # flask blueprint for mrds route
 from . import mrds_bp
+
+logger = logging.getLogger(__name__)
+
+ALLOWED_EXTENSIONS = {'.bin', '.mrd', '.mrd2'}
+
+
+def _pagination():
+    """
+    Read limit/skip from the query string.
+
+    A malformed value used to reach int() inside a blanket except and come back
+    as a 400 by accident; it is now a 400 on purpose, with a message that says
+    which parameter was wrong.
+    """
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+        skip = int(request.args.get("skip", 0))
+    except ValueError:
+        raise BadRequest("limit and skip must be integers") from None
+    if limit < 0 or skip < 0:
+        raise BadRequest("limit and skip must not be negative")
+    return limit, skip
+
 
 # Route to list public MRD files — no authentication required
 @mrds_bp.route("/mrd-files/public", methods=["GET"])
@@ -23,26 +50,21 @@ def show_public_files():
     Return MRD files with groupName='public' — no authentication required.
     Used by the guest viewer so unauthenticated users can browse public datasets.
     """
-    try:
-        proj = {
-            "fileName": 1,
-            "studyDate": 1,
-            "studyTime": 1,
-            "ownerName": 1,
-            "subjectType": 1,
-            "groupName": 1,
-            "isReconstructed": 1,
-            "protocolName": 1,
-            "upload_timestamp": 1,
-            "file_size": 1,
-            "_id": 1
-        }
-        limit = min(int(request.args.get("limit", 50)), 200)
-        skip = int(request.args.get("skip", 0))
-        cursor_list = list_public_mrdfiles(projection=proj, limit=limit, skip=skip)
-        return jsonify(cursor_list)
-    except Exception as e:
-        return jsonify({"error": "Failed to list public files", "details": str(e)}), 400
+    proj = {
+        "fileName": 1,
+        "studyDate": 1,
+        "studyTime": 1,
+        "ownerName": 1,
+        "subjectType": 1,
+        "groupName": 1,
+        "isReconstructed": 1,
+        "protocolName": 1,
+        "upload_timestamp": 1,
+        "file_size": 1,
+        "_id": 1
+    }
+    limit, skip = _pagination()
+    return jsonify(list_public_mrdfiles(projection=proj, limit=limit, skip=skip))
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
@@ -51,50 +73,41 @@ def show_files():
     """
     Return a list of MRD files accessible to the current user
     """
-    try:
-        # define projection to list only relevant fields for display
-        proj = {
-            "fileName": 1,
-            "studyDate": 1,
-            "studyTime": 1,
-            "ownerName": 1,
-            "subjectType": 1,
-            "groupName": 1,
-            "ownerId": 1,
-            "isReconstructed": 1,
-            "protocolName": 1,
-            "measurementId": 1,
-            "stationName": 1,
-            "original_filename": 1,
-            "upload_timestamp": 1,
-            "file_size": 1,
-            "s3_key": 1,
-            "_id": 1
-        }
-        
-        # Get pagination parameters
-        limit = min(int(request.args.get("limit", 50)), 200)
-        skip = int(request.args.get("skip", 0))
-        
-        # Get files accessible to user
-        cursor_list = list_mrdfiles_for_user(g.user_sub, projection=proj, limit=limit, skip=skip)
-        print('cursor list user', cursor_list)
-        return jsonify(cursor_list)
-    except Exception as e:
-        return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400
+    # define projection to list only relevant fields for display
+    proj = {
+        "fileName": 1,
+        "studyDate": 1,
+        "studyTime": 1,
+        "ownerName": 1,
+        "subjectType": 1,
+        "groupName": 1,
+        "ownerId": 1,
+        "isReconstructed": 1,
+        "protocolName": 1,
+        "measurementId": 1,
+        "stationName": 1,
+        "original_filename": 1,
+        "upload_timestamp": 1,
+        "file_size": 1,
+        "s3_key": 1,
+        "_id": 1
+    }
+    limit, skip = _pagination()
+    # Get files accessible to user. (This used to print the full result -- every
+    # owner id and S3 key the user can see -- to the log on every request.)
+    return jsonify(list_mrdfiles_for_user(g.user_sub, projection=proj, limit=limit, skip=skip))
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
 @requires_auth
 def get_file_details(file_id):
-    try:
-        file_data = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
-        if file_data:
-            # json_util handles BSON types like ObjectId
-            return json.loads(json_util.dumps(file_data)), 200
-        return jsonify({"error": "File not found or access denied"}), 404
-    except Exception as e:
-        return jsonify({"error": "Invalid file ID", "details": str(e)}), 400
+    # A malformed id and a file the user cannot see are both "not found";
+    # a database failure is a 503 from the error handler.
+    file_data = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
+    if not file_data:
+        raise NotFound("File not found or access denied")
+    # json_util handles BSON types like ObjectId
+    return json.loads(json_util.dumps(file_data)), 200
 
 # Route to upload MRD files
 @mrds_bp.route("/upload", methods=["POST"])
@@ -104,94 +117,73 @@ def upload_file():
     Handle batch upload of MRD files with proper error handling and status tracking
     """
     if "file" not in request.files:
-        return jsonify({"error": "No files selected"}), 400
-    
+        raise BadRequest("No files selected")
+
     # Get the current user name from form data (sent from frontend)
     if "ownerName" not in request.form:
-        return jsonify({"error": "current UserName not found"}), 400
+        raise BadRequest("current UserName not found")
     current_user_name = request.form.get("ownerName")
-    
+
     # Get group name from form data (null for private files)
     group_name = request.form.get("groupName")
     if group_name == "null" or group_name == "":
         group_name = None
-    
-    # Setup AWS S3 client
-    s3 = boto3.client("s3")
-    BUCKET = current_app.config['S3_BUCKET']
-    
+
+    s3 = get_s3_client()
+    bucket = current_app.config['S3_BUCKET']
+
     # Create temporary directory for file processing
     upload_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmpdata")
-    if not os.path.exists(upload_path):
-        os.makedirs(upload_path)
-    
+    os.makedirs(upload_path, exist_ok=True)
+
     files = request.files.getlist("file")
     results = []
     successful_files = 0
     failed_files = 0
-    
+
     # Process each file
     for file in files:
         if file.filename == '':
             continue
-            
+
         # Validate file extension
-        allowed_extensions = {'.bin', '.mrd', '.mrd2'}
         file_ext = os.path.splitext(file.filename)[1].lower()
-        if file_ext not in allowed_extensions:
+        if file_ext not in ALLOWED_EXTENSIONS:
             results.append({
                 "original_filename": file.filename,
                 "status": "error",
-                "error": f"File type {file_ext} not allowed. Supported: {', '.join(allowed_extensions)}"
+                "error": f"File type {file_ext} not allowed. Supported: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
             })
             failed_files += 1
             continue
-        
+
         # Save file to temporary location
         temp_filepath = os.path.join(upload_path, secure_filename(file.filename))
         file.save(temp_filepath)
-        
+
+        # The time.sleep() calls that used to sit between these steps --
+        # 0.9 to 1.6 seconds per file -- only faked a progress feel. Removed.
         try:
-            import time
-            
-            # Step 1: Extract metadata from MRD file (20% of progress)
-            time.sleep(0.3)  # Simulate metadata extraction time
             db_entry = read_mrdfile_header(temp_filepath, owner_name=current_user_name)
-            
+
             # Set ownership and group information
             db_entry["ownerId"] = g.user_sub
             db_entry["groupName"] = group_name
-            
-            # Step 2: Insert metadata into MongoDB (40% of progress)
-            time.sleep(0.2)  # Simulate database operation
+
             inserted_id = insert_mrdfile_header(db_entry)
-            
-            # Step 3: Upload to S3 with MongoDB ObjectId as filename (80% of progress)
-            # Simulate upload time based on file size (longer for larger files)
-            file_size_mb = os.path.getsize(temp_filepath) / (1024 * 1024)
-            upload_time = min(1.0, max(0.3, file_size_mb * 0.2))  # 0.3-1.0 seconds based on file size
-            time.sleep(upload_time)
+
+            # Upload to S3 with the MongoDB ObjectId as the key
             s3_key = f"mrd_files/{str(inserted_id)}"
-            s3.upload_file(temp_filepath, BUCKET, s3_key)
-            
-            # Step 4: Update database with S3 key (100% of progress)
-            time.sleep(0.1)  # Simulate final database update
-            from data import get_db
-            db = get_db()
-            db.mrdfiles.update_one(
+            s3.upload_file(temp_filepath, bucket, s3_key)
+
+            get_db().mrdfiles.update_one(
                 {"_id": inserted_id},
                 {"$set": {"s3_key": s3_key}}
             )
-            
+
             # Convert metadata to JSON-serializable format
-            serializable_metadata = {}
-            for key, value in db_entry.items():
-                if hasattr(value, '__str__'):
-                    serializable_metadata[key] = str(value)
-                else:
-                    serializable_metadata[key] = value
-            
-            # Success result
+            serializable_metadata = {key: str(value) for key, value in db_entry.items()}
+
             results.append({
                 "original_filename": file.filename,
                 "status": "completed",
@@ -200,21 +192,25 @@ def upload_file():
                 "s3_key": s3_key
             })
             successful_files += 1
-            
-        except Exception as e:
-            # Error result
+
+        except Exception:  # pylint: disable=broad-exception-caught
+            # Broad on purpose: one bad file must not abort the batch, because
+            # the client relies on per-file outcomes (and the 207). The detail
+            # goes to the log; the client gets a stable message rather than raw
+            # pymongo or botocore text, which is what str(e) used to send.
+            logger.exception("upload failed for %s", file.filename)
             results.append({
                 "original_filename": file.filename,
                 "status": "error",
-                "error": str(e)
+                "error": "Could not store the file. Please try again."
             })
             failed_files += 1
-            
+
         finally:
             # Always cleanup temporary file
             if os.path.exists(temp_filepath):
                 os.remove(temp_filepath)
-    
+
     # Prepare response
     response_data = {
         "message": f"Processed {len(results)} files",
@@ -224,7 +220,7 @@ def upload_file():
         "results": results,
         "timestamp": datetime.utcnow().isoformat()
     }
-    
+
     # Return appropriate status code based on results
     if failed_files > 0 and successful_files > 0:
         return jsonify(response_data), 207  # 207 Multi-Status for partial success
@@ -236,99 +232,92 @@ def upload_file():
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
 @requires_auth
 def delete_files():
-    try:
-        file_ids = request.json.get("ids", [])
-        if not file_ids:
-            return jsonify({"error": "No file IDs provided"}), 400
+    """
+    Batch delete files from S3 and MongoDB, itemising the outcome per file.
 
-        # Setup AWS S3 client
-        s3 = boto3.client("s3")
-        BUCKET = current_app.config['S3_BUCKET']
-        
-        # Get database connection
-        from data import get_db, delete_mrdfiles_by_ids
-        db = get_db()
-        
-        deleted_count = 0
-        s3_deleted_count = 0
-        file_results = []
-        
-        for file_id in file_ids:
+    KNOWN ISSUE, deliberately unchanged here: deletion is authorised with
+    get_mrdfile_by_id_with_auth, which is the READ check. It admits the owner,
+    any member of the file's group, and -- for legacy files with neither an
+    ownerId nor a groupName -- any signed-in user. So group members can delete
+    each other's files, and anyone can delete pre-groups files. Compare
+    change_file_visibility, which requires ownership. Restricting this is a
+    policy decision about who may delete group files; see docs/KNOWN-ISSUES.md.
+    """
+    file_ids = (request.get_json(silent=True) or {}).get("ids", [])
+    if not file_ids:
+        raise BadRequest("No file IDs provided")
+
+    s3 = get_s3_client()
+    bucket = current_app.config['S3_BUCKET']
+    db = get_db()
+
+    deleted_count = 0
+    s3_deleted_count = 0
+    file_results = []
+
+    for file_id in file_ids:
+        file_doc = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
+
+        if not file_doc:
+            file_results.append({
+                "file_id": file_id,
+                "file_name": "Unknown",
+                "status": "error",
+                "db_deleted": False,
+                "s3_deleted": False,
+                "error": "File not found in database"
+            })
+            continue
+
+        file_result = {
+            "file_id": file_id,
+            "file_name": file_doc.get('fileName', 'Unknown'),
+            "status": "success",
+            "db_deleted": False,
+            "s3_deleted": False,
+            "error": None
+        }
+
+        # Delete from S3 if s3_key exists
+        if 's3_key' in file_doc:
             try:
-                # First, get the file document to find the S3 key and check ownership
-                file_doc = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
-                
-                if file_doc:
-                    file_result = {
-                        "file_id": file_id,
-                        "file_name": file_doc.get('fileName', 'Unknown'),
-                        "status": "success",
-                        "db_deleted": False,
-                        "s3_deleted": False,
-                        "error": None
-                    }
-                    
-                    # Delete from S3 if s3_key exists
-                    if 's3_key' in file_doc:
-                        try:
-                            s3.delete_object(Bucket=BUCKET, Key=file_doc['s3_key'])
-                            s3_deleted_count += 1
-                            file_result["s3_deleted"] = True
-                        except Exception as s3_error:
-                            error_msg = f"Error deleting from S3: {str(s3_error)}"
-                            print(f"Error deleting from S3 for file {file_id}: {s3_error}")
-                            file_result["status"] = "error"
-                            file_result["error"] = error_msg
-                    
-                    # Delete from MongoDB
-                    try:
-                        result = db.mrdfiles.delete_one({"_id": ObjectId(file_id)})
-                        if result.deleted_count > 0:
-                            deleted_count += 1
-                            file_result["db_deleted"] = True
-                    except Exception as db_error:
-                        error_msg = f"Error deleting from database: {str(db_error)}"
-                        print(f"Error deleting from database for file {file_id}: {db_error}")
-                        file_result["status"] = "error"
-                        file_result["error"] = error_msg
-                        
-                    file_results.append(file_result)
-                else:
-                    file_results.append({
-                        "file_id": file_id,
-                        "file_name": "Unknown",
-                        "status": "error",
-                        "db_deleted": False,
-                        "s3_deleted": False,
-                        "error": "File not found in database"
-                    })
-                        
-            except Exception as file_error:
-                print(f"Error processing file {file_id}: {file_error}")
-                file_results.append({
-                    "file_id": file_id,
-                    "file_name": "Unknown",
-                    "status": "error",
-                    "db_deleted": False,
-                    "s3_deleted": False,
-                    "error": str(file_error)
-                })
-                continue
-        
-        return jsonify({
-            "message": f"Successfully deleted {deleted_count} files from database and {s3_deleted_count} files from S3",
-            "deleted_count": deleted_count,
-            "s3_deleted_count": s3_deleted_count,
-            "file_results": file_results
-        }), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to delete files", "details": str(e)}), 400
+                s3.delete_object(Bucket=bucket, Key=file_doc['s3_key'])
+                s3_deleted_count += 1
+                file_result["s3_deleted"] = True
+            except (ClientError, BotoCoreError):
+                logger.exception("S3 delete failed for %s", file_id)
+                file_result["status"] = "error"
+                file_result["error"] = "Could not delete the file from storage"
 
-@mrds_bp.route("/mrd-file/<int:file_id>/download")
+        # Delete from MongoDB
+        try:
+            result = db.mrdfiles.delete_one({"_id": ObjectId(file_id)})
+            if result.deleted_count > 0:
+                deleted_count += 1
+                file_result["db_deleted"] = True
+        except (PyMongoError, InvalidId):
+            logger.exception("database delete failed for %s", file_id)
+            file_result["status"] = "error"
+            file_result["error"] = "Could not delete the file record"
+
+        file_results.append(file_result)
+
+    return jsonify({
+        "message": f"Successfully deleted {deleted_count} files from database and {s3_deleted_count} files from S3",
+        "deleted_count": deleted_count,
+        "s3_deleted_count": s3_deleted_count,
+        "file_results": file_results
+    }), 200
+
+@mrds_bp.route("/mrd-file/<file_id>/download", methods=["GET"])
 @requires_auth
-def download_file(file_id):
-    # download file
-    pass
+def download_file(file_id):  # pylint: disable=unused-argument
+    """
+    Not implemented. Previously the body was `pass`, which makes Flask raise
+    because a view returned None, and the <int:> converter could never match a
+    real ObjectId. Takes a string now and says 501.
+    """
+    raise ApiError("File download is not implemented yet.", code="not_implemented", status=501)
 
 @mrds_bp.route("/mrd-files/<file_id>/share", methods=["POST"])
 @requires_auth
@@ -336,20 +325,14 @@ def share_file(file_id):
     """
     Change file visibility from private to group or vice versa
     """
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        new_group_name = data.get("groupName")
-        if new_group_name == "null" or new_group_name == "":
-            new_group_name = None
-        
-        success = change_file_visibility(file_id, new_group_name, g.user_sub)
-        if success:
-            return jsonify({"message": "File visibility updated successfully"}), 200
-        else:
-            return jsonify({"error": "Failed to update file visibility or access denied"}), 400
-            
-    except Exception as e:
-        return jsonify({"error": "Failed to update file visibility", "details": str(e)}), 500
+    data = request.get_json(silent=True)
+    if not data:
+        raise BadRequest("No data provided")
+
+    new_group_name = data.get("groupName")
+    if new_group_name == "null" or new_group_name == "":
+        new_group_name = None
+
+    if not change_file_visibility(file_id, new_group_name, g.user_sub):
+        raise BadRequest("Failed to update file visibility or access denied")
+    return jsonify({"message": "File visibility updated successfully"}), 200

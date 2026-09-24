@@ -1,3 +1,4 @@
+import logging
 """
 JWT Authentication module for Cognito integration
 """
@@ -5,6 +6,8 @@ import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError, PyJWKClient
 from flask import request, jsonify, g
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 # Cognito configuration
 COGNITO_REGION = 'us-east-1'
@@ -17,7 +20,7 @@ try:
     jwks_client = PyJWKClient(JWKS_URL, cache_jwk_set=True, lifespan=3600)
 except Exception as e:
     jwks_client = None
-    print(f"Warning: Could not create JWKS client: {e}")
+    logging.getLogger(__name__).warning("Could not create JWKS client: %s", e)
 
 
 def _decode_token(token: str):
@@ -47,20 +50,28 @@ def requires_auth(f):
 
         token = auth_header.split(" ", 1)[1]
 
+        # Only token validation belongs inside this try. The route call used to
+        # sit in it too, so ANY exception from ANY protected route was answered
+        # as 401 "Authentication failed" -- a bug anywhere looked like being
+        # logged out.
         try:
             decoded = _decode_token(token)
-            g.user_sub = decoded.get("sub")
-            g.user_email = decoded.get("email")
-            g.user_name = decoded.get("name") or decoded.get("email")
-            g.user_groups = decoded.get("cognito:groups", [])
-            return f(*args, **kwargs)
-
         except ExpiredSignatureError:
             return jsonify({"error": "Token has expired"}), 401
         except InvalidTokenError as e:
-            return jsonify({"error": "Invalid token", "details": str(e)}), 401
-        except Exception as e:
-            return jsonify({"error": "Authentication failed", "details": str(e)}), 401
+            # A client problem, not a defect: no traceback.
+            logger.info("rejected token: %s", e)
+            return jsonify({"error": "Invalid token"}), 401
+        except Exception:  # pylint: disable=broad-exception-caught
+            # e.g. the JWKS endpoint unreachable.
+            logger.exception("Authentication failed")
+            return jsonify({"error": "Authentication failed"}), 401
+
+        g.user_sub = decoded.get("sub")
+        g.user_email = decoded.get("email")
+        g.user_name = decoded.get("name") or decoded.get("email")
+        g.user_groups = decoded.get("cognito:groups", [])
+        return f(*args, **kwargs)
 
     return wrapper
 
