@@ -1,7 +1,7 @@
-import logging
 """
 JWT Authentication module for Cognito integration
 """
+import logging
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError, PyJWKClient
 from flask import request, jsonify, g
