@@ -98,10 +98,18 @@ def test_guests_see_the_public_group_only(db_app):
     """Legacy files are visible to signed-in users, but not to guests."""
     ids = seed(db_app)
     with db_app.app_context():
-        public = {d["fileName"] for d in data.list_public_mrdfiles()}
+        public = {d["fileName"] for d in data.list_mrdfiles_for_user(None)}
         assert public == {"public-file"}
         assert data.get_public_mrdfile_by_id(str(ids["legacy-file"])) is None
         assert data.get_public_mrdfile_by_id(str(ids["public-file"])) is not None
+
+
+def test_the_file_list_route_scopes_guests_and_users(db_app, db_client, user):
+    seed(db_app)
+    guest = {d["fileName"] for d in db_client.get("/api/mrd-files").get_json()}
+    alice = {d["fileName"] for d in db_client.get("/api/mrd-files", headers=user(ALICE)).get_json()}
+    assert guest == {"public-file"}
+    assert alice == {"alice-private", "team-file", "public-file", "legacy-file"}
 
 
 def test_listing_is_newest_first_with_string_ids(db_app):

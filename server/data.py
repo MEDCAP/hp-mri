@@ -107,30 +107,32 @@ def get_user_group_names(user_sub: str) -> List[str]:
         logger.exception("could not load groups for %s; falling back to public", user_sub)
         return ["public"]
 
-def list_mrdfiles_for_user(user_sub: str, projection=None, limit=50, skip=0):
+def list_mrdfiles_for_user(user_sub: Optional[str], projection=None, limit=50, skip=0):
     """
-    Retrieve MRD files accessible to a user (private files + group files + public files)
+    Retrieve MRD files a caller may see. "public" is a group everyone is in, so
+    a guest (user_sub None) sees the public group; a signed-in user also sees
+    their private files, their groups' files and legacy (untagged) files.
 
     Database failures propagate (503) rather than returning [], which rendered an
     outage as an empty file list.
     """
     db = get_db()
 
-    # user_groups + public as a list of accessible files
-    groupname_scope = get_user_group_names(user_sub)
-    groupname_scope.append("public")
-
-    # Build query: user's private files OR files in user's groups OR legacy files (public)
-    query = {
-        "$or": [
-            {"ownerId": user_sub},  # User's private files
-            {"groupName": {"$in": groupname_scope}},  # Files in user's groups
-            {"$and": [
-                {"$or": [{"ownerId": {"$exists": False}}, {"ownerId": None}]},  # No ownerId
-                {"$or": [{"groupName": {"$exists": False}}, {"groupName": None}]}  # No groupName
-            ]}  # Legacy files (public to all)
-        ]
-    }
+    if user_sub is None:
+        query = {"groupName": "public"}
+    else:
+        # get_user_group_names always includes "public"
+        groupname_scope = get_user_group_names(user_sub)
+        query = {
+            "$or": [
+                {"ownerId": user_sub},  # User's private files
+                {"groupName": {"$in": groupname_scope}},  # Files in user's groups
+                {"$and": [
+                    {"$or": [{"ownerId": {"$exists": False}}, {"ownerId": None}]},  # No ownerId
+                    {"$or": [{"groupName": {"$exists": False}}, {"groupName": None}]}  # No groupName
+                ]}  # Legacy files (public to all)
+            ]
+        }
 
     sort_condition = {"studyDate": -1, "studyTime": -1}
     cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
@@ -181,20 +183,6 @@ def get_mrdfile_by_id_with_auth(file_id: str, user_sub: str):
         return file_doc
 
     return None
-
-def list_public_mrdfiles(projection=None, limit=50, skip=0):
-    """
-    Retrieve MRD files with groupName='public' — no authentication required.
-    Used for guest access to the viewer. Database failures propagate (503).
-    """
-    db = get_db()
-    query = {"groupName": "public"}
-    sort_condition = {"studyDate": -1, "studyTime": -1}
-    cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
-    cursor_list = list(cursor)
-    for doc in cursor_list:
-        doc["_id"] = str(doc["_id"])
-    return cursor_list
 
 def get_public_mrdfile_by_id(file_id: str):
     """

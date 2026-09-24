@@ -25,23 +25,23 @@ def test_envelope_is_an_error_string_plus_a_code(client):
 
 
 def test_unexpected_exception_does_not_leak(client):
-    with mock.patch("app.mrds.routes.list_public_mrdfiles", side_effect=RuntimeError(SECRET)):
-        response = client.get("/api/mrd-files/public")
+    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", side_effect=RuntimeError(SECRET)):
+        response = client.get("/api/mrd-files")
     assert response.status_code == 500
     assert "hunter2" not in response.get_data(as_text=True)
     assert response.get_json() == {"error": "An unexpected error occurred.", "code": "internal_error"}
 
 
 def test_unexpected_exception_is_logged_with_traceback(client, caplog):
-    with mock.patch("app.mrds.routes.list_public_mrdfiles", side_effect=RuntimeError("boom")):
-        client.get("/api/mrd-files/public")
+    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", side_effect=RuntimeError("boom")):
+        client.get("/api/mrd-files")
     assert any(r.exc_info for r in caplog.records)
 
 
 def test_database_outage_is_503_not_an_empty_list(client):
     """The listings used to catch everything and return [] -- "you have no files"."""
     with mock.patch("data.get_db", side_effect=ServerSelectionTimeoutError("down")):
-        response = client.get("/api/mrd-files/public")
+        response = client.get("/api/mrd-files")
     assert response.status_code == 503
     assert response.get_json()["code"] == "storage_unavailable"
 
@@ -69,7 +69,7 @@ def test_api_errors_map_to_their_status(app, client, exc, status, code):
 # --- requires_auth ------------------------------------------------------------
 
 def test_protected_route_without_a_token_is_401(client):
-    response = client.get("/api/mrd-files")
+    response = client.get(f"/api/mrd-files/{OID}")
     assert response.status_code == 401
     assert response.get_json()["error"] == "Missing or invalid authorization header"
 
@@ -78,7 +78,7 @@ def test_invalid_token_is_401_without_detail(client):
     import jwt  # pylint: disable=import-outside-toplevel
 
     with mock.patch("app.auth._decode_token", side_effect=jwt.InvalidTokenError("sig mismatch")):
-        response = client.get("/api/mrd-files", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/api/mrd-files/{OID}", headers={"Authorization": "Bearer x"})
     assert response.status_code == 401
     assert response.get_json() == {"error": "Invalid token"}
 
@@ -87,7 +87,7 @@ def test_expired_token_says_so(client):
     import jwt  # pylint: disable=import-outside-toplevel
 
     with mock.patch("app.auth._decode_token", side_effect=jwt.ExpiredSignatureError()):
-        response = client.get("/api/mrd-files", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/api/mrd-files/{OID}", headers={"Authorization": "Bearer x"})
     assert response.status_code == 401
     assert response.get_json()["error"] == "Token has expired"
 
@@ -104,8 +104,8 @@ def test_route_errors_are_not_disguised_as_auth_failures(client, user):
 
 
 def test_a_bug_in_a_protected_route_is_a_500_not_a_401(client, user):
-    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", side_effect=RuntimeError("bug")):
-        response = client.get("/api/mrd-files", headers=user())
+    with mock.patch("app.mrds.routes.get_mrdfile_by_id_with_auth", side_effect=RuntimeError("bug")):
+        response = client.get(f"/api/mrd-files/{OID}", headers=user())
     assert response.status_code == 500
 
 
@@ -116,6 +116,16 @@ def test_a_valid_token_reaches_the_route_as_that_user(client, user):
 
 
 # --- optional_auth ------------------------------------------------------------
+
+def test_file_list_treats_an_invalid_token_as_a_guest(client):
+    import jwt  # pylint: disable=import-outside-toplevel
+
+    with mock.patch("app.auth._decode_token", side_effect=jwt.ExpiredSignatureError()), \
+            mock.patch("app.mrds.routes.list_mrdfiles_for_user", return_value=[]) as listed:
+        response = client.get("/api/mrd-files", headers={"Authorization": "Bearer x"})
+    assert response.status_code == 200
+    assert listed.call_args.args[0] is None
+
 
 def test_guest_sees_only_public_files_in_the_viewer(client):
     with mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value=None) as public, \

@@ -19,20 +19,22 @@ def client_error(code="AccessDenied"):
 
 @pytest.mark.parametrize("query", ["limit=abc", "skip=x", "limit=-1", "skip=-5"])
 def test_bad_pagination_is_a_400_that_says_why(client, query):
-    response = client.get(f"/api/mrd-files/public?{query}")
+    response = client.get(f"/api/mrd-files?{query}")
     assert response.status_code == 400
     assert "limit" in response.get_json()["error"]
 
 
 def test_limit_is_capped_at_200(client):
-    with mock.patch("app.mrds.routes.list_public_mrdfiles", return_value=[]) as listed:
-        client.get("/api/mrd-files/public?limit=10000")
+    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", return_value=[]) as listed:
+        client.get("/api/mrd-files?limit=10000")
     assert listed.call_args.kwargs["limit"] == 200
 
 
-def test_public_listing_projects_fields(client):
-    with mock.patch("app.mrds.routes.list_public_mrdfiles", return_value=[]) as listed:
-        client.get("/api/mrd-files/public")
+def test_guest_listing_is_the_public_scope_with_narrow_fields(client):
+    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", return_value=[]) as listed:
+        response = client.get("/api/mrd-files")
+    assert response.status_code == 200
+    assert listed.call_args.args[0] is None
     projection = listed.call_args.kwargs["projection"]
     # The guest listing must not expose ownership or storage internals.
     assert "s3_key" not in projection and "ownerId" not in projection

@@ -11,10 +11,10 @@ from datetime import datetime
 
 # list, insert mongodb functions
 from data import (
-    list_mrdfiles_for_user, list_public_mrdfiles, insert_mrdfile_header, read_mrdfile_header,
+    list_mrdfiles_for_user, insert_mrdfile_header, read_mrdfile_header,
     get_mrdfile_by_id_with_auth, change_file_visibility, get_db, get_s3_client
 )
-from app.auth import requires_auth
+from app.auth import optional_auth, requires_auth
 from app.errors import ApiError, BadRequest, NotFound
 
 # flask blueprint for mrds route
@@ -43,58 +43,40 @@ def _pagination():
     return limit, skip
 
 
-# Route to list public MRD files — no authentication required
-@mrds_bp.route("/mrd-files/public", methods=["GET"])
-def show_public_files():
-    """
-    Return MRD files with groupName='public' — no authentication required.
-    Used by the guest viewer so unauthenticated users can browse public datasets.
-    """
-    proj = {
-        "fileName": 1,
-        "studyDate": 1,
-        "studyTime": 1,
-        "ownerName": 1,
-        "subjectType": 1,
-        "groupName": 1,
-        "isReconstructed": 1,
-        "protocolName": 1,
-        "upload_timestamp": 1,
-        "file_size": 1,
-        "_id": 1
-    }
-    limit, skip = _pagination()
-    return jsonify(list_public_mrdfiles(projection=proj, limit=limit, skip=skip))
+# Fields a guest may see. Owner ids and S3 keys are for signed-in users only.
+GUEST_PROJECTION = {
+    "fileName": 1,
+    "studyDate": 1,
+    "studyTime": 1,
+    "ownerName": 1,
+    "subjectType": 1,
+    "groupName": 1,
+    "isReconstructed": 1,
+    "protocolName": 1,
+    "upload_timestamp": 1,
+    "file_size": 1,
+    "_id": 1
+}
+
+USER_PROJECTION = {
+    **GUEST_PROJECTION,
+    "ownerId": 1,
+    "measurementId": 1,
+    "stationName": 1,
+    "original_filename": 1,
+    "s3_key": 1,
+}
 
 # Route to list MRD files
 @mrds_bp.route("/mrd-files", methods=["GET"])
-@requires_auth
+@optional_auth
 def show_files():
     """
-    Return a list of MRD files accessible to the current user
+    Return the MRD files the caller may see: the public group for guests; their
+    own, their groups' and public files for signed-in users.
     """
-    # define projection to list only relevant fields for display
-    proj = {
-        "fileName": 1,
-        "studyDate": 1,
-        "studyTime": 1,
-        "ownerName": 1,
-        "subjectType": 1,
-        "groupName": 1,
-        "ownerId": 1,
-        "isReconstructed": 1,
-        "protocolName": 1,
-        "measurementId": 1,
-        "stationName": 1,
-        "original_filename": 1,
-        "upload_timestamp": 1,
-        "file_size": 1,
-        "s3_key": 1,
-        "_id": 1
-    }
     limit, skip = _pagination()
-    # Get files accessible to user. (This used to print the full result -- every
-    # owner id and S3 key the user can see -- to the log on every request.)
+    proj = USER_PROJECTION if g.user_sub else GUEST_PROJECTION
     return jsonify(list_mrdfiles_for_user(g.user_sub, projection=proj, limit=limit, skip=skip))
 
 # Route to retrieve specific file details
