@@ -1,51 +1,87 @@
 '''
 mongoDB CRUD operation using application context of flask
 '''
-from webbrowser import get
+import logging
 from flask import current_app
 from bson import ObjectId
+from bson.errors import InvalidId
+from botocore.exceptions import ClientError
 from datetime import datetime
 import os
 import boto3
 import numpy as np
-import matplotlib.pyplot as plt
 from typing import Union, List, Optional
 import io
 
 import app.external.python.mrd as mrd
 
-def get_db(db_name="medcap_dev"):
+logger = logging.getLogger(__name__)
+
+def get_db(db_name=None):
     """
     Returns the MongoDB database instance from the current application context.
+
+    No connectivity check here. It used to ping Atlas on every call, and every
+    function in this module calls get_db() independently, so one request paid
+    several extra round trips; PyMongo already monitors and reconnects in the
+    background. It also re-raised any failure as a bare Exception, which hid
+    PyMongoError from the error handler and turned outages into generic 500s.
+
+    @param db_name: override the configured database; defaults to MONGO_DB_NAME
+    """
+    return current_app.mongo_client.get_database(
+        db_name or current_app.config['MONGO_DB_NAME']
+    )
+
+
+_S3_CLIENT = None
+
+
+def get_s3_client():
+    """
+    Process-wide S3 client. Building one resolves credentials and loads service
+    models, which belongs once per process rather than once per request.
+    """
+    global _S3_CLIENT
+    if _S3_CLIENT is None:
+        _S3_CLIENT = boto3.client("s3")
+    return _S3_CLIENT
+
+
+def _get_mrd_object(file_id):
+    """
+    Fetch mrd_files/{file_id} from the configured bucket.
+
+    A missing object becomes FileNotFoundError (a 404 through the error
+    handler) rather than a ClientError, which would read as a storage outage.
     """
     try:
-        client = current_app.mongo_client
-        # Test the connection
-        client.admin.command('ping')
-        return client.get_database(db_name)
-    except Exception as e:
-        raise Exception(f"Failed to connect to MongoDB: {e}")
+        return get_s3_client().get_object(
+            Bucket=current_app.config['S3_BUCKET'],
+            Key=f'mrd_files/{file_id}',
+        )
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") in ("NoSuchKey", "404"):
+            raise FileNotFoundError(file_id) from e
+        raise
 
 def list_all_mrdfiles(projection=None):
     """
     Retrieve list of mrd header from db sorted by studyDate in descending order
     DEPRECATED: Use list_mrdfiles_for_user instead for proper access control
+
+    Database failures propagate (503 through the error handler). This used to
+    catch everything and return [], so an outage rendered as "you have no files".
     """
-    try:
-        db = get_db()
-        sort_condition = {"studyDate": -1,
-                          "studyTime": -1}
-        # cursor object cannot be re-iterated once excausted
-        # convert to list to allow re-iteration
-        cursor_list = list(db.mrdfiles.find({}, projection).sort(sort_condition))
-        for doc in cursor_list:
-            doc['_id'] = str(doc['_id'])
-        return cursor_list
-    except Exception as e:
-        # Log the error for debugging purposes
-        print(f"Error listing mrd-files from database: {e}")
-        # Return an empty list to prevent frontend errors
-        return []
+    db = get_db()
+    sort_condition = {"studyDate": -1,
+                      "studyTime": -1}
+    # cursor object cannot be re-iterated once excausted
+    # convert to list to allow re-iteration
+    cursor_list = list(db.mrdfiles.find({}, projection).sort(sort_condition))
+    for doc in cursor_list:
+        doc['_id'] = str(doc['_id'])
+    return cursor_list
 
 def get_user_group_names(user_sub: str) -> List[str]:
     """
@@ -65,46 +101,45 @@ def get_user_group_names(user_sub: str) -> List[str]:
             user_groups.append("public")
             
         return user_groups
-    except Exception as e:
-        print(f"Error getting user groups: {e}")
-        # Return at least public group even if there's an error
+    except Exception:  # pylint: disable=broad-exception-caught
+        # Fail closed: on error the user sees public data only. Kept broad on
+        # purpose -- this narrows access, it never widens it.
+        logger.exception("could not load groups for %s; falling back to public", user_sub)
         return ["public"]
 
 def list_mrdfiles_for_user(user_sub: str, projection=None, limit=50, skip=0):
     """
     Retrieve MRD files accessible to a user (private files + group files + public files)
+
+    Database failures propagate (503) rather than returning [], which rendered an
+    outage as an empty file list.
     """
-    try:
-        db = get_db()
+    db = get_db()
 
-        # user_groups + public as a list of accessible files 
-        # groupname_scope = get_user_group_names(user_sub).append("public")
-        groupname_scope = get_user_group_names(user_sub)
-        groupname_scope.append("public")
+    # user_groups + public as a list of accessible files
+    groupname_scope = get_user_group_names(user_sub)
+    groupname_scope.append("public")
 
-        # Build query: user's private files OR files in user's groups OR legacy files (public)
-        query = {
-            "$or": [
-                {"ownerId": user_sub},  # User's private files
-                {"groupName": {"$in": groupname_scope}},  # Files in user's groups
-                {"$and": [
-                    {"$or": [{"ownerId": {"$exists": False}}, {"ownerId": None}]},  # No ownerId
-                    {"$or": [{"groupName": {"$exists": False}}, {"groupName": None}]}  # No groupName
-                ]}  # Legacy files (public to all)
-            ]
-        }
-        
-        sort_condition = {"studyDate": -1, "studyTime": -1}
-        cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
-        
-        cursor_list = list(cursor)
-        for doc in cursor_list:
-            doc['_id'] = str(doc['_id'])
-        return cursor_list
-    except Exception as e:
-        print(f"Error listing mrd-files for user: {e}")
-        return []
-        
+    # Build query: user's private files OR files in user's groups OR legacy files (public)
+    query = {
+        "$or": [
+            {"ownerId": user_sub},  # User's private files
+            {"groupName": {"$in": groupname_scope}},  # Files in user's groups
+            {"$and": [
+                {"$or": [{"ownerId": {"$exists": False}}, {"ownerId": None}]},  # No ownerId
+                {"$or": [{"groupName": {"$exists": False}}, {"groupName": None}]}  # No groupName
+            ]}  # Legacy files (public to all)
+        ]
+    }
+
+    sort_condition = {"studyDate": -1, "studyTime": -1}
+    cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
+
+    cursor_list = list(cursor)
+    for doc in cursor_list:
+        doc['_id'] = str(doc['_id'])
+    return cursor_list
+
 def get_mrdfile_by_id(file_id):
     """
     Retrieve mrdfile db entry by its ObjectId.
@@ -117,64 +152,61 @@ def get_mrdfile_by_id_with_auth(file_id: str, user_sub: str):
     """
     Retrieve mrdfile db entry by its ObjectId with access control
     Returns file if user has access, None otherwise
+
+    A malformed id is "not found". A database failure propagates (503) -- it used
+    to return None too, so an outage looked like "not found or no access".
     """
+    db = get_db()
     try:
-        db = get_db()
         file_doc = db.mrdfiles.find_one({"_id": ObjectId(file_id)})
-        
-        if not file_doc:
-            return None
-        
-        # Check access: user owns file OR file is in user's group OR file is public (untagged)
-        if file_doc.get("ownerId") == user_sub:
-            return file_doc
-        
-        # Check if file is in user's groups
-        user_groups = get_user_group_names(user_sub)
-        if file_doc.get("groupName") in user_groups:
-            return file_doc
-        
-        # Check if file is public (legacy files without both ownerId AND groupName)
-        owner_id = file_doc.get("ownerId")
-        group_name = file_doc.get("groupName")
-        if ((owner_id is None or owner_id == "") and (group_name is None or group_name == "")):
-            return file_doc
-        
+    except (InvalidId, TypeError):
         return None
-    except Exception as e:
-        print(f"Error getting mrd file with auth: {e}")
+
+    if not file_doc:
         return None
+
+    # Check access: user owns file OR file is in user's group OR file is public (untagged)
+    if file_doc.get("ownerId") == user_sub:
+        return file_doc
+
+    # Check if file is in user's groups
+    user_groups = get_user_group_names(user_sub)
+    if file_doc.get("groupName") in user_groups:
+        return file_doc
+
+    # Check if file is public (legacy files without both ownerId AND groupName)
+    owner_id = file_doc.get("ownerId")
+    group_name = file_doc.get("groupName")
+    if ((owner_id is None or owner_id == "") and (group_name is None or group_name == "")):
+        return file_doc
+
+    return None
 
 def list_public_mrdfiles(projection=None, limit=50, skip=0):
     """
     Retrieve MRD files with groupName='public' — no authentication required.
-    Used for guest access to the viewer.
+    Used for guest access to the viewer. Database failures propagate (503).
     """
-    try:
-        db = get_db()
-        query = {"groupName": "public"}
-        sort_condition = {"studyDate": -1, "studyTime": -1}
-        cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
-        cursor_list = list(cursor)
-        for doc in cursor_list:
-            doc["_id"] = str(doc["_id"])
-        return cursor_list
-    except Exception as e:
-        print(f"Error listing public mrd-files: {e}")
-        return []
+    db = get_db()
+    query = {"groupName": "public"}
+    sort_condition = {"studyDate": -1, "studyTime": -1}
+    cursor = db.mrdfiles.find(query, projection).sort(sort_condition).skip(skip).limit(limit)
+    cursor_list = list(cursor)
+    for doc in cursor_list:
+        doc["_id"] = str(doc["_id"])
+    return cursor_list
 
 def get_public_mrdfile_by_id(file_id: str):
     """
     Retrieve a file only if groupName='public'. For unauthenticated viewer access.
-    Returns None if the file doesn't exist or is not public.
+    Returns None if the file doesn't exist, is not public, or the id is malformed.
+    Database failures propagate (503).
     """
     try:
-        db = get_db()
-        doc = db.mrdfiles.find_one({"_id": ObjectId(file_id), "groupName": "public"})
-        return doc
-    except Exception as e:
-        print(f"Error getting public mrd file: {e}")
+        object_id = ObjectId(file_id)
+    except (InvalidId, TypeError):
         return None
+    return get_db().mrdfiles.find_one({"_id": object_id, "groupName": "public"})
 
 def delete_mrdfiles_by_ids(file_ids):
     """
@@ -223,7 +255,9 @@ def read_mrdfile_header(filepath, owner_name=None):
             }
         return header_for_db
     except Exception as e:
-        print(f"MRD parsing failed for {filepath}: {str(e)}")
+        # Not a failure path: an unparseable file is still stored with basic
+        # metadata. The traceback goes to the log.
+        logger.warning("MRD parsing failed for %s", filepath, exc_info=True)
         # Create basic metadata for files that can't be parsed as MRD
         filename = os.path.basename(filepath)
         # Use provided owner_name or "unknown" for failed parsing
@@ -294,12 +328,7 @@ def get_image_array_from_mrdfile(file_id):
         - image_array: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
         - nmr_labels: list of label of frequencies converted from nparray of object. If frequencies dimension is 0, return an empty list
     """
-    # Setup AWS S3 client
-    s3 = boto3.client("s3")
-    # BUCKET = current_app.config['S3_BUCKET']
-    BUCKET = 'medcap-data'
-    s3_filekey = f'mrd_files/{file_id}'
-    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    obj = _get_mrd_object(file_id)
     # Initialize variables to avoid scope issues
     image_array = None
     nmr_labels = []
@@ -314,7 +343,7 @@ def get_image_array_from_mrdfile(file_id):
                     raise ValueError(f"Invalid shape of image array: {image.data.shape}")
                 # if rows and cols are 1, then image.data is spectrum
                 if image.rows() == 1 or image.cols() == 1:
-                    raise Exception("Spectrum is displayed")
+                    raise ValueError("Spectrum is displayed")
                 # fetch header information from the first image
                 if image_array is None:
                     # image.data is 5D image array (channels, slice, rows, cols, frequencies)
@@ -346,14 +375,7 @@ def get_pulse_array_from_mrdfile(file_id):
         - start_time: pulse start time of float32 as list (measurements,)
         - dt: pulse sample time of float32 in ns as single value
     """
-    # Setup AWS S3 client
-    s3 = boto3.client("s3")
-    # if current_app.config['S3_BUCKET']:
-    #     BUCKET = current_app.config['S3_BUCKET']
-    # else:
-    BUCKET = 'medcap-data'
-    s3_filekey = f'mrd_files/{file_id}'
-    obj = s3.get_object(Bucket=BUCKET, Key=s3_filekey)
+    obj = _get_mrd_object(file_id)
 
     body_bytes = obj['Body'].read()
     with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
@@ -395,8 +417,8 @@ def create_group(name: str, display_name: str, description: str, creator_sub: st
         }
         result = db.groups.insert_one(group_doc)
         return result.inserted_id
-    except Exception as e:
-        print(f"Error creating group: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error creating group")
         raise
 
 def get_user_groups(user_sub: str) -> List[dict]:
@@ -411,8 +433,8 @@ def get_user_groups(user_sub: str) -> List[dict]:
             doc['_id'] = str(doc['_id'])
             groups.append(doc)
         return groups
-    except Exception as e:
-        print(f"Error getting user groups: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error getting user groups")
         return []
 
 def get_group_by_name(group_name: str) -> Optional[dict]:
@@ -425,8 +447,8 @@ def get_group_by_name(group_name: str) -> Optional[dict]:
         if group:
             group['_id'] = str(group['_id'])
         return group
-    except Exception as e:
-        print(f"Error getting group: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error getting group")
         return None
 
 def is_group_admin(group_name: str, user_sub: str) -> bool:
@@ -435,20 +457,20 @@ def is_group_admin(group_name: str, user_sub: str) -> bool:
     """
     try:
         db = get_db()
-        print(f"DEBUG: is_group_admin checking group={group_name}, user_sub={user_sub}")
+        logger.debug(f"is_group_admin checking group={group_name}, user_sub={user_sub}")
         
         group = db.groups.find_one(
             {"name": group_name, "admins": user_sub},
             {"_id": 1}
         )
         
-        print(f"DEBUG: is_group_admin found group: {group is not None}")
+        logger.debug(f"is_group_admin found group: {group is not None}")
         if group:
-            print(f"DEBUG: Group found with _id: {group.get('_id')}")
+            logger.debug(f"Group found with _id: {group.get('_id')}")
         
         return group is not None
-    except Exception as e:
-        print(f"Error checking group admin: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error checking group admin")
         return False
 
 def is_group_member(group_name: str, user_sub: str) -> bool:
@@ -462,8 +484,8 @@ def is_group_member(group_name: str, user_sub: str) -> bool:
             {"_id": 1}
         )
         return group is not None
-    except Exception as e:
-        print(f"Error checking group member: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error checking group member")
         return False
 
 def add_group_member(group_name: str, user_sub: str, added_by_sub: str) -> bool:
@@ -483,8 +505,8 @@ def add_group_member(group_name: str, user_sub: str, added_by_sub: str) -> bool:
             {"$addToSet": {"members": user_sub}}
         )
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error adding group member: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error adding group member")
         return False
 
 def remove_group_member(group_name: str, user_sub: str, removed_by_sub: str) -> bool:
@@ -509,8 +531,8 @@ def remove_group_member(group_name: str, user_sub: str, removed_by_sub: str) -> 
             {"$pull": {"members": user_sub, "admins": user_sub}}
         )
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error removing group member: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error removing group member")
         return False
 
 def promote_to_admin(group_name: str, user_sub: str, promoted_by_sub: str) -> bool:
@@ -527,8 +549,8 @@ def promote_to_admin(group_name: str, user_sub: str, promoted_by_sub: str) -> bo
             {"$addToSet": {"admins": user_sub}}
         )
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error promoting to admin: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error promoting to admin")
         return False
 
 def demote_admin(group_name: str, user_sub: str, demoted_by_sub: str) -> bool:
@@ -550,8 +572,8 @@ def demote_admin(group_name: str, user_sub: str, demoted_by_sub: str) -> bool:
             {"$pull": {"admins": user_sub}}
         )
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error demoting admin: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error demoting admin")
         return False
 
 def update_group_properties(group_name: str, updates: dict, updated_by_sub: str) -> bool:
@@ -568,8 +590,8 @@ def update_group_properties(group_name: str, updates: dict, updated_by_sub: str)
             {"$set": updates}
         )
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error updating group properties: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error updating group properties")
         return False
 
 def delete_group(group_name: str, deleted_by_sub: str) -> bool:
@@ -589,8 +611,8 @@ def delete_group(group_name: str, deleted_by_sub: str) -> bool:
         # Delete the group
         result = db.groups.delete_one({"name": group_name})
         return result.deleted_count > 0
-    except Exception as e:
-        print(f"Error deleting group: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error deleting group")
         return False
 
 # ===== INVITE CODE FUNCTIONS =====
@@ -634,8 +656,8 @@ def generate_invite_code(group_name: str, created_by_sub: str, expires_days: int
         )
         
         return code if result.modified_count > 0 else None
-    except Exception as e:
-        print(f"Error generating invite code: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error generating invite code")
         return None
 
 def validate_invite_code(code: str) -> dict:
@@ -669,8 +691,8 @@ def validate_invite_code(code: str) -> dict:
             "displayName": group["displayName"],
             "code": code
         }
-    except Exception as e:
-        print(f"Error validating invite code: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error validating invite code")
         return None
 
 def use_invite_code(code: str, user_sub: str) -> dict:
@@ -707,8 +729,8 @@ def use_invite_code(code: str, user_sub: str) -> dict:
         if result.modified_count > 0:
             return code_info
         return None
-    except Exception as e:
-        print(f"Error using invite code: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error using invite code")
         return None
 
 def get_group_invite_codes(group_name: str, user_sub: str) -> list:
@@ -726,8 +748,8 @@ def get_group_invite_codes(group_name: str, user_sub: str) -> list:
         )
         
         return group.get("inviteCodes", []) if group else []
-    except Exception as e:
-        print(f"Error getting invite codes: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error getting invite codes")
         return []
 
 def revoke_invite_code(group_name: str, code: str, user_sub: str) -> bool:
@@ -745,8 +767,8 @@ def revoke_invite_code(group_name: str, code: str, user_sub: str) -> bool:
         )
         
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error revoking invite code: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error revoking invite code")
         return False
 
 # ===== JOIN REQUEST FUNCTIONS =====
@@ -756,17 +778,17 @@ def create_join_request(group_name: str, user_sub: str, user_name: str, user_ema
     Create a join request for a group
     """
     try:
-        print(f"DEBUG: create_join_request called with group_name={group_name}, user_sub={user_sub}")
+        logger.debug(f"create_join_request called with group_name={group_name}, user_sub={user_sub}")
         
         # Check if user is already a member
         if is_group_member(group_name, user_sub):
-            print(f"DEBUG: User {user_sub} is already a member of {group_name}")
+            logger.debug(f"User {user_sub} is already a member of {group_name}")
             return False
         
         # Check if group exists and is discoverable
         group = get_group_by_name(group_name)
         if not group or not group.get("settings", {}).get("isDiscoverable", True):
-            print(f"DEBUG: Group {group_name} not found or not discoverable")
+            logger.debug(f"Group {group_name} not found or not discoverable")
             return False
         
         # Check if there's already a pending request
@@ -784,7 +806,7 @@ def create_join_request(group_name: str, user_sub: str, user_name: str, user_ema
         )
         
         if existing_request:
-            print(f"DEBUG: User {user_sub} already has a pending request for {group_name}")
+            logger.debug(f"User {user_sub} already has a pending request for {group_name}")
             return False
         
         # Create join request
@@ -799,7 +821,7 @@ def create_join_request(group_name: str, user_sub: str, user_name: str, user_ema
         # Check if group has auto-approve enabled
         auto_approve = group.get("settings", {}).get("autoApprove", False)
         
-        print(f"DEBUG: Auto-approve enabled: {auto_approve}")
+        logger.debug(f"Auto-approve enabled: {auto_approve}")
         
         if auto_approve:
             # Auto-approve: add user to members and mark request as approved
@@ -817,10 +839,10 @@ def create_join_request(group_name: str, user_sub: str, user_name: str, user_ema
                 {"$push": {"joinRequests": join_request}}
             )
         
-        print(f"DEBUG: Database update result: {result.modified_count > 0}")
+        logger.debug(f"Database update result: {result.modified_count > 0}")
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error creating join request: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error creating join request")
         return False
 
 def get_pending_join_requests(group_name: str, user_sub: str) -> list:
@@ -847,8 +869,8 @@ def get_pending_join_requests(group_name: str, user_sub: str) -> list:
         ]
         
         return pending_requests
-    except Exception as e:
-        print(f"Error getting pending join requests: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error getting pending join requests")
         return []
 
 def approve_join_request(group_name: str, user_sub: str, approved_by_sub: str) -> bool:
@@ -877,8 +899,8 @@ def approve_join_request(group_name: str, user_sub: str, approved_by_sub: str) -
         )
         
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error approving join request: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error approving join request")
         return False
 
 def deny_join_request(group_name: str, user_sub: str, denied_by_sub: str) -> bool:
@@ -904,8 +926,8 @@ def deny_join_request(group_name: str, user_sub: str, denied_by_sub: str) -> boo
         )
         
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error denying join request: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error denying join request")
         return False
 
 # ===== GROUP SEARCH FUNCTIONS =====
@@ -952,8 +974,8 @@ def search_groups(query: str, user_sub: str) -> list:
             group["_id"] = str(group["_id"])
         
         return groups
-    except Exception as e:
-        print(f"Error searching groups: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error searching groups")
         return []
 
 def get_group_settings(group_name: str) -> dict:
@@ -969,8 +991,8 @@ def get_group_settings(group_name: str) -> dict:
             "isDiscoverable": True,
             "autoApprove": False
         })
-    except Exception as e:
-        print(f"Error getting group settings: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error getting group settings")
         return None
 
 def update_group_settings(group_name: str, settings: dict, updated_by_sub: str) -> bool:
@@ -988,8 +1010,8 @@ def update_group_settings(group_name: str, settings: dict, updated_by_sub: str) 
         )
         
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error updating group settings: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error updating group settings")
         return False
 
 def get_user_join_requests(user_sub: str) -> list:
@@ -1023,8 +1045,8 @@ def get_user_join_requests(user_sub: str) -> list:
         user_requests.sort(key=lambda x: x.get("requestedAt", ""), reverse=True)
         
         return user_requests
-    except Exception as e:
-        print(f"Error getting user join requests: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error getting user join requests")
         return []
 
 def withdraw_join_request(group_name: str, user_sub: str) -> bool:
@@ -1056,8 +1078,8 @@ def withdraw_join_request(group_name: str, user_sub: str) -> bool:
         )
         
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error withdrawing join request: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error withdrawing join request")
         return False
 
 def change_file_visibility(file_id: str, new_group_name: Optional[str], user_sub: str) -> bool:
@@ -1082,6 +1104,6 @@ def change_file_visibility(file_id: str, new_group_name: Optional[str], user_sub
             {"$set": {"groupName": new_group_name}}
         )
         return result.modified_count > 0
-    except Exception as e:
-        print(f"Error changing file visibility: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Error changing file visibility")
         return False
