@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { listMrdFiles } from '../api/mrdFiles';
 import { getImageArray, getPulseArray, getGradientArray } from '../api/viewer';
 import { getApiErrorMessage } from '../api/client';
+import { AUTH_CHANGE_EVENT } from '../auth/cognito';
 import { MRDFile } from '../types/mrd';
 import { useMRDArrayConcatenation, MRDDataSet, ConcatenatedMRDData } from './useMRDArrayConcatenation';
 
@@ -211,8 +212,8 @@ export const useViewerState = () => {
   // Re-fetch on sign-in, sign-out or an expired session: the list is scoped by the token.
   useEffect(() => {
     fetchMRDFiles();
-    window.addEventListener('auth-change', fetchMRDFiles);
-    return () => window.removeEventListener('auth-change', fetchMRDFiles);
+    window.addEventListener(AUTH_CHANGE_EVENT, fetchMRDFiles);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, fetchMRDFiles);
   }, [fetchMRDFiles]);
 
   return {

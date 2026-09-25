@@ -1,4 +1,4 @@
-// src/pages/calculator/components/CalculatorInfo.tsx
+// src/features/calculator/components/CalculatorInfo.tsx
 
 import React from "react";
 import { Box, Typography, Paper, Link } from "@mui/material";

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../layouts/HeaderAccount';
 import UploadModal from '../../components/UploadModal';
 import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';
@@ -40,7 +39,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { listMrdFiles, deleteMrdFiles } from '../../api/mrdFiles';
 import { MRDFile } from '../../types/mrd';
-import { isAuthenticated } from '../loginpages/cognitoUtils';
+import { AUTH_CHANGE_EVENT, isAuthenticated } from '../../auth/cognito';
 
 const formatStudyTime = (timeString: string) => {
   if (!timeString || !timeString.includes(':')) return '';
@@ -129,8 +128,8 @@ const RetrievePage: React.FC = () => {
       setFiles([]); // clear stale files immediately
       fetchFiles();
     };
-    window.addEventListener('auth-change', handleAuthChange);
-    return () => window.removeEventListener('auth-change', handleAuthChange);
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
   }, []);
 
   useEffect(() => {
@@ -358,12 +357,10 @@ const RetrievePage: React.FC = () => {
           : `calc(100% - 80px - ${fileDetailsPanelOpen ? '400px' : '0px'})`,
         marginLeft: isSidebarOpen ? '260px' : '80px',
         marginRight: fileDetailsPanelOpen ? '400px' : '0px',
-        marginTop: '64px',  // margin top between the header and app 
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        minHeight: 'calc(100vh - 74px)', // Account for header
+        minHeight: 'calc(100vh - 72px)', // MRDLayout's fixed header
       }}
     >
-      <HeaderAccount />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       <Container maxWidth="lg" sx={{ paddingTop: 2 }}>

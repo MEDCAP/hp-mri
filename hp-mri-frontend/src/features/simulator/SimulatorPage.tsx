@@ -2,25 +2,24 @@ import React, { useState } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import ConstructionIcon from '@mui/icons-material/Construction';
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../layouts/HeaderAccount';
+import { SIDEBAR_CLOSED_CONTENT_MARGIN, SIDEBAR_OPEN_CONTENT_MARGIN } from '../../layouts/layoutConstants';
 
 const SimulatorPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const contentMargin = isSidebarOpen ? SIDEBAR_OPEN_CONTENT_MARGIN : SIDEBAR_CLOSED_CONTENT_MARGIN;
 
   return (
     <div
       style={{
-        width: isSidebarOpen ? 'calc(100% - 260px)' : 'calc(100% - 80px)',
-        marginLeft: isSidebarOpen ? '260px' : '80px',
-        marginTop: '64px',
+        width: `calc(100% - ${contentMargin})`,
+        marginLeft: contentMargin,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        height: 'calc(100vh - 64px)',
+        height: 'calc(100vh - 72px)', // MRDLayout's fixed header
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <HeaderAccount />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       <Box sx={{ textAlign: 'center', px: 4 }}>

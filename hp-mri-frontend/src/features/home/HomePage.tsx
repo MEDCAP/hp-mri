@@ -9,6 +9,7 @@ import {
   CardMedia,
   Button,
 } from '@mui/material';
+import { useCurrentUser } from '../../auth/useCurrentUser';
 import PigiLogo from '../../assets/medcap_top_image.png';
 import MRCalculatorImage from '../../assets/mr_calc_thumbnail.png';
 import MRIRecon from '../../assets/mri_recon.png';
@@ -29,6 +30,7 @@ interface ResearchProject {
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { isSignedIn } = useCurrentUser();
 
   const researchProjects: ResearchProject[] = [
     {
@@ -127,8 +129,9 @@ const HomePage: React.FC = () => {
                   onClick={() => navigate('/mrd-files')}
                   sx={{ fontWeight: 600, borderRadius: 2, px: 4, py: 1.5 }}
                 >
-                  Try MR Visualizer
+                  {isSignedIn ? 'Go to tool' : 'Try MR Visualizer'}
                 </Button>
+                {!isSignedIn && (
                 <Button
                   variant="outlined"
                   size="large"
@@ -146,6 +149,7 @@ const HomePage: React.FC = () => {
                 >
                   Sign In
                 </Button>
+                )}
               </Box>
             </Box>
 

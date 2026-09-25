@@ -4,8 +4,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import theme from './theme'; // './theme' exports MUI theme object
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import ProtectedRoute from './components/ProtectedRoute';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './auth/ProtectedRoute';
 
 // Layout Components
 import HomePageLayout from './layouts/HomePageLayout';
@@ -13,23 +13,22 @@ import MRDLayout from './layouts/MRDLayout';
 import SimpleLayout from './layouts/SimpleLayout';
 
 // Login Pages
-import AccountPage from './pages/loginpages/AccountPage';
-import SignUpPage from './pages/loginpages/SignUpPage';
-import ConfirmSignUpPage from './pages/loginpages/ConfirmSignUpPage';
+import AccountPage from './features/auth/AccountPage';
+import SignUpPage from './features/auth/SignUpPage';
+import ConfirmSignUpPage from './features/auth/ConfirmSignUpPage';
 
 // Homepage
-import HomePage from './pages/homepages/HomePage';
-import AboutPage from './pages/homepages/MembersPage';
-import ConceptPage from './pages/homepages/ConceptPage';
-import ConvertStorePage from './pages/homepages/ConvertStorePage';
-import ReconstructionToolsPage from './pages/homepages/ReconstructionToolsPage';
-import SimulatePage from './pages/homepages/SimulatePage';
-import PublicationPage from './pages/homepages/PublicationPage';
-import MRCalculatorPage from './pages/calculator/MRCalculatorPage';
+import HomePage from './features/home/HomePage';
+import AboutPage from './features/home/MembersPage';
+import ConceptPage from './features/home/ConceptPage';
+import ConvertStorePage from './features/home/ConvertStorePage';
+import ReconstructionToolsPage from './features/home/ReconstructionToolsPage';
+import PublicationPage from './features/home/PublicationPage';
+import MRCalculatorPage from './features/calculator/MRCalculatorPage';
 
 // Feature pages
 import RetrievePage from './pages/mrdpages/RetrievePage';
-import SimulatorPage from './pages/simulatorpages/SimulatorPage';
+import SimulatorPage from './features/simulator/SimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
 
 // Group pages
@@ -56,7 +55,7 @@ const AppContent: React.FC = () => {
           <Route path="/concept" element={<HomePageLayout><ConceptPage /></HomePageLayout>} />
           <Route path="/convert-store" element={<HomePageLayout><ConvertStorePage /></HomePageLayout>} />
           <Route path="/reconstruction-tools" element={<HomePageLayout><ReconstructionToolsPage /></HomePageLayout>} />
-          <Route path="/simulate" element={<HomePageLayout><SimulatePage /></HomePageLayout>} />
+          <Route path="/simulate" element={<Navigate to="/simulator" replace />} />
 
           {/* MRD Files - MRD Layout (HeaderAccount) — accessible to guests (public files only) */}
           <Route path="/mrd-files" element={<MRDLayout><RetrievePage /></MRDLayout>} />
@@ -67,7 +66,7 @@ const AppContent: React.FC = () => {
 
           {/* Simulator — incomplete, show coming soon within MRD layout */}
           <Route path="/simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
-          <Route path="/new-simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
+          <Route path="/new-simulator" element={<Navigate to="/simulator" replace />} />
           <Route path="/viewer" element={<SimpleLayout><ViewerPage /></SimpleLayout>} />
 
       </Routes>

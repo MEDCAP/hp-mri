@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { expireSession, getIdToken } from '../pages/loginpages/cognitoUtils';
+import { expireSession, getIdToken } from '../auth/cognito';
 
 /**
  * Single shared axios instance for all API calls.

@@ -1,34 +1,30 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { Container, Box, Typography, TextField, Button, Paper, Link, Alert, Snackbar } from '@mui/material';
+import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
+import { Container, Box, Typography, TextField, Button, Paper, Link, Alert } from '@mui/material';
 import PigiLogo from '../../assets/pigi_optblue_transparentexceptpennlogo.png';
-import { confirmSignUpCognito } from './cognitoUtils';
+import { signInCognito } from '../../auth/cognito';
 
-const ConfirmSignUpPage: React.FC = () => {
+const AccountPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Get email from navigation state or query param
-  const email = (location.state && (location.state as any).email) || '';
-  const [code, setCode] = useState('');
+  const [email, setEmail] = useState(() => (location.state && (location.state as any).email) || '');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  // TODO: Add loading state and Cognito logic
 
-  const handleConfirm = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
-      await confirmSignUpCognito(email, code);
-      setSnackbar({ open: true, message: 'Email confirmed! Please sign in.', severity: 'success' });
-      setTimeout(() => navigate('/account', { state: { email } }), 1200);
+      await signInCognito(email, password);
+      navigate('/mrd-files');
     } catch (err: any) {
-      setError(err.message || 'Invalid or expired code');
-      setSnackbar({ open: true, message: err.message || 'Invalid or expired code', severity: 'error' });
+      setError(err.message || 'Invalid email or password');
     }
   };
 
   return (
-    <>
-      <Box
+    <Box
         sx={{
           position: 'fixed',
           top: 0,
@@ -63,21 +59,30 @@ const ConfirmSignUpPage: React.FC = () => {
               />
             </Box>
             <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
-              Confirm Your Email
+              Sign In
             </Typography>
             <Typography variant="body1" color="textSecondary" gutterBottom>
-              Enter the code sent to your email address to complete registration.
+              Welcome back! Please sign in to your account.
             </Typography>
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-            <Box component="form" noValidate autoComplete="off" sx={{ mt: 3 }} onSubmit={handleConfirm}>
+            <Box component="form" noValidate autoComplete="off" sx={{ mt: 3 }} onSubmit={handleSignIn}>
               <TextField
                 fullWidth
-                label="Confirmation Code"
-                type="text"
+                label="Email"
+                type="email"
                 margin="normal"
                 required
-                value={code}
-                onChange={e => setCode(e.target.value)}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+              <TextField
+                fullWidth
+                label="Password"
+                type="password"
+                margin="normal"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
               />
               <Button
                 fullWidth
@@ -86,28 +91,24 @@ const ConfirmSignUpPage: React.FC = () => {
                 sx={{ mt: 2, py: 1.5, fontWeight: 600, fontSize: '1.1rem' }}
                 type="submit"
               >
-                Confirm
+                Sign In
               </Button>
             </Box>
             <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
-              Already confirmed?{' '}
-              <Link component={RouterLink} to="/account" underline="hover" color="secondary" sx={{ fontWeight: 700, fontSize: '1.15rem', ml: 0.5, color: '#1976d2' }}>
-                Sign in
+              New to MEDCAP?{' '}
+              <Link
+                component={RouterLink}
+                to="/signup"
+                sx={{ fontWeight: 700, fontSize: '1.15rem', ml: 0.5, color: '#1976d2' }}
+                underline="hover"
+              >
+                Create an account
               </Link>
             </Typography>
           </Paper>
         </Container>
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={3000}
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          message={snackbar.message}
-          ContentProps={{ sx: { backgroundColor: snackbar.severity === 'success' ? 'success.main' : 'error.main', color: '#fff', fontWeight: 600 } }}
-        />
       </Box>
-    </>
   );
 };
 
-export default ConfirmSignUpPage; 
+export default AccountPage;
