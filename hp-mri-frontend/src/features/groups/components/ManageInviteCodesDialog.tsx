@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -51,25 +51,25 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
   const [expiresDays, setExpiresDays] = useState<number>(7);
   const [maxUses, setMaxUses] = useState<number>(10);
 
-  useEffect(() => {
-    if (open) {
-      loadInviteCodes();
-    }
-  }, [open, groupName]);
-
-  const loadInviteCodes = async () => {
+  const loadInviteCodes = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
       setInviteCodes(await listInviteCodes(groupName));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading invite codes:', error);
       setError('Failed to load invite codes');
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupName]);
+
+  useEffect(() => {
+    if (open) {
+      loadInviteCodes();
+    }
+  }, [open, loadInviteCodes]);
 
   const handleCreateInviteCode = async () => {
     try {
@@ -83,7 +83,7 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
       
       setSuccess('Invite code created successfully!');
       loadInviteCodes(); // Refresh the list
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating invite code:', error);
       setError('Failed to create invite code');
     } finally {
@@ -105,7 +105,7 @@ const ManageInviteCodesDialog: React.FC<ManageInviteCodesDialogProps> = ({
       await revokeInviteCode(groupName, code);
       setSuccess('Invite code revoked successfully!');
       loadInviteCodes(); // Refresh the list
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error revoking invite code:', error);
       setError('Failed to revoke invite code');
     }

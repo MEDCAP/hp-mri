@@ -11,6 +11,7 @@ import {
   useTheme,
   alpha
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
   Group as GroupIcon,
   CheckCircle as CheckCircleIcon,
@@ -48,7 +49,7 @@ const JoinRequestStatus: React.FC<JoinRequestStatusProps> = ({ userSub }) => {
       
       setRequests(await listMyJoinRequests());
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading join request status:', error);
       setError('Failed to load join request status');
     } finally {
@@ -70,7 +71,7 @@ const JoinRequestStatus: React.FC<JoinRequestStatusProps> = ({ userSub }) => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipProps['color'] => {
     switch (status) {
       case 'pending': return 'warning';
       case 'approved': return 'success';
@@ -170,7 +171,7 @@ const JoinRequestStatus: React.FC<JoinRequestStatusProps> = ({ userSub }) => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                     <Chip
                       label={getStatusText(request.status)}
-                      color={getStatusColor(request.status) as any}
+                      color={getStatusColor(request.status)}
                       size="small"
                       icon={getStatusIcon(request.status) || undefined}
                       sx={{ textTransform: 'none' }}

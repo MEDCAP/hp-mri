@@ -32,15 +32,16 @@ apiClient.interceptors.response.use(undefined, (error) => {
  * Normalize an unknown error thrown by axios (or anything else) into a
  * human-readable message. Prefers the backend's structured error fields
  * (`response.data.error` / `response.data.details`) and falls back to the
- * error's own message.
+ * error's own message, or to `fallback` when one is given.
  */
-export function getApiErrorMessage(err: unknown): string {
+export function getApiErrorMessage(err: unknown, fallback?: string): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as { error?: string; details?: string } | undefined;
     if (data?.error) return data.error;
     if (data?.details) return data.details;
-    return err.message;
+    return fallback ?? err.message;
   }
+  if (fallback) return fallback;
   if (err instanceof Error) return err.message;
   return 'An unexpected error occurred';
 }

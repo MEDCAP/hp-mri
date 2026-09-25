@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -26,14 +26,14 @@ import {
   Visibility
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { listGroups, createGroup, deleteGroup } from '../../api/groups';
+import { createGroup, deleteGroup } from '../../api/groups';
+import { useGroups } from './hooks/useGroups';
+import { getApiErrorMessage } from '../../api/client';
 import { Group as GroupType, CreateGroupRequest } from '../../types/group';
 
 const GroupsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [groups, setGroups] = useState<GroupType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { groups, loading, error, refresh: fetchGroups } = useGroups();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newGroup, setNewGroup] = useState<CreateGroupRequest>({
     name: '',
@@ -42,23 +42,6 @@ const GroupsPage: React.FC = () => {
   });
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-
-  useEffect(() => {
-    fetchGroups();
-  }, []);
-
-  const fetchGroups = async () => {
-    try {
-      setLoading(true);
-      setGroups(await listGroups());
-      setError(null);
-    } catch (error: any) {
-      console.error('Error fetching groups:', error);
-      setError('Failed to load groups');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateGroup = async () => {
     if (!newGroup.name.trim() || !newGroup.displayName.trim()) {
@@ -73,9 +56,9 @@ const GroupsPage: React.FC = () => {
       setCreateDialogOpen(false);
       setNewGroup({ name: '', displayName: '', description: '' });
       fetchGroups();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating group:', error);
-      setCreateError(error.response?.data?.error || 'Failed to create group');
+      setCreateError(getApiErrorMessage(error, 'Failed to create group'));
     } finally {
       setIsCreating(false);
     }
@@ -89,9 +72,9 @@ const GroupsPage: React.FC = () => {
     try {
       await deleteGroup(groupName);
       fetchGroups();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting group:', error);
-      alert(error.response?.data?.error || 'Failed to delete group');
+      alert(getApiErrorMessage(error, 'Failed to delete group'));
     }
   };
 

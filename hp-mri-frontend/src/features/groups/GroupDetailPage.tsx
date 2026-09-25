@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -40,6 +40,7 @@ import {
   promoteAdmin,
   demoteAdmin,
 } from '../../api/groups';
+import { getApiErrorMessage } from '../../api/client';
 import { Group as GroupType, GroupMember } from '../../types/group';
 import JoinRequestsPanel from './components/JoinRequestsPanel';
 import ManageInviteCodesDialog from './components/ManageInviteCodesDialog';
@@ -59,13 +60,7 @@ const GroupDetailPage: React.FC = () => {
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [isUserMember, setIsUserMember] = useState(false);
 
-  useEffect(() => {
-    if (groupName) {
-      fetchGroupDetails();
-    }
-  }, [groupName]);
-
-  const fetchGroupDetails = async () => {
+  const fetchGroupDetails = useCallback(async () => {
     try {
       setLoading(true);
       const [groupData, memberList] = await Promise.all([
@@ -77,18 +72,24 @@ const GroupDetailPage: React.FC = () => {
       setMembers(memberList);
       
       // Check if current user is admin or member
-      const currentUserSub = getCurrentUserSubLocal();
+      const currentUserSub = getCurrentUserSub() || 'unknown-user-sub';
       setIsUserAdmin(groupData.admins.includes(currentUserSub));
       setIsUserMember(groupData.members.includes(currentUserSub));
       
       setError(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching group details:', error);
       setError('Failed to load group details');
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupName]);
+
+  useEffect(() => {
+    if (groupName) {
+      fetchGroupDetails();
+    }
+  }, [groupName, fetchGroupDetails]);
 
   const getCurrentUserSubLocal = () => {
     return getCurrentUserSub() || 'unknown-user-sub';
@@ -99,9 +100,9 @@ const GroupDetailPage: React.FC = () => {
       await updateGroup(groupName, updates);
       fetchGroupDetails();
       setEditDialogOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating group:', error);
-      alert(error.response?.data?.error || 'Failed to update group');
+      alert(getApiErrorMessage(error, 'Failed to update group'));
     }
   };
 
@@ -113,9 +114,9 @@ const GroupDetailPage: React.FC = () => {
       setUserSubToInvite('');
       setInviteDialogOpen(false);
       fetchGroupDetails();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error inviting member:', error);
-      alert(error.response?.data?.error || 'Failed to invite member');
+      alert(getApiErrorMessage(error, 'Failed to invite member'));
     }
   };
 
@@ -127,9 +128,9 @@ const GroupDetailPage: React.FC = () => {
     try {
       await removeMember(groupName, userSub);
       fetchGroupDetails();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error removing member:', error);
-      alert(error.response?.data?.error || 'Failed to remove member');
+      alert(getApiErrorMessage(error, 'Failed to remove member'));
     }
   };
 
@@ -137,9 +138,9 @@ const GroupDetailPage: React.FC = () => {
     try {
       await promoteAdmin(groupName, userSub);
       fetchGroupDetails();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error promoting member:', error);
-      alert(error.response?.data?.error || 'Failed to promote member');
+      alert(getApiErrorMessage(error, 'Failed to promote member'));
     }
   };
 
@@ -151,9 +152,9 @@ const GroupDetailPage: React.FC = () => {
     try {
       await demoteAdmin(groupName, userSub);
       fetchGroupDetails();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error demoting admin:', error);
-      alert(error.response?.data?.error || 'Failed to demote admin');
+      alert(getApiErrorMessage(error, 'Failed to demote admin'));
     }
   };
 
@@ -165,9 +166,9 @@ const GroupDetailPage: React.FC = () => {
     try {
       await removeMember(groupName, getCurrentUserSubLocal());
       navigate('/groups');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error leaving group:', error);
-      alert(error.response?.data?.error || 'Failed to leave group');
+      alert(getApiErrorMessage(error, 'Failed to leave group'));
     }
   };
 

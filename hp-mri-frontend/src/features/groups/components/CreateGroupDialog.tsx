@@ -16,6 +16,7 @@ import {
   Group as GroupIcon
 } from '@mui/icons-material';
 import { createGroup } from '../../../api/groups';
+import { getApiErrorMessage } from '../../../api/client';
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -68,12 +69,10 @@ const CreateGroupDialog: React.FC<CreateGroupDialogProps> = ({ open, onClose, on
       // Close dialog
       onClose();
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating group:', error);
       setError(
-        error.response?.data?.error || 
-        error.response?.data?.message || 
-        'Failed to create group. Please try again.'
+        getApiErrorMessage(error, 'Failed to create group. Please try again.')
       );
     } finally {
       setLoading(false);
