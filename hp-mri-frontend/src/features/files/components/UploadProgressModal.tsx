@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Dialog,
   DialogTitle,
   DialogContent,
   Box,
@@ -10,7 +9,6 @@ import {
   IconButton,
   Paper,
   Fade,
-  Slide,
   Grow,
   styled,
   useTheme
@@ -23,32 +21,7 @@ import {
   UploadFile,
   CloudUpload
 } from '@mui/icons-material';
-import { TransitionProps } from '@mui/material/transitions';
-
-// Styled components
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    borderRadius: 16,
-    boxShadow: theme.shadows[24],
-    maxWidth: 500,
-    width: '100%',
-    margin: 16,
-  },
-  '@keyframes pulse': {
-    '0%': {
-      opacity: 1,
-      transform: 'scale(1)',
-    },
-    '50%': {
-      opacity: 0.5,
-      transform: 'scale(1.1)',
-    },
-    '100%': {
-      opacity: 1,
-      transform: 'scale(1)',
-    },
-  },
-}));
+import { Transition, StyledDialog } from '../../../components/dialogs/AppDialog';
 
 const FileProgressItem = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -74,16 +47,6 @@ const OverallProgressContainer = styled(Box)(({ theme }) => ({
   color: theme.palette.primary.contrastText,
   boxShadow: theme.shadows[4],
 }));
-
-// Transition component
-const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement<any, any>;
-  },
-  ref: React.Ref<unknown>,
-) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
 
 interface UploadFile {
   id: string;
@@ -156,6 +119,13 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
       TransitionComponent={Transition}
       maxWidth="sm"
       fullWidth
+      sx={{
+        '@keyframes pulse': {
+          '0%': { opacity: 1, transform: 'scale(1)' },
+          '50%': { opacity: 0.5, transform: 'scale(1.1)' },
+          '100%': { opacity: 1, transform: 'scale(1)' },
+        },
+      }}
     >
       <DialogTitle sx={{ 
         display: 'flex', 

@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { MRDFile, DeleteResponse, UploadResponse } from './types';
+import { MRDFile, DeleteResponse } from './types';
 
 /**
  * GET /mrd-files — the files the caller may see. The backend scopes this by
@@ -14,14 +14,6 @@ export async function listMrdFiles(): Promise<MRDFile[]> {
 /** GET /mrd-files/:id — fetch a single MRD file's metadata. */
 export async function getMrdFile(id: string): Promise<MRDFile> {
   const response = await apiClient.get<MRDFile>(`/mrd-files/${id}`);
-  return response.data;
-}
-
-/** POST /upload — multipart upload of `mriFiles` / `auxFiles`. */
-export async function uploadMrdFiles(formData: FormData): Promise<UploadResponse> {
-  const response = await apiClient.post<UploadResponse>('/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
   return response.data;
 }
 

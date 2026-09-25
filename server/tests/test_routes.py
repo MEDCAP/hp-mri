@@ -1,7 +1,5 @@
 """File, viewer and group routes, with the data layer mocked."""
 import io
-import threading
-import time
 from unittest import mock
 
 import pytest
@@ -49,84 +47,135 @@ def test_file_details_for_an_inaccessible_file_is_404(client, user):
 
 # --- upload -------------------------------------------------------------------
 
-def upload(client, headers, files, group=None):
-    data = {"ownerName": "Researcher", "file": files}
-    if group is not None:
-        data["groupName"] = group
-    return client.post("/api/upload", headers=headers, data=data,
-                       content_type="multipart/form-data")
+MAX = 2 * 1024 * 1024 * 1024
 
 
-def test_upload_requires_files_and_owner(client, user):
-    assert client.post("/api/upload", headers=user(), data={}).status_code == 400
-    response = client.post("/api/upload", headers=user(),
-                           data={"file": (io.BytesIO(b"x"), "a.mrd")},
-                           content_type="multipart/form-data")
-    assert response.status_code == 400
-
-
-def test_upload_rejects_a_bad_extension_per_file(client, user):
-    response = upload(client, user(), [(io.BytesIO(b"x"), "notes.txt")])
-    assert response.status_code == 400
-    assert "not allowed" in response.get_json()["results"][0]["error"]
-
-
-def test_upload_success_records_owner_and_group(client, user):
+def staged_s3(size=10, head_error=None):
+    """An S3 mock holding one staged object of `size` bytes."""
     s3 = mock.Mock()
-    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3), \
-         mock.patch("app.mrds.routes.read_mrdfile_header", return_value={"fileName": "f"}), \
-         mock.patch("app.mrds.routes.insert_mrdfile_header", return_value=OID) as insert, \
-         mock.patch("app.mrds.routes.get_db"):
-        response = upload(client, user("sub-9"), [(io.BytesIO(b"x"), "scan.mrd")], group="team-a")
+    s3.generate_presigned_url.return_value = "https://s3.example/put"
+    if head_error:
+        s3.head_object.side_effect = head_error
+    else:
+        s3.head_object.return_value = {"ContentLength": size}
+    s3.get_object.return_value = {"Body": io.BytesIO(b"x" * size)}
+    return s3
 
+
+@pytest.mark.parametrize("path", ["/api/uploads/init", f"/api/uploads/{OID}/complete",
+                                  f"/api/uploads/{OID}/abort"])
+def test_upload_routes_require_a_token(client, path):
+    assert client.post(path, json={"filename": "a.mrd", "fileSize": 1}).status_code == 401
+
+
+@pytest.mark.parametrize("body", [{}, {"filename": "notes.txt", "fileSize": 1},
+                                  {"filename": "a.mrd"}, {"filename": "a.mrd", "fileSize": True},
+                                  {"filename": "a.mrd", "fileSize": MAX + 1}])
+def test_init_validates_the_body(client, user, body):
+    with mock.patch("app.mrds.routes.get_s3_client") as s3:
+        response = client.post("/api/uploads/init", headers=user(), json=body)
+    assert response.status_code == 400
+    s3.assert_not_called()
+
+
+def test_init_signs_a_put_into_the_callers_staging_prefix(client, user):
+    s3 = staged_s3()
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3):
+        response = client.post("/api/uploads/init", headers=user("sub-9"),
+                               json={"filename": "scan.mrd", "fileSize": 10, "groupName": None})
     assert response.status_code == 200
+    upload_id = response.get_json()["uploadId"]
+    key = s3.generate_presigned_url.call_args.kwargs["Params"]["Key"]
+    assert key == f"uploads/staging/sub-9/{upload_id}"
+
+
+@pytest.mark.parametrize("path", ["/api/uploads/init", f"/api/uploads/{OID}/complete"])
+def test_a_non_member_group_is_403(client, user, path):
+    s3 = staged_s3()
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3), \
+         mock.patch("app.mrds.routes.is_group_member", return_value=False) as member, \
+         mock.patch("app.mrds.routes.insert_mrdfile_header") as insert:
+        response = client.post(path, headers=user("sub-9"),
+                               json={"filename": "a.mrd", "fileSize": 10, "groupName": "team-b"})
+    assert response.status_code == 403
+    member.assert_called_once_with("team-b", "sub-9")
+    insert.assert_not_called()
+
+
+def test_complete_records_owner_and_group_from_the_token(client, user):
+    s3 = staged_s3()
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3), \
+         mock.patch("app.mrds.routes.is_group_member", return_value=True), \
+         mock.patch("app.mrds.routes.read_mrdfile_header",
+                    return_value={"fileName": "f", "ownerName": "sub-9@upenn.edu"}) as parse, \
+         mock.patch("app.mrds.routes.insert_mrdfile_header", return_value=OID) as insert:
+        response = client.post(f"/api/uploads/{OID}/complete", headers=user("sub-9"),
+                               json={"filename": "scan.mrd", "groupName": "team-a",
+                                     "ownerName": "Spoofed"})
+
+    assert response.status_code == 201
+    assert parse.call_args.kwargs["owner_name"] == "sub-9@upenn.edu"
     doc = insert.call_args.args[0]
     assert doc["ownerId"] == "sub-9" and doc["groupName"] == "team-a"
-    s3.upload_file.assert_called_once()
-    assert s3.upload_file.call_args.args[2] == f"mrd_files/{OID}"
+    assert doc["s3_key"] == f"mrd_files/{OID}"
+    assert str(insert.call_args.kwargs["doc_id"]) == OID
+    staging = f"uploads/staging/sub-9/{OID}"
+    s3.head_object.assert_called_once_with(Bucket="test-bucket", Key=staging)
+    s3.delete_object.assert_called_once_with(Bucket="test-bucket", Key=staging)
 
 
-def test_upload_partial_failure_is_207_and_does_not_leak(client, user):
-    """One file failing must not sink the batch, and must not ship botocore text."""
-    s3 = mock.Mock()
-    s3.upload_file.side_effect = [None, client_error()]
+def test_complete_without_a_group_is_private(client, user):
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=staged_s3()), \
+         mock.patch("app.mrds.routes.is_group_member") as member, \
+         mock.patch("app.mrds.routes.read_mrdfile_header", return_value={"fileName": "f"}), \
+         mock.patch("app.mrds.routes.insert_mrdfile_header", return_value=OID) as insert:
+        response = client.post(f"/api/uploads/{OID}/complete", headers=user(),
+                               json={"filename": "scan.mrd", "groupName": None})
+    assert response.status_code == 201
+    assert insert.call_args.args[0]["groupName"] is None
+    member.assert_not_called()
+
+
+def test_complete_rejects_an_oversize_object_and_deletes_it(client, user):
+    s3 = staged_s3(size=MAX + 1)
     with mock.patch("app.mrds.routes.get_s3_client", return_value=s3), \
-         mock.patch("app.mrds.routes.read_mrdfile_header", return_value={"fileName": "f"}), \
-         mock.patch("app.mrds.routes.insert_mrdfile_header", side_effect=[OID, OID]), \
-         mock.patch("app.mrds.routes.get_db"):
-        response = upload(client, user(), [(io.BytesIO(b"a"), "a.mrd"), (io.BytesIO(b"b"), "b.mrd")])
-
-    assert response.status_code == 207
-    body = response.get_data(as_text=True)
-    assert "arn:aws" not in body
-    statuses = [r["status"] for r in response.get_json()["results"]]
-    assert statuses == ["completed", "error"]
+         mock.patch("app.mrds.routes.insert_mrdfile_header") as insert:
+        response = client.post(f"/api/uploads/{OID}/complete", headers=user(),
+                               json={"filename": "scan.mrd"})
+    assert response.status_code == 400
+    s3.delete_object.assert_called_once()
+    s3.get_object.assert_not_called()
+    insert.assert_not_called()
 
 
-def test_upload_takes_no_artificial_delay(client, user):
-    """
-    The fake-progress time.sleep() calls cost 0.9-1.6 s per file. They were a
-    local `import time` inside the loop, so only a patch on time.sleep itself
-    can see them -- filtered to this thread, because pymongo's background
-    monitors sleep constantly.
-    """
-    request_thread = threading.get_ident()
-    slept = []
-    real_sleep = time.sleep
+def test_complete_with_no_staged_object_is_404(client, user):
+    s3 = staged_s3(head_error=client_error("404"))
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3):
+        response = client.post(f"/api/uploads/{OID}/complete", headers=user(),
+                               json={"filename": "scan.mrd"})
+    assert response.status_code == 404
 
-    def spy(seconds):
-        if threading.get_ident() == request_thread:
-            slept.append(seconds)
-            return None
-        return real_sleep(seconds)
 
-    with mock.patch("time.sleep", side_effect=spy), \
-         mock.patch("app.mrds.routes.get_s3_client"), \
-         mock.patch("app.mrds.routes.read_mrdfile_header", return_value={"fileName": "f"}), \
-         mock.patch("app.mrds.routes.insert_mrdfile_header", return_value=OID), \
-         mock.patch("app.mrds.routes.get_db"):
-        upload(client, user(), [(io.BytesIO(b"x"), "scan.mrd")])
-    assert slept == []
+def test_complete_rejects_a_malformed_upload_id(client, user):
+    with mock.patch("app.mrds.routes.get_s3_client") as s3:
+        response = client.post("/api/uploads/not-an-id/complete", headers=user(),
+                               json={"filename": "scan.mrd"})
+    assert response.status_code == 400
+    s3.assert_not_called()
+
+
+def test_abort_deletes_only_the_callers_staged_object(client, user):
+    s3 = staged_s3()
+    s3.delete_object.side_effect = client_error()
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3):
+        response = client.post(f"/api/uploads/{OID}/abort", headers=user("sub-9"))
+    assert response.status_code == 204
+    s3.delete_object.assert_called_once_with(Bucket="test-bucket",
+                                             Key=f"uploads/staging/sub-9/{OID}")
+
+
+def test_the_multipart_upload_route_is_gone(client, user):
+    assert client.post("/api/upload", headers=user()).status_code in (404, 405)
 
 
 # --- delete -------------------------------------------------------------------
