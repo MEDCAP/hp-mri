@@ -40,7 +40,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { listMrdFiles, deleteMrdFiles } from '../../api/mrdFiles';
 import { MRDFile } from '../../types/mrd';
-import { isAuthenticated } from '../../auth/cognito';
+import { AUTH_CHANGE_EVENT, isAuthenticated } from '../../auth/cognito';
 
 const formatStudyTime = (timeString: string) => {
   if (!timeString || !timeString.includes(':')) return '';
@@ -129,8 +129,8 @@ const RetrievePage: React.FC = () => {
       setFiles([]); // clear stale files immediately
       fetchFiles();
     };
-    window.addEventListener('auth-change', handleAuthChange);
-    return () => window.removeEventListener('auth-change', handleAuthChange);
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
   }, []);
 
   useEffect(() => {

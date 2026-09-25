@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
 import MedCapLogo from './../assets/medcap_logo.png';
-import { getCurrentUserName, signOutCognito } from '../auth/cognito';
+import { signOutCognito } from '../auth/cognito';
+import { useCurrentUser } from '../auth/useCurrentUser';
 
 // Reusable styles for navigation links
 const NAV_LINK_STYLE = {
@@ -20,24 +21,10 @@ const NAV_LINK_STYLE = {
 
 const HeaderHomePage: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [userName, setUserName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkAuth = () => {
-      const currentUser = getCurrentUserName();
-      setUserName(currentUser);
-    };
-
-    checkAuth();
-    const interval = setInterval(checkAuth, 1000);
-    
-    return () => clearInterval(interval);
-  }, [location.pathname]);
+  const { userName } = useCurrentUser();
 
   const handleSignOut = () => {
     signOutCognito();
-    setUserName(null);
     navigate('/');
   };
 

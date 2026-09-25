@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, useTheme, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
 import Medcap from './../assets/medcap_logo.png'
-import { getCurrentUserName, signOutCognito } from '../auth/cognito';
+import { signOutCognito } from '../auth/cognito';
+import { useCurrentUser } from '../auth/useCurrentUser';
 
 // Change header account color when used in files retrieval and viewer page
 interface HeaderAccountProps {
@@ -12,12 +13,10 @@ interface HeaderAccountProps {
 
 const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}) => {
   const theme = useTheme();
-  const [userName, setUserName] = useState<string | null>(getCurrentUserName);
+  const { userName } = useCurrentUser();
   const navigate = useNavigate();
   const handleSignOut = () => {
     signOutCognito();
-    setUserName(null);
-    window.dispatchEvent(new Event('auth-change')); // notify other components
     navigate('/');
   };
 
@@ -78,20 +77,30 @@ const HeaderAccount: React.FC<HeaderAccountProps> = ({ background_black = false}
 
         {/* Right Section: Account */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {userName && (
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: background_black ? "white" : theme.palette.primary.main }}>
-              Welcome, {userName}
-            </Typography>
-          )}
-          {userName && (
+          {userName ? (
+            <>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: background_black ? "white" : theme.palette.primary.main }}>
+                Welcome, {userName}
+              </Typography>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                onClick={handleSignOut}
+                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
+              >
+                Sign Out
+              </Button>
+            </>
+          ) : (
             <Button
               variant="outlined"
               color="secondary"
               size="small"
-              onClick={handleSignOut}
+              onClick={() => navigate('/account')}
               sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
             >
-              Sign Out
+              Sign In
             </Button>
           )}
         </Box>

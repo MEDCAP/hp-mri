@@ -48,6 +48,13 @@ export function confirmSignUpCognito(email: string, code: string): Promise<any> 
   });
 }
 
+/** Fired on window whenever this tab signs in or out. */
+export const AUTH_CHANGE_EVENT = 'auth-change';
+
+function notifyAuthChange() {
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+}
+
 export function signInCognito(email: string, password: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const authDetails = new AuthenticationDetails({
@@ -71,7 +78,8 @@ export function signInCognito(email: string, password: string): Promise<any> {
         localStorage.setItem('cognito_user_name', name);
         localStorage.setItem('cognito_user_email', userEmail);
         localStorage.setItem('cognito_user_sub', userSub);
-        
+        notifyAuthChange();
+
         resolve(result);
       },
       onFailure: (err) => {
@@ -157,6 +165,7 @@ export function signOutCognito() {
   localStorage.removeItem('cognito_user_name');
   localStorage.removeItem('cognito_user_email');
   localStorage.removeItem('cognito_user_sub');
+  notifyAuthChange();
 }
 
 export function getIdToken(): Promise<string | null> {
@@ -182,10 +191,7 @@ export function getIdToken(): Promise<string | null> {
  * End a session the backend no longer accepts and tell the app, which falls
  * back to the guest (public-only) view.
  */
-export function expireSession() {
-  signOutCognito();
-  window.dispatchEvent(new Event('auth-change'));
-}
+export const expireSession = signOutCognito;
 
 // Export userPool for use in other modules
 export { userPool }; 
