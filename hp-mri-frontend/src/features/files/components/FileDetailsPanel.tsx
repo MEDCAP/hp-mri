@@ -28,6 +28,8 @@ import {
 } from '@mui/icons-material';
 import { MRDFile, fileVisibility } from '../../../types/mrd';
 import { formatUploadTimestamp } from '../../../utils/format';
+import { getCurrentUserSub } from '../../../auth/cognito';
+import VisibilitySelect from './VisibilitySelect';
 
 const drawerWidth = 400;
 
@@ -80,9 +82,11 @@ interface FileDetailsPanelProps {
   selection: MRDFile[];
   /** Close the pane; the caller clears the selection. */
   onClose: () => void;
+  /** A file's visibility was changed from the pane. */
+  onVisibilityChanged: (fileId: string, groupName: string | null) => void;
 }
 
-const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ selection, onClose }) => {
+const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ selection, onClose, onVisibilityChanged }) => {
   if (selection.length === 0) return null;
   const file = selection.length === 1 ? selection[0] : null;
 
@@ -169,6 +173,13 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ selection, onClose 
               icon={<Person />}
             />
           </Box>
+          {file.ownerId && file.ownerId === getCurrentUserSub() && (
+            <VisibilitySelect
+              key={file._id}
+              file={file}
+              onChanged={(groupName) => onVisibilityChanged(file._id, groupName)}
+            />
+          )}
         </HeaderSection>
 
         {/* Content Section */}

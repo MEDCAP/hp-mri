@@ -30,7 +30,7 @@ const RetrievePage: React.FC = () => {
     search, setSearch,
     sortConfig, sortedFiles, selectedFiles,
     fetchFiles, handleSort,
-    selectOnly, toggleSelected, clearSelection, removeFiles,
+    selectOnly, toggleSelected, clearSelection, removeFiles, patchFile,
   } = useFileList();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -296,7 +296,11 @@ const RetrievePage: React.FC = () => {
         </Alert>
       </Snackbar>
 
-      <FileDetailsPanel selection={selectedFiles} onClose={clearSelection} />
+      <FileDetailsPanel
+        selection={selectedFiles}
+        onClose={clearSelection}
+        onVisibilityChanged={(fileId, groupName) => patchFile(fileId, { groupName })}
+      />
     </div>
   );
 };
