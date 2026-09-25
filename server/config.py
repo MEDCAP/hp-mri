@@ -4,7 +4,12 @@ from urllib.parse import quote_plus
 
 class Config:
     FLASK_APP='run.py'
-    S3_BUCKET = 'medcap-data'
+    S3_BUCKET = os.getenv('S3_BUCKET', 'medcap-data')
+
+    # Database inside the Atlas cluster. Historically this was hardcoded as a
+    # default argument in data.get_db(), which is why production also runs
+    # against a database named "medcap_dev".
+    MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'medcap_dev')
 
     # Uploads go browser -> S3 directly via a presigned PUT, so the API only ever
     # receives small JSON bodies. This is a DoS guard, not an upload size limit.

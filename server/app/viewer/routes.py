@@ -8,10 +8,46 @@ from app.viewer.magnets import (
     clinical_processing,
     mr_solutions_processing,
 )
+from app.errors import BadRequest, NotFound
 from data import list_mrd_arrays, get_mrd_array
 
 
 from app.viewer import viewer_bp
+
+# Per-magnet capability table, replacing the if/elif chain that used to be
+# written out in each of the handlers below. The zero-returning entries are not
+# oversights: they preserve what the chains did. MR Solutions does have a
+# process_hpmri_data(), but the route has always returned 0 for it, and wiring
+# it up is a behaviour change rather than part of this refactor.
+_MAGNETS = {
+    "HUPC": {
+        "count": hupc_processing.count_datasets,
+        "proton": hupc_processing.process_proton_picture,
+        "hp_mri": hupc_processing.process_hp_mri_data,
+    },
+    "Clinical": {
+        "count": lambda: 0,
+        "proton": clinical_processing.process_proton_picture,
+        "hp_mri": lambda dataset, threshold: 0,
+    },
+    "MR Solutions": {
+        "count": mr_solutions_processing.count_datasets,
+        "proton": mr_solutions_processing.process_proton_picture,
+        "hp_mri": lambda dataset, threshold: 0,
+    },
+}
+
+
+def _magnet(magnet_type, capability):
+    """
+    Resolve a magnet pipeline function, or raise the single 400 that used to be
+    spelled out at the end of every dispatch chain.
+    """
+    try:
+        return _MAGNETS[magnet_type][capability]
+    except KeyError:
+        raise BadRequest(f"Invalid magnet type: {magnet_type}") from None
+
 
 @viewer_bp.route("/viewer/<file_id>/arrays", methods=["GET"])
 def fetch_array_list_from_bucket(file_id: str):
@@ -23,13 +59,8 @@ def fetch_array_list_from_bucket(file_id: str):
                   labels, dtype, transform, item_count}
         - unsupported: list of {tag, count} for stream items that were skipped
     """
-    try:
-        arrays, unsupported = list_mrd_arrays(file_id)
-        return jsonify({"file_id": file_id, "arrays": arrays, "unsupported": unsupported}), 200
-    except FileNotFoundError:
-        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    arrays, unsupported = list_mrd_arrays(file_id)
+    return jsonify({"file_id": file_id, "arrays": arrays, "unsupported": unsupported}), 200
 
 @viewer_bp.route("/viewer/<file_id>/arrays/<key>", methods=["GET"])
 def fetch_array_from_bucket(file_id: str, key: str):
@@ -44,12 +75,11 @@ def fetch_array_from_bucket(file_id: str, key: str):
     """
     try:
         return jsonify(get_mrd_array(file_id, key)), 200
-    except FileNotFoundError:
-        return jsonify({"error": f"File-{file_id} not found on S3 bucket"}), 404
     except KeyError:
-        return jsonify({"error": f"Unknown array key: {key}"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # A bare KeyError elsewhere is a defect; here it is a real 404, so it is
+        # translated at the only place that knows which of the two it is.
+        raise NotFound(f"Unknown array key: {key}") from None
+
 
 @viewer_bp.route("/get_count_datasets/<magnet_type>", methods=["GET"])
 def fetch_count_datasets(magnet_type):
@@ -62,16 +92,7 @@ def fetch_count_datasets(magnet_type):
     Returns:
         JSON: Contains the number of datasets.
     """
-    if magnet_type == "HUPC":
-        num_values = hupc_processing.count_datasets()
-    elif magnet_type == "Clinical":
-        num_values = 0
-    elif magnet_type == "MR Solutions":
-        num_values = mr_solutions_processing.count_datasets()
-    else:
-        return jsonify({"error": "Invalid magnet type"}), 400
-
-    return jsonify({"numDatasets": num_values})
+    return jsonify({"numDatasets": _magnet(magnet_type, "count")()})
 
 
 @viewer_bp.route("/get_proton_picture/<int:slider_value>", methods=["POST"])
@@ -83,7 +104,7 @@ def get_proton_picture(slider_value: int):
         slider_value (int): The slider value corresponding to the desired image.
 
     Returns:
-        Flask Response: Either the image file or a JSON object indicating an error.
+        Flask Response: The image file.
 
     Author: Benjamin Yoon
     Date: 2024-04-30
@@ -91,17 +112,7 @@ def get_proton_picture(slider_value: int):
     """
     data = request.get_json()
     magnet_type = data.get("magnetType", "HUPC")  # Default to HUPC if not specified
-
-    if magnet_type == "HUPC":
-        result = hupc_processing.process_proton_picture(slider_value, data)
-    elif magnet_type == "Clinical":
-        result = clinical_processing.process_proton_picture(slider_value, data)
-    elif magnet_type == "MR Solutions":
-        result = mr_solutions_processing.process_proton_picture(slider_value, data)
-    else:
-        return jsonify({"error": "Invalid magnet type"}), 400
-
-    return result
+    return _magnet(magnet_type, "proton")(slider_value, data)
 
 
 @viewer_bp.route("/get_hp_mri_data/<int:hp_mri_dataset>", methods=["POST"])
@@ -113,7 +124,7 @@ def get_hp_mri_data(hp_mri_dataset):
         hp_mri_dataset (int): The dataset ID for which to fetch HP MRI data.
 
     Returns:
-        json: JSON containing MRI data or an error message.
+        json: JSON containing MRI data.
 
     Author: Benjamin Yoon
     Date: 2024-04-30
@@ -123,43 +134,40 @@ def get_hp_mri_data(hp_mri_dataset):
     magnet_type = request.args.get(
         "magnetType", "HUPC"
     )  # Default to HUPC if not specified
+    return _magnet(magnet_type, "hp_mri")(hp_mri_dataset, threshold)
 
-    if magnet_type == "HUPC":
-        result = hupc_processing.process_hp_mri_data(hp_mri_dataset, threshold)
-    elif magnet_type == "Clinical":
-        result = 0
-    elif magnet_type == "MR Solutions":
-        result = 0
-    else:
-        return jsonify({"error": "Invalid magnet type"}), 400
-
-    return result
 
 # upload dicom files for comparison
 @viewer_bp.route("/viewer-upload", methods=["POST"])
 def file_upload():
     """
-    Upload dicom files from Viewer page to  to a predefined upload folder.
+    Upload dicom files from Viewer page to a predefined upload folder.
+
+    BROKEN: UPLOAD_FOLDER is not defined anywhere in the tree, so this raises
+    NameError on every call. Left as-is deliberately — it now fails loudly with
+    a logged traceback through the shared error handler instead of being masked
+    as a hand-rolled 500. Tracked separately.
 
     Returns:
-        json: A JSON object indicating the status of the file upload (success or error).
+        json: A JSON object indicating the status of the file upload.
     """
-    try:
-        uploaded_files = request.files.getlist("files")
-        for file in uploaded_files:
-            if file:
-                filename = secure_filename(file.filename)
-                save_path = os.path.join(UPLOAD_FOLDER, filename)
-                file.save(save_path)
-        return jsonify({"status": "success"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    uploaded_files = request.files.getlist("files")
+    for file in uploaded_files:
+        if file:
+            filename = secure_filename(file.filename)
+            save_path = os.path.join(UPLOAD_FOLDER, filename)  # noqa: F821
+            file.save(save_path)
+    return jsonify({"status": "success"}), 200
 
 
 @viewer_bp.route("/get_imaging_metadata", methods=["GET"])
 def get_imaging_metadata():
     """
     Retrieve metadata for imaging-mode MRI dataset.
+
+    BROKEN: reads a hardcoded path on a former developer's laptop, so this only
+    ever worked on one machine. Tracked separately; the missing file now surfaces
+    as a 404 through the shared FileNotFoundError handler.
 
     Returns:
         json: JSON containing the number of rows, columns, metabolites, and image slices.
@@ -168,31 +176,22 @@ def get_imaging_metadata():
     Date: 2025-03-04
     Version: 2.0.1
     """
-    try:
-        data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
-        data = np.load(
-            data_path
-        )  # Expected shape: [rows, columns, metabolites, images]
+    data_path = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project5 HP-MRI/untitled folder/mock_mri_heatmap_data/mock_mri_heatmap_varied_trend.npy"
+    data = np.load(data_path)  # Expected shape: [rows, columns, metabolites, images]
 
-        if data.ndim != 4:
-            return jsonify({"error": "Imaging data must be 4-dimensional"}), 400
+    if data.ndim != 4:
+        raise BadRequest("Imaging data must be 4-dimensional")
 
-        rows, cols, num_metabolites, num_images = data.shape
+    rows, cols, num_metabolites, num_images = data.shape
 
-        return (
-            jsonify(
-                {
-                    "rows": rows,
-                    "columns": cols,
-                    "numMetabolites": num_metabolites,
-                    "numImages": num_images,
-                }
-            ),
-            200,
-        )
-
-    except FileNotFoundError:
-        return jsonify({"error": "Mock imaging data file not found."}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+    return (
+        jsonify(
+            {
+                "rows": rows,
+                "columns": cols,
+                "numMetabolites": num_metabolites,
+                "numImages": num_images,
+            }
+        ),
+        200,
+    )

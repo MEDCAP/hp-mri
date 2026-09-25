@@ -6,6 +6,7 @@ from bson import ObjectId
 from botocore.exceptions import ClientError
 from collections import OrderedDict
 from datetime import datetime
+import logging
 import os
 import boto3
 import numpy as np
@@ -13,38 +14,53 @@ import io
 
 import app.external.python.mrd as mrd
 
-def get_db(db_name="medcap_dev"):
+logger = logging.getLogger(__name__)
+
+def get_db(db_name=None):
     """
     Returns the MongoDB database instance from the current application context.
+
+    No connectivity check is performed here. PyMongo does its own server
+    discovery, monitoring and reconnection in the background, so pinging on
+    every call only added a round-trip per data access.
+
+    @param db_name: override the configured database; defaults to MONGO_DB_NAME
     """
-    try:
-        client = current_app.mongo_client
-        # Test the connection
-        client.admin.command('ping')
-        return client.get_database(db_name)
-    except Exception as e:
-        raise Exception(f"Failed to connect to MongoDB: {e}")
+    return current_app.mongo_client.get_database(
+        db_name or current_app.config['MONGO_DB_NAME']
+    )
+
+
+_S3_CLIENT = None
+
+
+def get_s3_client():
+    """
+    Process-wide S3 client.
+
+    boto3 client construction resolves credentials and loads service models, so
+    it belongs once per process rather than once per request.
+    """
+    global _S3_CLIENT
+    if _S3_CLIENT is None:
+        _S3_CLIENT = boto3.client("s3")
+    return _S3_CLIENT
 
 def list_all_mrdfiles(projection=None):
     """
     Retrieve list of mrd header from db sorted by studyDate in descending order
     """
-    try:
-        db = get_db()
-        sort_condition = {"studyDate": -1,
-                          "studyTime": -1}
-        # cursor object cannot be re-iterated once excausted
-        # convert to list to allow re-iteration
-        cursor_list = list(db.mrdfiles.find({}, projection).sort(sort_condition))
-        for doc in cursor_list:
-            doc['_id'] = str(doc['_id'])
-        return cursor_list
-    except Exception as e:
-        # Log the error for debugging purposes
-        print(f"Error listing mrd-files from database: {e}")
-        # Return an empty list to prevent frontend errors
-        return []
-        
+    db = get_db()
+    sort_condition = {"studyDate": -1,
+                      "studyTime": -1}
+    # cursor object cannot be re-iterated once excausted
+    # convert to list to allow re-iteration
+    cursor_list = list(db.mrdfiles.find({}, projection).sort(sort_condition))
+    for doc in cursor_list:
+        doc['_id'] = str(doc['_id'])
+    return cursor_list
+
+
 def get_mrdfile_by_id(file_id):
     """
     Retrieve mrdfile db entry by its ObjectId.
@@ -111,7 +127,11 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
             }
         return header_for_db
     except Exception as e:
-        print(f"MRD parsing failed for {original_filename}: {str(e)}")
+        # Not a failure path: an unparseable file is still stored, with basic
+        # metadata and the reason recorded so the uploader can see why. The full
+        # traceback goes to the log; parse_error keeps the short reason, which is
+        # genuinely useful to the researcher who uploaded it.
+        logger.warning("MRD parsing failed for %s", original_filename, exc_info=True)
         # Create basic metadata for files that can't be parsed as MRD
         filename = original_filename
         # Use provided owner_name or "unknown" for failed parsing
@@ -189,8 +209,6 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
 # AttributeError.
 # ---------------------------------------------------------------------------
 
-S3_BUCKET = 'medcap-data'
-
 # Downloaded MRD bytes, keyed by file_id. Listing a file's arrays and then
 # fetching one of them would otherwise download the same object twice. Objects
 # are immutable for a given ObjectId key, so entries never go stale. This is a
@@ -224,9 +242,12 @@ def _fetch_mrd_bytes(file_id):
         _MRD_BYTES_CACHE.move_to_end(file_id)
         return cached
 
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
     try:
-        obj = s3.get_object(Bucket=S3_BUCKET, Key=f'mrd_files/{file_id}')
+        obj = s3.get_object(
+            Bucket=current_app.config['S3_BUCKET'],
+            Key=f'mrd_files/{file_id}',
+        )
     except ClientError as e:
         code = str(e.response.get("Error", {}).get("Code", ""))
         # Surface a missing object as FileNotFoundError so routes can 404 it.

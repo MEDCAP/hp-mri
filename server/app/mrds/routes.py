@@ -1,7 +1,8 @@
 from flask import jsonify, request, current_app
 import io
 import os
-import boto3
+from botocore.exceptions import ClientError
+from pymongo.errors import PyMongoError
 from bson import json_util, ObjectId
 from bson.errors import InvalidId
 import json
@@ -9,7 +10,11 @@ import json
 # list, insert mongodb functions
 from data import list_all_mrdfiles, insert_mrdfile_header, read_mrdfile_header
 # read mrd header function
-from data import get_mrdfile_by_id
+from data import get_mrdfile_by_id, get_db
+# process-wide S3 client
+from data import get_s3_client
+
+from app.errors import ApiError, BadRequest, NotFound
 
 # flask blueprint for mrds route
 from . import mrds_bp
@@ -17,18 +22,43 @@ from . import mrds_bp
 ALLOWED_EXTENSIONS = {'.bin', '.mrd', '.mrd2'}
 
 
-def _extension_error(filename):
+def _validated_upload_fields(require_size=False):
     """
-    Return an error string if the filename's extension is not an accepted MRD
-    extension, otherwise None.
+    Validate the JSON body shared by the upload endpoints.
+
+    init and complete both declare a filename and an ownerName; only init also
+    declares a size. Previously each endpoint spelled these checks out itself,
+    which is how they drifted into returning differently-worded errors for the
+    same bad input.
+
+    @param require_size: also validate and return fileSize (init only)
+    @return: (filename, owner_name, file_size or None)
+    @raise BadRequest: on any invalid or missing field
     """
+    body = request.get_json(silent=True) or {}
+    filename = body.get("filename")
+    owner_name = body.get("ownerName")
+
     if not filename:
-        return "filename is required"
+        raise BadRequest("filename is required")
     file_ext = os.path.splitext(filename)[1].lower()
     if file_ext not in ALLOWED_EXTENSIONS:
         supported = ', '.join(sorted(ALLOWED_EXTENSIONS))
-        return f"File type {file_ext} not allowed. Supported: {supported}"
-    return None
+        raise BadRequest(f"File type {file_ext} not allowed. Supported: {supported}")
+    if not owner_name:
+        raise BadRequest("ownerName is required")
+
+    if not require_size:
+        return filename, owner_name, None
+
+    file_size = body.get("fileSize")
+    max_bytes = current_app.config['MAX_UPLOAD_BYTES']
+    # bool is a subclass of int, so it is excluded explicitly.
+    if isinstance(file_size, bool) or not isinstance(file_size, int) or file_size <= 0:
+        raise BadRequest("fileSize must be a positive integer")
+    if file_size > max_bytes:
+        raise BadRequest(f"File exceeds the maximum upload size of {max_bytes} bytes")
+    return filename, owner_name, file_size
 
 
 def _staging_key(upload_id):
@@ -52,42 +82,37 @@ def show_files():
     """
     Return a list of MRD files with selected fields from MongoDB
     """
-    try:
-        # define projection to list only relevant fields for display
-        proj = {
-            "fileName": 1,
-            "studyDate": 1,
-            "studyTime": 1,
-            "ownerName": 1,
-            "subjectType": 1,
-            "groupName": 1,
-            "isReconstructed": 1,
-            "protocolName": 1,
-            "measurementId": 1,
-            "stationName": 1,
-            "original_filename": 1,
-            "upload_timestamp": 1,
-            "file_size": 1,
-            "s3_key": 1,
-            "_id": 1
-        }
-        # list of cursor object 
-        cursor_list = list_all_mrdfiles(projection=proj)
-        return jsonify(cursor_list)
-    except Exception as e:
-        return jsonify({"error": "Invalid query of mrdfiles database", "details": str(e)}), 400
+    # define projection to list only relevant fields for display
+    proj = {
+        "fileName": 1,
+        "studyDate": 1,
+        "studyTime": 1,
+        "ownerName": 1,
+        "subjectType": 1,
+        "groupName": 1,
+        "isReconstructed": 1,
+        "protocolName": 1,
+        "measurementId": 1,
+        "stationName": 1,
+        "original_filename": 1,
+        "upload_timestamp": 1,
+        "file_size": 1,
+        "s3_key": 1,
+        "_id": 1
+    }
+    # list of cursor object
+    return jsonify(list_all_mrdfiles(projection=proj))
 
 # Route to retrieve specific file details
 @mrds_bp.route("/mrd-files/<file_id>", methods=["GET"])
 def get_file_details(file_id):
-    try:
-        file_data = get_mrdfile_by_id(file_id)
-        if file_data:
-            # json_util handles BSON types like ObjectId
-            return json.loads(json_util.dumps(file_data)), 200
-        return jsonify({"error": "File not found"}), 404
-    except Exception as e:
-        return jsonify({"error": "Invalid file ID", "details": str(e)}), 400
+    # An unparseable id raises InvalidId, which the shared handler turns into a
+    # 400; a well-formed id that matches nothing is a 404.
+    file_data = get_mrdfile_by_id(file_id)
+    if not file_data:
+        raise NotFound("File not found")
+    # json_util handles BSON types like ObjectId
+    return json.loads(json_util.dumps(file_data)), 200
 
 # --- Presigned direct-to-S3 upload ---------------------------------------------
 #
@@ -107,44 +132,24 @@ def init_upload():
     """
     Mint a presigned PUT URL for a single MRD file. No database write happens here.
     """
-    body = request.get_json(silent=True) or {}
-    filename = body.get("filename")
-    owner_name = body.get("ownerName")
-    file_size = body.get("fileSize")
-
-    ext_error = _extension_error(filename)
-    if ext_error:
-        return jsonify({"error": ext_error}), 400
-    if not owner_name:
-        return jsonify({"error": "ownerName is required"}), 400
-
-    max_bytes = current_app.config['MAX_UPLOAD_BYTES']
-    if not isinstance(file_size, int) or file_size <= 0:
-        return jsonify({"error": "fileSize must be a positive integer"}), 400
-    if file_size > max_bytes:
-        return jsonify({
-            "error": f"File exceeds the maximum upload size of {max_bytes} bytes"
-        }), 400
+    _filename, _owner_name, _file_size = _validated_upload_fields(require_size=True)
 
     # The upload id doubles as the eventual Mongo _id and S3 key suffix.
     upload_id = ObjectId()
     expires_in = current_app.config['PRESIGN_EXPIRY_SECONDS']
 
-    try:
-        s3 = boto3.client("s3")
-        upload_url = s3.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": current_app.config['S3_BUCKET'],
-                "Key": _staging_key(upload_id),
-                # Must match the Content-Type the browser sends, or S3 rejects
-                # the signature.
-                "ContentType": "application/octet-stream",
-            },
-            ExpiresIn=expires_in,
-        )
-    except Exception as e:
-        return jsonify({"error": "Failed to create upload URL", "details": str(e)}), 500
+    s3 = get_s3_client()
+    upload_url = s3.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": current_app.config['S3_BUCKET'],
+            "Key": _staging_key(upload_id),
+            # Must match the Content-Type the browser sends, or S3 rejects
+            # the signature.
+            "ContentType": "application/octet-stream",
+        },
+        ExpiresIn=expires_in,
+    )
 
     return jsonify({
         "uploadId": str(upload_id),
@@ -161,28 +166,25 @@ def complete_upload(upload_id):
     """
     object_id = _parse_upload_id(upload_id)
     if object_id is None:
-        return jsonify({"error": "Invalid upload id"}), 400
+        raise BadRequest("Invalid upload id")
 
-    body = request.get_json(silent=True) or {}
-    filename = body.get("filename")
-    owner_name = body.get("ownerName")
+    filename, owner_name, _file_size = _validated_upload_fields()
 
-    ext_error = _extension_error(filename)
-    if ext_error:
-        return jsonify({"error": ext_error}), 400
-    if not owner_name:
-        return jsonify({"error": "ownerName is required"}), 400
-
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
     bucket = current_app.config['S3_BUCKET']
     staging_key = _staging_key(object_id)
 
     try:
         head = s3.head_object(Bucket=bucket, Key=staging_key)
-    except Exception:
-        return jsonify({
-            "error": "Uploaded object not found. The upload may have failed or expired."
-        }), 404
+    except ClientError as exc:
+        # A genuinely unreachable S3 is a 503 from the shared handler; only a
+        # missing staged object is the client's problem.
+        code = str(exc.response.get("Error", {}).get("Code", ""))
+        if code not in ("404", "NoSuchKey", "NotFound"):
+            raise
+        raise NotFound(
+            "Uploaded object not found. The upload may have failed or expired."
+        ) from None
 
     # A presigned PUT cannot cap its own size, so this is where the limit is
     # actually enforced.
@@ -190,37 +192,34 @@ def complete_upload(upload_id):
     max_bytes = current_app.config['MAX_UPLOAD_BYTES']
     if actual_size > max_bytes:
         s3.delete_object(Bucket=bucket, Key=staging_key)
-        return jsonify({
-            "error": f"File exceeds the maximum upload size of {max_bytes} bytes"
-        }), 400
+        raise BadRequest(f"File exceeds the maximum upload size of {max_bytes} bytes")
 
-    try:
-        obj = s3.get_object(Bucket=bucket, Key=staging_key)
-        metadata = read_mrdfile_header(
-            io.BytesIO(obj['Body'].read()),
-            owner_name=owner_name,
-            original_filename=filename,
-            file_size=actual_size,
-        )
+    obj = s3.get_object(Bucket=bucket, Key=staging_key)
+    metadata = read_mrdfile_header(
+        io.BytesIO(obj['Body'].read()),
+        owner_name=owner_name,
+        original_filename=filename,
+        file_size=actual_size,
+    )
 
-        # Server-side copy: the bytes never travel through this process.
-        s3_key = f"mrd_files/{str(object_id)}"
-        s3.copy_object(
-            Bucket=bucket,
-            Key=s3_key,
-            CopySource={"Bucket": bucket, "Key": staging_key},
-        )
+    # Server-side copy: the bytes never travel through this process.
+    s3_key = f"mrd_files/{str(object_id)}"
+    s3.copy_object(
+        Bucket=bucket,
+        Key=s3_key,
+        CopySource={"Bucket": bucket, "Key": staging_key},
+    )
 
-        inserted_id = insert_mrdfile_header({**metadata, "s3_key": s3_key}, doc_id=object_id)
-    except Exception as e:
-        return jsonify({"error": "Failed to finalize upload", "details": str(e)}), 500
+    inserted_id = insert_mrdfile_header({**metadata, "s3_key": s3_key}, doc_id=object_id)
 
     # Best effort — a leftover staging object is harmless and the lifecycle rule
     # will expire it.
     try:
         s3.delete_object(Bucket=bucket, Key=staging_key)
-    except Exception as e:
-        print(f"Failed to clean up staging object {staging_key}: {e}")
+    except ClientError:
+        current_app.logger.warning(
+            "failed to clean up staging object %s", staging_key, exc_info=True
+        )
 
     # Mongo values (datetime, ObjectId) are not JSON-serializable as-is.
     serializable_metadata = {k: str(v) for k, v in metadata.items()}
@@ -241,105 +240,99 @@ def abort_upload(upload_id):
     object_id = _parse_upload_id(upload_id)
     if object_id is not None:
         try:
-            boto3.client("s3").delete_object(
+            get_s3_client().delete_object(
                 Bucket=current_app.config['S3_BUCKET'],
                 Key=_staging_key(object_id),
             )
-        except Exception as e:
-            print(f"Failed to abort upload {upload_id}: {e}")
+        except ClientError:
+            # Best effort: the staging lifecycle rule reaps whatever is missed.
+            current_app.logger.warning("failed to abort upload %s", upload_id, exc_info=True)
     return "", 204
 
 @mrds_bp.route("/mrd-file", methods=["DELETE"])
 def delete_files():
-    try:
-        file_ids = request.json.get("ids", [])
-        if not file_ids:
-            return jsonify({"error": "No file IDs provided"}), 400
+    """
+    Batch delete files from S3 and MongoDB.
 
-        # Setup AWS S3 client
-        s3 = boto3.client("s3")
-        BUCKET = current_app.config['S3_BUCKET']
-        
-        # Get database connection
-        from data import get_db, delete_mrdfiles_by_ids
-        db = get_db()
-        
-        deleted_count = 0
-        s3_deleted_count = 0
-        file_results = []
-        
-        for file_id in file_ids:
+    Per-file failures are collected rather than raised: a partial delete is a
+    real outcome the client needs itemised, not a single error. Only the
+    surrounding request-level failures reach the shared error handler.
+    """
+    file_ids = (request.get_json(silent=True) or {}).get("ids", [])
+    if not file_ids:
+        raise BadRequest("No file IDs provided")
+
+    s3 = get_s3_client()
+    bucket = current_app.config['S3_BUCKET']
+    db = get_db()
+
+    deleted_count = 0
+    s3_deleted_count = 0
+    file_results = []
+
+    for file_id in file_ids:
+        result = {
+            "file_id": file_id,
+            "file_name": "Unknown",
+            "status": "success",
+            "db_deleted": False,
+            "s3_deleted": False,
+            "error": None,
+        }
+
+        try:
+            object_id = ObjectId(file_id)
+        except (InvalidId, TypeError):
+            result.update(status="error", error="Invalid file ID")
+            file_results.append(result)
+            continue
+
+        file_doc = db.mrdfiles.find_one({"_id": object_id})
+        if not file_doc:
+            result.update(status="error", error="File not found in database")
+            file_results.append(result)
+            continue
+
+        result["file_name"] = file_doc.get('fileName', 'Unknown')
+
+        if 's3_key' in file_doc:
             try:
-                # First, get the file document to find the S3 key
-                file_doc = db.mrdfiles.find_one({"_id": ObjectId(file_id)})
-                
-                if file_doc:
-                    file_result = {
-                        "file_id": file_id,
-                        "file_name": file_doc.get('fileName', 'Unknown'),
-                        "status": "success",
-                        "db_deleted": False,
-                        "s3_deleted": False,
-                        "error": None
-                    }
-                    
-                    # Delete from S3 if s3_key exists
-                    if 's3_key' in file_doc:
-                        try:
-                            s3.delete_object(Bucket=BUCKET, Key=file_doc['s3_key'])
-                            s3_deleted_count += 1
-                            file_result["s3_deleted"] = True
-                        except Exception as s3_error:
-                            error_msg = f"Error deleting from S3: {str(s3_error)}"
-                            print(f"Error deleting from S3 for file {file_id}: {s3_error}")
-                            file_result["status"] = "error"
-                            file_result["error"] = error_msg
-                    
-                    # Delete from MongoDB
-                    try:
-                        result = db.mrdfiles.delete_one({"_id": ObjectId(file_id)})
-                        if result.deleted_count > 0:
-                            deleted_count += 1
-                            file_result["db_deleted"] = True
-                    except Exception as db_error:
-                        error_msg = f"Error deleting from database: {str(db_error)}"
-                        print(f"Error deleting from database for file {file_id}: {db_error}")
-                        file_result["status"] = "error"
-                        file_result["error"] = error_msg
-                        
-                    file_results.append(file_result)
-                else:
-                    file_results.append({
-                        "file_id": file_id,
-                        "file_name": "Unknown",
-                        "status": "error",
-                        "db_deleted": False,
-                        "s3_deleted": False,
-                        "error": "File not found in database"
-                    })
-                        
-            except Exception as file_error:
-                print(f"Error processing file {file_id}: {file_error}")
-                file_results.append({
-                    "file_id": file_id,
-                    "file_name": "Unknown",
-                    "status": "error",
-                    "db_deleted": False,
-                    "s3_deleted": False,
-                    "error": str(file_error)
-                })
-                continue
-        
-        return jsonify({
-            "message": f"Successfully deleted {deleted_count} files from database and {s3_deleted_count} files from S3",
-            "deleted_count": deleted_count,
-            "s3_deleted_count": s3_deleted_count,
-            "file_results": file_results
-        }), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to delete files", "details": str(e)}), 400
+                s3.delete_object(Bucket=bucket, Key=file_doc['s3_key'])
+                s3_deleted_count += 1
+                result["s3_deleted"] = True
+            except ClientError:
+                # Logged in full server-side; the client gets a stable message
+                # rather than the raw botocore text.
+                current_app.logger.exception("S3 delete failed for %s", file_id)
+                result.update(status="error", error="Could not delete the file from storage")
 
-@mrds_bp.route("/mrd-file/<int:file_id>/download")
+        try:
+            if db.mrdfiles.delete_one({"_id": object_id}).deleted_count > 0:
+                deleted_count += 1
+                result["db_deleted"] = True
+        except PyMongoError:
+            current_app.logger.exception("Mongo delete failed for %s", file_id)
+            result.update(status="error", error="Could not delete the file record")
+
+        file_results.append(result)
+
+    return jsonify({
+        "message": f"Successfully deleted {deleted_count} files from database and {s3_deleted_count} files from S3",
+        "deleted_count": deleted_count,
+        "s3_deleted_count": s3_deleted_count,
+        "file_results": file_results
+    }), 200
+
+
+@mrds_bp.route("/mrd-file/<file_id>/download", methods=["GET"])
 def download_file(file_id):
-    # download file
-    pass
+    """
+    Not implemented. The path takes an ObjectId string like every other file
+    route; it previously declared an <int:> converter, which would have rejected
+    every real id even once a body existed.
+    """
+    raise ApiError(
+        "File download is not implemented yet.",
+        code="not_implemented",
+        status=501,
+    )
