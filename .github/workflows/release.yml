@@ -1,0 +1,53 @@
+name: Release
+
+# Dev auto-deploys on every merge to main; prod deploys only on a v* tag, and
+# only after a human approves the prod GitHub Environment.
+#
+# A research group should not have an unreviewed merge reach the app their
+# instruments feed. Two gates is right for this one.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  guard:
+    name: Tag matches VERSION
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Makes VERSION load-bearing: it has to be bumped in the PR before a tag
+      # can be cut, which is the discipline commit b7aae55 was reaching for.
+      - name: Check
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          expected="v$(cat VERSION)"
+          if [ "$TAG" != "$expected" ]; then
+            echo "Tag $TAG does not match VERSION ($expected)." >&2
+            echo "Bump VERSION and re-tag." >&2
+            exit 1
+          fi
+          echo "$TAG matches VERSION."
+
+  backend:
+    needs: guard
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: prod
+      image_tag: ""
+    secrets: inherit
+
+  frontend:
+    # The SPA goes last so it is never newer than the API it talks to.
+    needs: [guard, backend]
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      environment: prod
+    secrets: inherit

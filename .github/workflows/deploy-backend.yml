@@ -1,0 +1,119 @@
+name: Deploy backend
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      image_tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        required: true
+      image_tag:
+        description: >
+          Existing tag to roll to. Leave blank to build from this ref. Supplying
+          an older tag is how a rollback is done.
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-backend-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      # The Dockerfile COPYs app/ including app/external, so the submodule is
+      # mandatory here.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ssh-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
+
+      - name: Resolve image tag
+        id: tag
+        env:
+          REQUESTED: ${{ inputs.image_tag }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          if [ -n "$REQUESTED" ]; then
+            echo "tag=$REQUESTED" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            # VERSION plus the short SHA: unique per commit, so tag immutability
+            # works and a rollback names an exact build.
+            echo "tag=${ENVIRONMENT}-$(cat VERSION)-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::862065604168:role/gha-deploy-${{ inputs.environment }}
+          aws-region: us-east-1
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        if: steps.tag.outputs.build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          push: true
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/medcap-app:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Read the live task definition and patch only the image. This is what
+      # lets Terraform own the environment and secrets blocks while CI owns the
+      # image, and it pairs with ignore_changes = [task_definition] on the
+      # service.
+      - name: Fetch current task definition
+        env:
+          FAMILY: hpmri-${{ inputs.environment }}-task-def
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "$FAMILY" \
+            --query 'taskDefinition' > taskdef.json
+
+      - id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: taskdef.json
+          container-name: hpmri-api
+          image: ${{ steps.ecr.outputs.registry }}/medcap-app:${{ steps.tag.outputs.tag }}
+
+      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          cluster: hpmri-${{ inputs.environment }}
+          service: hpmri-${{ inputs.environment }}-service
+          wait-for-service-stability: true
+          wait-for-minutes: 15
+
+      - name: Smoke test
+        env:
+          BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          # The edge function rejects requests without a matching Referer, so
+          # the smoke test has to send one. That it works at all is finding F1.
+          curl -fsS --retry 5 --retry-delay 10 \
+            -H "Referer: ${BASE_URL}/" \
+            "${BASE_URL}/api/health" | tee /dev/stderr | grep -q '"status"'
