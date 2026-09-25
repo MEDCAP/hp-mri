@@ -40,7 +40,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { listMrdFiles, deleteMrdFiles } from '../../api/mrdFiles';
 import { MRDFile } from '../../types/mrd';
-import { isAuthenticated } from '../loginpages/cognitoUtils';
+import { isAuthenticated } from '../../auth/cognito';
 
 const formatStudyTime = (timeString: string) => {
   if (!timeString || !timeString.includes(':')) return '';

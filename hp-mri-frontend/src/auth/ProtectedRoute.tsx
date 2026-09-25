@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { isAuthenticated } from '../pages/loginpages/cognitoUtils';
+import { isAuthenticated } from './cognito';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

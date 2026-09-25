@@ -33,7 +33,7 @@ import {
   Minimize
 } from '@mui/icons-material';
 import { TransitionProps } from '@mui/material/transitions';
-import { getCurrentUserName } from '../pages/loginpages/cognitoUtils';
+import { getCurrentUserName } from '../auth/cognito';
 import { Group } from '../types/group';
 import { listGroups } from '../api/groups';
 import { uploadMrdFiles } from '../api/mrdFiles';

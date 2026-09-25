@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Container, Box, Typography, TextField, Button, Paper, Link, Alert, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import PigiLogo from '../../assets/pigi_optblue_transparentexceptpennlogo.png';
-import { signUpCognito } from './cognitoUtils';
+import { signUpCognito } from '../../auth/cognito';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { green, orange } from '@mui/material/colors';

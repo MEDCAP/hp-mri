@@ -43,7 +43,7 @@ import {
 import { Group as GroupType, GroupMember } from '../../types/group';
 import JoinRequestsPanel from '../../components/JoinRequestsPanel';
 import ManageInviteCodesDialog from '../../components/ManageInviteCodesDialog';
-import { getCurrentUserSub } from '../loginpages/cognitoUtils';
+import { getCurrentUserSub } from '../../auth/cognito';
 
 const GroupDetailPage: React.FC = () => {
   const navigate = useNavigate();

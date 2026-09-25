@@ -32,7 +32,7 @@ import {
   LockOutlined as LockIcon,
 } from '@mui/icons-material';
 import { listGroups } from '../api/groups';
-import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub, isAuthenticated } from '../pages/loginpages/cognitoUtils';
+import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub, isAuthenticated } from '../auth/cognito';
 import { useNavigate } from 'react-router-dom';
 import { Group } from '../types/group';
 import CreateGroupDialog from './CreateGroupDialog';

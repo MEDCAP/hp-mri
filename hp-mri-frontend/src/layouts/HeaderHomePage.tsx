@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import PigiLogo from './../assets/pigi_optblue_transparentexceptpennlogo.png';
 import MedCapLogo from './../assets/medcap_logo.png';
-import { getCurrentUserName, signOutCognito } from '../pages/loginpages/cognitoUtils';
+import { getCurrentUserName, signOutCognito } from '../auth/cognito';
 
 // Reusable styles for navigation links
 const NAV_LINK_STYLE = {

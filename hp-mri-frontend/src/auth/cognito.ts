@@ -5,7 +5,7 @@ import {
   AuthenticationDetails,
   CognitoUserSession
 } from 'amazon-cognito-identity-js';
-import { cognitoConfig } from '../../config/env';
+import { cognitoConfig } from '../config/env';
 
 const poolData = {
   UserPoolId: cognitoConfig.userPoolId,
