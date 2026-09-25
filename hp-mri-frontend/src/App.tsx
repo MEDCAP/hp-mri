@@ -4,7 +4,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import theme from './theme'; // './theme' exports MUI theme object
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute';
 
 // Layout Components
@@ -23,7 +23,6 @@ import AboutPage from './features/home/MembersPage';
 import ConceptPage from './features/home/ConceptPage';
 import ConvertStorePage from './features/home/ConvertStorePage';
 import ReconstructionToolsPage from './features/home/ReconstructionToolsPage';
-import SimulatePage from './pages/homepages/SimulatePage';
 import PublicationPage from './features/home/PublicationPage';
 import MRCalculatorPage from './features/calculator/MRCalculatorPage';
 
@@ -56,7 +55,7 @@ const AppContent: React.FC = () => {
           <Route path="/concept" element={<HomePageLayout><ConceptPage /></HomePageLayout>} />
           <Route path="/convert-store" element={<HomePageLayout><ConvertStorePage /></HomePageLayout>} />
           <Route path="/reconstruction-tools" element={<HomePageLayout><ReconstructionToolsPage /></HomePageLayout>} />
-          <Route path="/simulate" element={<HomePageLayout><SimulatePage /></HomePageLayout>} />
+          <Route path="/simulate" element={<Navigate to="/simulator" replace />} />
 
           {/* MRD Files - MRD Layout (HeaderAccount) — accessible to guests (public files only) */}
           <Route path="/mrd-files" element={<MRDLayout><RetrievePage /></MRDLayout>} />
@@ -67,7 +66,7 @@ const AppContent: React.FC = () => {
 
           {/* Simulator — incomplete, show coming soon within MRD layout */}
           <Route path="/simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
-          <Route path="/new-simulator" element={<MRDLayout><SimulatorPage /></MRDLayout>} />
+          <Route path="/new-simulator" element={<Navigate to="/simulator" replace />} />
           <Route path="/viewer" element={<SimpleLayout><ViewerPage /></SimpleLayout>} />
 
       </Routes>
