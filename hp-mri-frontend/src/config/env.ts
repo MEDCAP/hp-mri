@@ -14,3 +14,15 @@ export const cognitoConfig = {
   clientId: import.meta.env.VITE_COGNITO_CLIENT_ID || COGNITO_CLIENT_ID_FALLBACK,
 };
 
+
+/**
+ * Upload limits. `maxUploadBytes` mirrors the backend's `MAX_UPLOAD_BYTES` so
+ * oversized files are rejected in the dropzone rather than after a long transfer;
+ * the backend remains the authority and re-checks the real object size.
+ */
+export const uploadConfig = {
+  maxUploadBytes: 2 * 1024 * 1024 * 1024,
+  allowedExtensions: ['.bin', '.mrd', '.mrd2'] as const,
+  /** Files transferred to S3 in parallel. */
+  concurrency: 3,
+};

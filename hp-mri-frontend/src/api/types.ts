@@ -17,18 +17,18 @@ export interface DeleteResponse {
   file_results?: DeleteFileResult[];
 }
 
-/** Per-file result entry in a POST /upload response. */
-export interface UploadFileResult {
-  original_filename: string;
-  status: string;
-  error?: string;
+/** Response body for POST /uploads/init. */
+export interface UploadInitResponse {
+  uploadId: string;
+  uploadUrl: string;
+  expiresIn: number;
 }
 
-/** Response body for POST /upload. */
-export interface UploadResponse {
-  message: string;
-  total_files: number;
-  results: UploadFileResult[];
+/** Response body for POST /uploads/:id/complete. */
+export interface UploadCompleteResponse {
+  fileId: string;
+  s3_key: string;
+  metadata: Record<string, string>;
 }
 
 /** Response body for GET /viewer/:id. [channel][slice][row][col][frequency][measurement]. */

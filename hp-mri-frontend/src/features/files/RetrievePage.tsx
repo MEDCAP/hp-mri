@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
-import UploadModal, { UploadFile } from '../../components/UploadModal';
-import UploadProgressIndicator from '../../components/UploadProgressIndicator';
-import UploadProgressModal from '../../components/UploadProgressModal';
-import UploadCompletionModal from '../../components/UploadCompletionModal';
+import UploadModal from './components/UploadModal';
+import UploadProgressIndicator from './components/UploadProgressIndicator';
+import UploadProgressModal from './components/UploadProgressModal';
+import UploadCompletionModal from './components/UploadCompletionModal';
+import { UploadFile } from './hooks/useUpload';
 import DeleteConfirmationDialog from './components/DeleteConfirmationDialog';
 import FileDetailsPanel from './components/FileDetailsPanel';
 import {

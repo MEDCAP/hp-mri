@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Dialog,
   DialogTitle,
   DialogContent,
   Box,
@@ -9,7 +8,6 @@ import {
   IconButton,
   Paper,
   Fade,
-  Slide,
   Grow,
   styled,
   useTheme
@@ -22,18 +20,7 @@ import {
   UploadFile,
   CloudUpload
 } from '@mui/icons-material';
-import { TransitionProps } from '@mui/material/transitions';
-
-// Styled components
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    borderRadius: 16,
-    boxShadow: theme.shadows[24],
-    maxWidth: 500,
-    width: '100%',
-    margin: 16,
-  },
-}));
+import { Transition, StyledDialog } from '../../../components/dialogs/AppDialog';
 
 const FileResultItem = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -66,16 +53,6 @@ const ErrorSummaryContainer = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(2),
   color: theme.palette.error.contrastText,
 }));
-
-// Transition component
-const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement<any, any>;
-  },
-  ref: React.Ref<unknown>,
-) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
 
 interface UploadFile {
   id: string;

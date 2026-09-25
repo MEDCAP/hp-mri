@@ -206,21 +206,34 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
-def read_mrdfile_header(filepath, owner_name=None):
+def read_mrdfile_header(source, owner_name=None, original_filename=None, file_size=None):
     """
     Read the mrd file header as dict in mongodb mrd-files collection format
-    
-    :param filepath: Path to the MRD file
+
+    :param source: Path to the MRD file, or a binary file-like object (e.g. io.BytesIO
+                   wrapping an S3 object body).
     :param owner_name: Optional owner name (e.g., from Cognito user), defaults to patient_name from MRD header
+    :param original_filename: Filename to record. Required when source is file-like;
+                              derived from the path otherwise.
+    :param file_size: Size in bytes to record. Required when source is file-like;
+                      derived from the path otherwise.
     """
+    # A file-like source has no name or size on disk, so the caller supplies both.
+    if original_filename is None:
+        original_filename = os.path.basename(source)
+    if file_size is None:
+        file_size = os.path.getsize(source)
+
     try:
-        with mrd.BinaryMrdReader(filepath) as r:
+        with mrd.BinaryMrdReader(source) as r:
             h = r.read_header()
             image_exist = False
             for item in r.read_data():
                 if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
+                    # One image is enough to answer the question; don't walk the
+                    # rest of the stream.
                     image_exist = True
-                pass
+                    break
 
             # Use provided owner_name or fallback to patient_name from MRD header
             effective_owner_name = owner_name if owner_name else h.subject_information.patient_name
@@ -231,23 +244,25 @@ def read_mrdfile_header(filepath, owner_name=None):
                 "studyTime": str(h.study_information.study_time) if h.study_information.study_time else "unknown",
                 "ownerName": effective_owner_name,
                 "subjectType": h.subject_information.patient_name,
-                "groupName": None,  # Will be set by upload route
-                "ownerId": None,    # Will be set by upload route
+                "groupName": None,  # Set by the upload route
+                "ownerId": None,    # Set by the upload route
                 "isReconstructed": image_exist,
                 "protocolName": h.measurement_information.protocol_name,
                 "measurementId": h.measurement_information.measurement_id,
                 "stationName": h.acquisition_system_information.station_name,
-                "original_filename": os.path.basename(filepath),
+                "original_filename": original_filename,
                 "upload_timestamp": datetime.utcnow(),
-                "file_size": os.path.getsize(filepath)
+                "file_size": file_size
             }
         return header_for_db
     except Exception as e:
-        # Not a failure path: an unparseable file is still stored with basic
-        # metadata. The traceback goes to the log.
-        logger.warning("MRD parsing failed for %s", filepath, exc_info=True)
+        # Not a failure path: an unparseable file is still stored, with basic
+        # metadata and the reason recorded so the uploader can see why. The full
+        # traceback goes to the log; parse_error keeps the short reason, which is
+        # genuinely useful to the researcher who uploaded it.
+        logger.warning("MRD parsing failed for %s", original_filename, exc_info=True)
         # Create basic metadata for files that can't be parsed as MRD
-        filename = os.path.basename(filepath)
+        filename = original_filename
         # Use provided owner_name or "unknown" for failed parsing
         effective_owner_name = owner_name if owner_name else "unknown"
         basic_metadata = {
@@ -256,33 +271,39 @@ def read_mrdfile_header(filepath, owner_name=None):
             "studyTime": "unknown",
             "ownerName": effective_owner_name,
             "subjectType": "unknown",
-            "groupName": None,  # Will be set by upload route
-            "ownerId": None,    # Will be set by upload route
+            "groupName": None,  # Set by the upload route
+            "ownerId": None,    # Set by the upload route
             "isReconstructed": False,
             "protocolName": "unknown",
             "measurementId": os.path.splitext(filename)[0],
             "stationName": "unknown",
             "original_filename": filename,
             "upload_timestamp": datetime.utcnow(),
-            "file_size": os.path.getsize(filepath),
+            "file_size": file_size,
             "parse_error": str(e)
         }
         return basic_metadata
 
-def insert_mrdfile_header(header_data: dict) -> ObjectId:
+def insert_mrdfile_header(header_data: dict, doc_id: ObjectId = None) -> ObjectId:
     """
     Insert single MRD file document into mongodb
-    
-    :param header_data: dict where each dictionary 
+
+    :param header_data: dict where each dictionary
                        represents an MRD file's metadata.
+    :param doc_id: Optional explicit _id. The presigned upload flow mints the
+                   ObjectId up front so the S3 key can be derived before the
+                   document exists.
     :return: ObjectId of the inserted document.
     """
     # check if header_data is dict
     if not header_data or not isinstance(header_data, dict):
         raise ValueError("header_data must be a non-empty dictionary")
-    
+
+    if doc_id is not None:
+        header_data = {**header_data, "_id": doc_id}
+
     db = get_db()
-    # insert single mrd file header as single document 
+    # insert single mrd file header as single document
     result = db.mrdfiles.insert_one(header_data)
     # return the object id of inserted mrd header document
     return result.inserted_id
