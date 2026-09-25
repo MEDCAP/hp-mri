@@ -33,16 +33,16 @@ const FilesToolbar: React.FC<FilesToolbarProps> = ({
   isAnyFileSelected,
 }) => {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 2 }}>
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, marginBottom: 2 }}>
       <TextField
-        sx={{ flex: 1 }}
+        sx={{ flex: '1 1 240px' }}
         variant="outlined"
         label="Search..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
       />
       {showActions && (
-        <Box sx={{ display: 'flex', flex: 1, gap: 1 }}>
+        <Box sx={{ display: 'flex', flex: '1 1 420px', gap: 1 }}>
           <Tooltip title="Upload new file">
             <Button variant="outlined" startIcon={<UploadFile />} onClick={onUploadClick} sx={{ flex: 1 }}>
               Upload

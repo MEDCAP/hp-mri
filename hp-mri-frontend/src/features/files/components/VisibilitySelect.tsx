@@ -11,8 +11,9 @@ import { getApiErrorMessage } from '../../../api/client';
 import { MRDFile } from '../../../types/mrd';
 import { useGroups } from '../../groups/hooks/useGroups';
 
-// Select needs a string value; the backend's private is groupName null.
-const PRIVATE = '';
+// Select needs a non-empty string (MUI renders '' as no value); the
+// backend's private is groupName null.
+const PRIVATE = '__private__';
 
 interface VisibilitySelectProps {
   file: MRDFile;
