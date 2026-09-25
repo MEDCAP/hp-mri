@@ -152,7 +152,8 @@ module "frontend" {
 }
 
 /**
- * The Mongo connection string, which config.py hardcodes today.
+ * The Mongo connection string. ProductionConfig reads MONGO_URI and falls back
+ * to the hardcoded Atlas cluster URI when it is unset.
  *
  * The value is supplied out of band (terraform apply -var, or written once by
  * hand) and then ignored, so that rotating it in the console is not reverted by

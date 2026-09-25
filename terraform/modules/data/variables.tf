@@ -23,6 +23,16 @@ variable "staging_prefix" {
   default     = "uploads/staging/"
 }
 
+variable "read_only_prefixes" {
+  description = <<-EOT
+    Prefixes the application reads but never writes: the demo datasets behind
+    /api/get_count_datasets, /api/get_proton_picture and /api/get_hp_mri_data
+    (app/viewer/magnets/*_processing.py).
+  EOT
+  type        = list(string)
+  default     = ["MRS/"]
+}
+
 variable "staging_expiry_days" {
   description = "How long an abandoned staged upload survives."
   type        = number

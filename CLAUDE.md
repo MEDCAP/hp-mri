@@ -18,6 +18,7 @@ File metadata lives in MongoDB Atlas; MRD files live in S3.
   - `data.py` — MongoDB and S3 access
   - `config.py`
   - `tests/`
+- `terraform/` — AWS infrastructure (not yet applied); see `terraform/README.md`
 - `server/app/external/` — git submodule `MEDCAP/mrd-fork` (branch `dev`), the MRD
   library. Read-only here.
 

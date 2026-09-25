@@ -34,9 +34,11 @@ terraform {
 locals {
   name = var.name_prefix
 
-  # Everything the container reads from the environment. server/config.py
-  # currently hardcodes all of this; the task definition is where it should come
-  # from, so one image can serve both environments.
+  # The variables server/config.py reads. Its defaults (medcap-data,
+  # medcap_dev, no CORS origins) are production's legacy values, so every
+  # environment sets these explicitly. MAX_UPLOAD_BYTES and
+  # PRESIGN_EXPIRY_SECONDS keep their config.py defaults unless passed in
+  # extra_environment; MONGO_URI arrives via secret_environment.
   environment = merge(
     {
       FLASK_ENV     = var.flask_env

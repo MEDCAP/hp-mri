@@ -5,7 +5,7 @@ applied.** The whole point of the sequence below is that adoption changes no liv
 resource: every import PR must plan clean before it merges.
 
 Read `docs/INVENTORY.md` first — it is the enumeration these files were written
-against, including eight findings, several of which are security issues you
+against, including nine findings (F1–F9), several of which are security issues you
 should act on before any of this ships.
 
 ## Layout
@@ -59,6 +59,7 @@ blue-green: nothing moves until step 6, and step 6 is one variable.
 | 6 | **Cut over:** set `api_origin_dns_name = ""` and apply | `curl https://medcap.ai/api/health` still works, now served by the new stack. This is the only step that touches live traffic |
 | 7 | Watch. Rollback is restoring the old value and applying | |
 | 8 | Delete the old cluster, service, ALB, security groups, log group, the `medcap_dev` database, the `E1LTBXHERJ8IYX` distribution, and `AmazonS3FullAccess` from `ecsTaskExecutionRole` | Nothing breaks. Bill drops |
+| 9 | Flip the `MONGO_DB_NAME` default in `server/config.py` from `medcap_dev` to `hpmri_dev` | An unconfigured local run no longer lands on a production database name |
 
 Step 3 is the one that silently breaks things if skipped: the new task role is a
 principal Atlas has never seen, so the service comes up healthy on its ALB
@@ -92,7 +93,7 @@ Add-then-switch, in this order, with no downtime:
 2. Apply the Terraform that switches the task role.
 3. Verify: the service reaches steady state and file listing works.
 4. Remove the old Atlas user.
-5. *Separately*, tighten to `readWrite` on `medcap_dev`. Do not fold this into
+5. *Separately*, tighten to `readWrite` on `hpmri_prod`. Do not fold this into
    step 1 — changing principal and privileges together means a failure tells
    you nothing about which one caused it.
 

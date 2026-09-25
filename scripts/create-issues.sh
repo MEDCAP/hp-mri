@@ -96,9 +96,9 @@ client sets Referer, the substring test passes for medcap.ai.example.com, and
 nothing in the backend reads the injected header -- whose value sits in plaintext
 for anyone with cloudfront:GetFunction.
 
-It is not the API's access control; the Cognito token check on the data routes
-is (verified: GET /api/mrd-files without a token returns 401 in production). The
-function adds nothing to that. Delete it and drop api_function_arn from
+It is not the API's access control; the Cognito token check behind it is (every
+route that returns a full document or changes data requires a token; see the API
+table in CLAUDE.md). The function adds nothing to that. Delete it and drop api_function_arn from
 terraform/envs/prod.
 
 Finding F1."
@@ -115,8 +115,8 @@ the system: any code path holding the role can destroy data in buckets that have
 nothing to do with this application.
 
 terraform/modules/backend-ecs already models a proper pair, and
-terraform/modules/data emits a least-privilege policy scoped to the mrd_files/
-and uploads/staging/ prefixes.
+terraform/modules/data emits a least-privilege policy: read/write/delete on
+mrd_files/ and uploads/staging/, read on the MRS/ demo datasets.
 
 BLOCKER: ecsTaskExecutionRole is also the principal MongoDB Atlas trusts for
 MONGODB-AWS auth. Add the new task role ARN as an Atlas database user BEFORE
@@ -141,7 +141,8 @@ check. It admits the owner, any member of the file's group, and, for legacy
 files with neither ownerId nor groupName, any signed-in user. So group members
 can delete each other's files, and anyone can delete every pre-groups file.
 
-Confirmed against a real MongoDB: backend/api-tests carries two strict xfails
+Confirmed against a real MongoDB: server/tests/test_access_integration.py
+carries two strict xfails
 (test_a_group_member_cannot_delete_another_members_file,
 test_any_user_cannot_delete_a_legacy_file) that assert the intended behaviour
 and fail today.
@@ -156,11 +157,12 @@ deletes are unrecoverable."
 
 issue "Add CORS to medcap-data before the presigned upload flow ships" \
   "infra,blocked" "Infra: Terraform + CI/CD" \
-"The bucket has no CORS configuration. The presigned upload has the browser PUT
-directly to S3, which CORS will block, so uploads will fail the moment the
-current branch deploys.
+"The bucket has no CORS configuration. The presigned upload on dev has the
+browser PUT directly to uploads/staging/<sub>/<uploadId>, which CORS blocks, so
+uploads fail as soon as dev deploys against this bucket.
 
-Needs PUT allowed from https://medcap.ai with ETag exposed. Already written in
+Needs PUT allowed from https://medcap.ai (and http://localhost:5173) with ETag
+exposed. Already written in
 terraform/modules/data; it has not been applied.
 
 Finding F4. Blocks any deploy of the presigned upload flow."
@@ -233,7 +235,10 @@ exists and validates but has never been applied.
 
 Two manual steps Terraform cannot do: add the dev task role ARN as an Atlas
 database user, and create the hpmri_dev database. Until then dev returns 503 on
-every request that touches the database."
+every request that touches the database.
+
+The dev bucket also starts without the MRS/ demo datasets, so the HUPC and
+MR Solutions viewer routes have nothing to read there until they are copied."
 
 issue "Create the MRD_FORK_DEPLOY_KEY secret" \
   "ci-cd,blocked" "Infra: Terraform + CI/CD" \
@@ -256,8 +261,7 @@ plus a human approval ships production."
 issue "Fix POST /api/viewer-upload (UPLOAD_FOLDER is undefined)" \
   "bug,backend" "Backend correctness" \
 "UPLOAD_FOLDER is referenced in app/viewer/routes.py and defined nowhere in the
-tree, so the endpoint raises NameError on every call. It now fails loudly with a
-logged traceback rather than a masked 500, but it is still broken.
+tree, so every call raises NameError and answers 500.
 
 Decide where DICOM uploads should actually go — most likely S3, like everything
 else, rather than a local directory that does not survive a task restart."
@@ -268,67 +272,23 @@ issue "Fix GET /api/get_imaging_metadata (hardcoded laptop path)" \
 machine. It is described as mock data; either move the fixture into the repo or
 delete the endpoint."
 
-issue "Decide the fate of app/simulator/" \
-  "backend,tech-debt" "Backend correctness" \
-"simulator/routes.py decorates with @mrds_bp without importing it and reads an
-undefined db_simulator, so the module would raise on import. The blueprint is
-not registered, and the SPA's GET /api/simulator therefore 404s.
-
-Either delete it as dead code and remove the frontend caller, or implement it.
-Blocks the SimulatorPage issue either way."
-
-issue "Stop doing S3 I/O at module import time" \
-  "bug,backend" "Backend correctness" \
-"app/viewer/magnets/mr_solutions_processing.py calls list_objects_v2 while the
-module is being imported, so create_app() fails outright without live AWS
-credentials. Consequences: ECS task startup depends on S3 being reachable, cold
-start pays a network round trip, local development needs credentials even for
-frontend work, and the test suite has to stub these modules to run at all.
-
-Both magnet modules also construct boto3 clients at import and hardcode
-BUCKET_NAME = medcap-data a second and third time.
-
-Move the discovery behind a lazily-evaluated function."
-
-issue "Give reconstruction an execution model" \
-  "backend" "Feature completion" \
-"mrd2recon runs minutes-long fits; gunicorn runs --timeout 60 and the ALB idle
-timeout matches. POST /api/recon is registered and returns 501 because running
-it synchronously cannot work at any container size.
-
-Needs a job queue: AWS Batch or a Step Functions-invoked Fargate task, with the
-API returning a job id and the SPA polling. Not Lambda — 15-minute ceiling, and
-these are CPU-bound numeric fits.
-
-Blocks the ReconstructModal issue."
-
-issue "Remove module-level mutable state from the scientific modules" \
+issue "Split groups out of data.py" \
   "tech-debt,backend" "Backend correctness" \
-"lorn.py, mrd2recon.py and hupc_processing.py keep module-level mutable arrays
-(centers, widths, phases, spect, experiment globals). Non-reentrant and unsafe
-across gunicorn workers, which currently run two.
-
-This is most of the remaining pylint gap and is deliberately not disabled away."
-
-issue "Split the MRD stream walking out of data.py" \
-  "tech-debt,backend" "Backend correctness" \
-"data.py is ~490 lines mixing Mongo CRUD, S3 I/O, MRD stream walking and numpy
-reshaping. The ~300 lines of walking (_walk_mrd_arrays, _describe_item,
-_to_image_6d, _to_trace_3d) touch no database and are the natural seam."
-
-issue "Bound _MRD_BYTES_CACHE by size and make it safe to share" \
-  "tech-debt,backend" "Backend correctness" \
-"The cache caps at 3 entries rather than bytes, so three large MRD files can pin
-an unbounded amount of memory. It is also per-worker and not thread-safe."
+"data.py is ~1100 lines mixing file CRUD, S3 access, MRD header and array
+reading, and the whole groups domain (membership, admins, invite codes, join
+requests, settings). The groups functions are over half the file and touch no
+S3 or MRD code; they are the natural seam."
 
 issue "Finish externalising configuration" \
   "tech-debt,backend" "Backend correctness" \
-"Still hardcoded: ProductionConfig.MONGO_URI, the S3 prefix MRS/s_2023041103/ in
-hupc_processing.py, and Windows output paths in mrd2recon.py.
+"Still hardcoded: the demo dataset prefixes (MRS/s_2023041103/ in
+hupc_processing.py, MRS/proton/ and MRS/epsi/ in mr_solutions_processing.py),
+and the local /Users/benjaminyoon/... paths both modules switch to when
+running locally.
 
-The Dockerfile also sets ENV FLASK_ENV=production at build time, so one image
-cannot serve two environments and docker run --env-file .env.development
-silently loads ProductionConfig. Add a HEALTHCHECK while in there."
+Once production runs with MONGO_DB_NAME set and the database is renamed to
+hpmri_prod (terraform/README.md), flip the MONGO_DB_NAME default in config.py
+from medcap_dev to hpmri_dev."
 
 issue "Add an /api/v1 prefix" \
   "backend,tech-debt" "Backend correctness" \
@@ -339,35 +299,24 @@ to a new API. Version the API before that matters.
 Keep /api/* as an alias for one release. Do this after the CI/CD pipeline
 exists, so the overlap is actually deployable."
 
-issue "Unify on one MRD library" \
+issue "Drop the mrd-python pin if nothing needs it" \
   "tech-debt,backend" "Backend correctness" \
-"Two MRD libraries are live in the same process. data.py imports the vendored
-submodule (app.external.python.mrd), while recon/utils/mrd2recon.py and
-mrdplot.py do a bare 'import mrd', which resolves to the PyPI mrd-python pin.
-Removing the pin breaks reconstruction; unify on the submodule first, then drop
-it."
+"server/requirements.txt pins mrd-python==2.0.1, but the server's own code
+imports only the vendored submodule (app.external.python.mrd). Check whether
+the submodule depends on the PyPI package; if not, remove the pin so only one
+MRD library is installed."
 
 # --- frontend ---------------------------------------------------------------
 
 issue "Implement GIF export or remove the UI" \
   "frontend" "Feature completion" \
-"features/viewer/ViewerPage.tsx:99 is literally 'const onExportGif = () => {};'
-while ExportSection renders a full set of controls — start frame, end frame,
-fps, filename — that do nothing. gif.js.optimized is a dependency that is never
-imported.
+"pages/viewerpages/ViewerPage.tsx:78 is literally 'const onExportGif = () => {};'
+while ViewerSidePanel renders a full set of controls — start frame, end frame,
+fps, filename — that do nothing. gif.js.optimized is a dependency whose only
+import is commented out in ViewerPage_v1.tsx.
 
 Either implement it or remove the controls; silently doing nothing is the worst
 of the three."
-
-issue "Wire ReconstructModal to the backend" \
-  "frontend,blocked" "Feature completion" \
-"features/recon/ReconstructModal.tsx:159 is a TODO. Blocked on the reconstruction
-execution model."
-
-issue "Fix or remove the SimulatorPage backend call" \
-  "frontend,blocked" "Feature completion" \
-"api/simulator.ts calls GET /api/simulator, which no live route serves. Blocked
-on the app/simulator/ decision."
 
 issue "Remove the hardcoded Cognito fallbacks" \
   "frontend,tech-debt" "Feature completion" \
@@ -379,11 +328,11 @@ issue "Add a frontend test runner" \
   "frontend,tech-debt" "Feature completion" \
 "No tests and no runner configured. The SPA has none."
 
-issue "Finish the auth and simulator stub pages" \
+issue "Finish the auth stub pages and the Members bios" \
   "frontend" "Feature completion" \
-"SignUpPage.tsx:43 and AccountPage.tsx:13 are TODO stubs, NewSimulatorPage is
-mostly TODO, and MembersPage ships 'TODO - N/A' placeholder bios in what is a
-public-facing page."
+"features/auth/SignUpPage.tsx:43 and AccountPage.tsx:13 carry TODOs for loading
+state and Cognito logic, and features/home/MembersPage.tsx ships 'TODO - N/A'
+placeholder bios in what is a public-facing page."
 
 echo
 if $DRY_RUN; then

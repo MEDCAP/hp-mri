@@ -1,7 +1,7 @@
 # AWS Resource Inventory — MEDCAP/hp-mri
 
 Read-only enumeration of the live (ClickOps-created) infrastructure, for the
-import-first Terraform adoption described in `.claude/ARCHITECT.md`.
+import-first Terraform adoption described in `terraform/README.md`.
 
 - **Account:** `862065604168`
 - **Region:** `us-east-1`
@@ -67,12 +67,14 @@ ECS service `medcap-app-service-v3` on cluster `mrissim-test1`:
 
 - Task definition `medcap-app-task-def:13`, `awsvpc`, **4096 CPU / 8192 MiB**
 - **Capacity provider `FARGATE_SPOT`, weight 1, desiredCount 1**
-- Container `medcap-app` (CI must match this string), port 5000
+- Container `medcap-app`, port 5000. The Terraform seed task definition renames it
+  `hpmri-api`, the name the deploy workflow patches
 - Image `...ecr.../medcap-app:7caa165f25e1e8e581839d486d9895934170a03d` — tagged by
   **git SHA, not `VERSION`**, so the documented VERSION-tag scheme is not what ships
 - `executionRoleArn == taskRoleArn == arn:aws:iam::862065604168:role/ecsTaskExecutionRole`
 - **`environment: []` and `secrets: null`** — the container receives no configuration
-  at all; everything comes from values hardcoded in the image
+  at all; it runs on the defaults in `server/config.py` (`medcap-data`,
+  `medcap_dev`, the hardcoded Atlas URI) and the image's `FLASK_ENV=production`
 - Logs → `/ecs/medcap-app`, awslogs, no retention policy
 - Target currently **healthy** (`10.128.185.167:5000`)
 
@@ -102,13 +104,18 @@ three DKIM CNAMEs. The zone is in this account, so DNS **can** be Terraform-mana
 check the API's only access control and described an anonymous path to
 `DELETE /api/mrd-file`. That was true of the `feature/mrs_recon` code, which has no
 authentication, and **false of production**, which runs `dev` (image tag
-`7caa165f…`). On `dev` the data routes carry `@requires_auth` and validate a Cognito
-ID token:
+`7caa165f…`). On that `dev` image the data routes carried `@requires_auth` and
+validated a Cognito ID token. Observed on 2026-09-18:
 
 ```
 curl -H 'Referer: https://medcap.ai/' https://medcap.ai/api/mrd-files         → 401
 curl -H 'Referer: https://medcap.ai/' https://medcap.ai/api/mrd-files/public  → 200 (guest route, by design)
 ```
+
+Current `dev` has since changed the routes: `GET /api/mrd-files` is optional-auth
+and returns only public files to guests, and `/api/mrd-files/public` no longer
+exists. Every route that returns a full document or changes data still requires a
+token (see the API table in the root `CLAUDE.md`).
 
 What remains true: CloudFront Function `secureApiForwarding` rejects `/api/*`
 requests whose `Referer` does not contain `medcap.ai`, then injects
@@ -128,8 +135,9 @@ anonymous caller — exploiting them needs a valid account.
 application therefore has read/write/delete on **every bucket in the account** —
 including `upenn-security.aws-medcap-psom`, `epsi-kidney-data`,
 `upenn-research.medcap-01.us-east-1` and the CDK assets bucket — not just
-`medcap-data`. Split the roles and scope the task role to the two `medcap-data`
-prefixes.
+`medcap-data`. Split the roles and scope the task role to what the code touches in
+`medcap-data`: read/write/delete on `mrd_files/` and `uploads/staging/`, read on the
+`MRS/` demo datasets.
 
 ### F3 — `medcap-data` has no versioning
 
@@ -137,17 +145,19 @@ prefixes.
 an accidental or malicious delete — by a signed-in user, a buggy deploy, or anything
 holding the task role's account-wide S3 access (F2).
 
-### F4 — `medcap-data` has no CORS configuration, which will break the new upload flow
+### F4 — `medcap-data` has no CORS configuration, which breaks the presigned upload flow
 
-The presigned direct-to-S3 upload on this branch has the browser `PUT` straight to the
-bucket. With no CORS configuration that request is blocked. **Uploads will fail the
-moment this branch deploys.** Required: `PUT` allowed from `https://medcap.ai`, with
-`ETag` exposed.
+The presigned direct-to-S3 upload on `dev` has the browser `PUT` straight to
+`uploads/staging/<sub>/<uploadId>` in the bucket. With no CORS configuration that
+request is blocked. **Uploads fail against this bucket until CORS is applied.**
+Required: `PUT` allowed from `https://medcap.ai` (and `http://localhost:5173` for
+local development against real S3), with `ETag` exposed.
 
 ### F5 — The staging lifecycle rule `config.py` relies on does not exist
 
 `server/config.py` documents that a bucket lifecycle rule expires
-`uploads/staging/` after a day. `get-bucket-lifecycle-configuration` returns
+`uploads/staging/` (which holds `uploads/staging/<sub>/<uploadId>`); the Terraform
+rule expires it after a day. `get-bucket-lifecycle-configuration` returns
 `NoSuchLifecycleConfiguration`. Abandoned uploads will accumulate and be billed
 indefinitely.
 

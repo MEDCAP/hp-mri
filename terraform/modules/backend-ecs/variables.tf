@@ -104,7 +104,7 @@ variable "capacity_providers" {
 # --- application configuration ----------------------------------------------
 
 variable "flask_env" {
-  description = "Set per environment. The Dockerfile must stop baking this in (finding CFG-4)."
+  description = "Selects the config class in server/app/__init__.py. The Dockerfile's FLASK_ENV=production is only a default; this overrides it."
   type        = string
   default     = "production"
 }
@@ -125,9 +125,10 @@ variable "mongo_db_name" {
 
 variable "cors_origins" {
   description = <<-EOT
-    Joined with commas for the container. Near-vestigial while CloudFront makes
-    the SPA and API same-origin, but ProductionConfig sets none at all today, so
-    the API would be unusable the moment it moved to its own hostname.
+    Joined with commas into CORS_ORIGINS. Near-vestigial while CloudFront makes
+    the SPA and API same-origin, but in production config.py defaults to no
+    origins, so the API would be unusable from browsers the moment it moved to
+    its own hostname.
   EOT
   type        = list(string)
   default     = []
