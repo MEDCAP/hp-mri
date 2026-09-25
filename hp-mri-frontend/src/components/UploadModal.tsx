@@ -148,7 +148,7 @@ const Transition = React.forwardRef(function Transition(
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
-interface UploadFile {
+export interface UploadFile {
   id: string;
   file: File;
   status: 'pending' | 'uploading' | 'completed' | 'error';
