@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
-import SettingsModal from './SettingsModal';
+import SettingsModal from '../features/groups/components/SettingsModal';
 import '../styles/sidebar.css';
 
 interface SidebarProps {

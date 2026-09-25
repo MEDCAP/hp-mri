@@ -41,8 +41,8 @@ import {
   demoteAdmin,
 } from '../../api/groups';
 import { Group as GroupType, GroupMember } from '../../types/group';
-import JoinRequestsPanel from '../../components/JoinRequestsPanel';
-import ManageInviteCodesDialog from '../../components/ManageInviteCodesDialog';
+import JoinRequestsPanel from './components/JoinRequestsPanel';
+import ManageInviteCodesDialog from './components/ManageInviteCodesDialog';
 import { getCurrentUserSub } from '../../auth/cognito';
 
 const GroupDetailPage: React.FC = () => {

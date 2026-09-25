@@ -15,7 +15,7 @@ import {
   Close as CloseIcon,
   Group as GroupIcon
 } from '@mui/icons-material';
-import { createGroup } from '../api/groups';
+import { createGroup } from '../../../api/groups';
 
 interface CreateGroupDialogProps {
   open: boolean;

@@ -30,8 +30,8 @@ import {
   listMyJoinRequests,
   requestToJoin,
   withdrawJoinRequest,
-} from '../api/groups';
-import { SearchGroup } from '../types/group';
+} from '../../../api/groups';
+import { SearchGroup } from '../../../types/group';
 
 interface JoinGroupDialogProps {
   open: boolean;

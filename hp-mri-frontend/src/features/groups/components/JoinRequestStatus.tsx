@@ -18,7 +18,7 @@ import {
   AccessTime as AccessTimeIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import { listMyJoinRequests } from '../api/groups';
+import { listMyJoinRequests } from '../../../api/groups';
 
 interface JoinRequestStatus {
   groupName: string;

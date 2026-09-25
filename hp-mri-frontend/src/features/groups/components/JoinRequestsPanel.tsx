@@ -20,8 +20,8 @@ import {
   Email as EmailIcon,
   AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
-import { listJoinRequests, approveJoinRequest, denyJoinRequest } from '../api/groups';
-import { JoinRequest } from '../types/group';
+import { listJoinRequests, approveJoinRequest, denyJoinRequest } from '../../../api/groups';
+import { JoinRequest } from '../../../types/group';
 
 interface JoinRequestsPanelProps {
   groupName: string;

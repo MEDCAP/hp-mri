@@ -28,8 +28,8 @@ import {
   AccessTime as TimeIcon,
   People as PeopleIcon
 } from '@mui/icons-material';
-import { listInviteCodes, createInviteCode, revokeInviteCode } from '../api/groups';
-import { InviteCode } from '../types/group';
+import { listInviteCodes, createInviteCode, revokeInviteCode } from '../../../api/groups';
+import { InviteCode } from '../../../types/group';
 
 interface ManageInviteCodesDialogProps {
   open: boolean;
