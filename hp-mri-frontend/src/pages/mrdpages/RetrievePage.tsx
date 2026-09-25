@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
-import HeaderAccount from '../../layouts/HeaderAccount';
 import UploadModal from '../../components/UploadModal';
 import UploadProgressIndicator from '../../components/UploadProgressIndicator';
 import UploadProgressModal from '../../components/UploadProgressModal';
@@ -358,12 +357,10 @@ const RetrievePage: React.FC = () => {
           : `calc(100% - 80px - ${fileDetailsPanelOpen ? '400px' : '0px'})`,
         marginLeft: isSidebarOpen ? '260px' : '80px',
         marginRight: fileDetailsPanelOpen ? '400px' : '0px',
-        marginTop: '64px',  // margin top between the header and app 
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        minHeight: 'calc(100vh - 74px)', // Account for header
+        minHeight: 'calc(100vh - 72px)', // MRDLayout's fixed header
       }}
     >
-      <HeaderAccount />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       <Container maxWidth="lg" sx={{ paddingTop: 2 }}>
