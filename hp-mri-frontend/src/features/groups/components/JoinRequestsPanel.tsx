@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -13,6 +13,7 @@ import {
   useTheme,
   alpha
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
   Person as PersonIcon,
   CheckCircle as CheckCircleIcon,
@@ -20,8 +21,8 @@ import {
   Email as EmailIcon,
   AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
-import { listJoinRequests, approveJoinRequest, denyJoinRequest } from '../api/groups';
-import { JoinRequest } from '../types/group';
+import { listJoinRequests, approveJoinRequest, denyJoinRequest } from '../../../api/groups';
+import { JoinRequest } from '../../../types/group';
 
 interface JoinRequestsPanelProps {
   groupName: string;
@@ -35,28 +36,27 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isAdmin && groupName) {
-      loadJoinRequests();
-    }
-  }, [groupName, isAdmin]);
-
-  const loadJoinRequests = async () => {
+  const loadJoinRequests = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('DEBUG: Loading join requests for group:', groupName);
       setRequests(await listJoinRequests(groupName));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading join requests:', error);
       setError('Failed to load join requests');
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupName]);
 
-  const handleApprove = async (userSub: string, _userName: string) => {
+  useEffect(() => {
+    if (isAdmin && groupName) {
+      loadJoinRequests();
+    }
+  }, [groupName, isAdmin, loadJoinRequests]);
+
+  const handleApprove = async (userSub: string) => {
     try {
       setActionLoading(userSub);
       
@@ -69,7 +69,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
           : req
       ));
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error approving request:', error);
       setError('Failed to approve join request');
     } finally {
@@ -77,7 +77,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
     }
   };
 
-  const handleDeny = async (userSub: string, _userName: string) => {
+  const handleDeny = async (userSub: string) => {
     try {
       setActionLoading(userSub);
       
@@ -90,7 +90,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
           : req
       ));
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error denying request:', error);
       setError('Failed to deny join request');
     } finally {
@@ -112,7 +112,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipProps['color'] => {
     switch (status) {
       case 'pending': return 'warning';
       case 'approved': return 'success';
@@ -206,7 +206,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
                         
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button
-                            onClick={() => handleApprove(request.userSub, request.userName)}
+                            onClick={() => handleApprove(request.userSub)}
                             disabled={actionLoading === request.userSub}
                             variant="contained"
                             size="small"
@@ -217,7 +217,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
                             Approve
                           </Button>
                           <Button
-                            onClick={() => handleDeny(request.userSub, request.userName)}
+                            onClick={() => handleDeny(request.userSub)}
                             disabled={actionLoading === request.userSub}
                             variant="outlined"
                             size="small"
@@ -258,7 +258,7 @@ const JoinRequestsPanel: React.FC<JoinRequestsPanelProps> = ({ groupName, isAdmi
                             </Typography>
                             <Chip
                               label={request.status}
-                              color={getStatusColor(request.status) as any}
+                              color={getStatusColor(request.status)}
                               size="small"
                               icon={getStatusIcon(request.status) || undefined}
                               sx={{ textTransform: 'capitalize' }}

@@ -32,3 +32,11 @@ export async function deleteMrdFiles(ids: string[]): Promise<DeleteResponse> {
   });
   return response.data;
 }
+
+/**
+ * POST /mrd-files/:id/share — move an owned file to one of the caller's groups,
+ * or back to private with `null`.
+ */
+export async function shareMrdFile(id: string, groupName: string | null): Promise<void> {
+  await apiClient.post(`/mrd-files/${id}/share`, { groupName });
+}

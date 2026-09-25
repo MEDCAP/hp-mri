@@ -30,8 +30,9 @@ import {
   listMyJoinRequests,
   requestToJoin,
   withdrawJoinRequest,
-} from '../api/groups';
-import { SearchGroup } from '../types/group';
+} from '../../../api/groups';
+import { getApiErrorMessage } from '../../../api/client';
+import { SearchGroup } from '../../../types/group';
 
 interface JoinGroupDialogProps {
   open: boolean;
@@ -88,11 +89,10 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
         onClose();
       }, 2000);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error joining group:', error);
       setError(
-        error.response?.data?.error || 
-        'Failed to join group. Please check the invite code.'
+        getApiErrorMessage(error, 'Failed to join group. Please check the invite code.')
       );
     } finally {
       setLoading(false);
@@ -120,7 +120,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       
       setSearchResults(groupsWithStatus);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error searching groups:', error);
       setError('Failed to search groups. Please try again.');
     } finally {
@@ -140,12 +140,10 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       // Refresh search results to show updated status
       handleSearchGroups();
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error requesting to join:', error);
-      console.error('Error response:', error.response?.data);
       setError(
-        error.response?.data?.error || 
-        'Failed to submit join request. Please try again.'
+        getApiErrorMessage(error, 'Failed to submit join request. Please try again.')
       );
     } finally {
       setLoading(false);
@@ -163,7 +161,7 @@ const JoinGroupDialog: React.FC<JoinGroupDialogProps> = ({ open, onClose, onGrou
       // Refresh search results to show updated status
       handleSearchGroups();
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error withdrawing request:', error);
       setError('Failed to withdraw join request. Please try again.');
     } finally {

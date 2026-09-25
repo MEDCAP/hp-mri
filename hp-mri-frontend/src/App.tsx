@@ -27,13 +27,13 @@ import PublicationPage from './features/home/PublicationPage';
 import MRCalculatorPage from './features/calculator/MRCalculatorPage';
 
 // Feature pages
-import RetrievePage from './pages/mrdpages/RetrievePage';
+import RetrievePage from './features/files/RetrievePage';
 import SimulatorPage from './features/simulator/SimulatorPage';
 import ViewerPage from './pages/viewerpages/ViewerPage';
 
 // Group pages
-import GroupsPage from './pages/grouppages/GroupsPage';
-import GroupDetailPage from './pages/grouppages/GroupDetailPage';
+import GroupsPage from './features/groups/GroupsPage';
+import GroupDetailPage from './features/groups/GroupDetailPage';
 
 const APP_VERSION = 'MEDCAP © 2025';
 

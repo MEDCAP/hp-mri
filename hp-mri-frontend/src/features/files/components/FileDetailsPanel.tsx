@@ -26,7 +26,10 @@ import {
   Storage,
   Info
 } from '@mui/icons-material';
-import { MRDFile } from '../types/mrd';
+import { MRDFile, fileVisibility } from '../../../types/mrd';
+import { formatUploadTimestamp } from '../../../utils/format';
+import { getCurrentUserSub } from '../../../auth/cognito';
+import VisibilitySelect from './VisibilitySelect';
 
 const drawerWidth = 400;
 
@@ -75,13 +78,17 @@ const DetailValue = styled(Typography)(({ theme }) => ({
 }));
 
 interface FileDetailsPanelProps {
-  open: boolean;
+  /** The checked files: one shows its details, several show a count. */
+  selection: MRDFile[];
+  /** Close the pane; the caller clears the selection. */
   onClose: () => void;
-  file: MRDFile | null;
+  /** A file's visibility was changed from the pane. */
+  onVisibilityChanged: (fileId: string, groupName: string | null) => void;
 }
 
-const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ open, onClose, file }) => {
-  if (!file) return null;
+const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ selection, onClose, onVisibilityChanged }) => {
+  if (selection.length === 0) return null;
+  const file = selection.length === 1 ? selection[0] : null;
 
   const formatFileSize = (size?: string) => {
     if (!size) return 'Unknown';
@@ -95,53 +102,48 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ open, onClose, file
     return `${date} at ${time}`;
   };
 
-  const formatUploadTimestamp = (timestamp: any) => {
-    if (!timestamp) return 'Unknown';
-    
-    // Handle MongoDB date format
-    if (timestamp.$date) {
-      const date = new Date(timestamp.$date);
-      return date.toLocaleString();
-    }
-    
-    // Handle string format
-    if (typeof timestamp === 'string') {
-      const date = new Date(timestamp);
-      return date.toLocaleString();
-    }
-    
-    // Handle Date object
-    if (timestamp instanceof Date) {
-      return timestamp.toLocaleString();
-    }
-    
-    return 'Unknown';
-  };
-
-  const getFileIcon = () => {
-    return <Description sx={{ fontSize: 40, color: 'primary.main' }} />;
-  };
+  const closeButton = (
+    <IconButton
+      onClick={onClose}
+      size="small"
+      sx={{
+        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+        '&:hover': {
+          backgroundColor: 'rgba(0, 0, 0, 0.08)',
+        }
+      }}
+    >
+      <Close />
+    </IconButton>
+  );
 
   return (
     <StyledDrawer
       anchor="right"
-      open={open}
+      open
       variant="permanent"
       sx={{
         '& .MuiDrawer-paper': {
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: open ? '0 0 20px rgba(0,0,0,0.1)' : 'none',
+          boxShadow: '0 0 20px rgba(0,0,0,0.1)',
           zIndex: 1300,
         }
       }}
     >
+      {!file ? (
+        <HeaderSection sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            {selection.length} items selected
+          </Typography>
+          {closeButton}
+        </HeaderSection>
+      ) : (
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Header Section */}
         <HeaderSection>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-              {getFileIcon()}
+              <Description sx={{ fontSize: 40, color: 'primary.main' }} />
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
                   {file.fileName}
@@ -154,23 +156,12 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ open, onClose, file
                 />
               </Box>
             </Box>
-            <IconButton 
-              onClick={onClose} 
-              size="small"
-              sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                }
-              }}
-            >
-              <Close />
-            </IconButton>
+            {closeButton}
           </Box>
           
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
             <Chip 
-              label={file.groupName} 
+              label={fileVisibility(file).label}
               variant="outlined" 
               size="small"
               icon={<Group />}
@@ -182,6 +173,13 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ open, onClose, file
               icon={<Person />}
             />
           </Box>
+          {file.ownerId && file.ownerId === getCurrentUserSub() && (
+            <VisibilitySelect
+              key={file._id}
+              file={file}
+              onChanged={(groupName) => onVisibilityChanged(file._id, groupName)}
+            />
+          )}
         </HeaderSection>
 
         {/* Content Section */}
@@ -321,6 +319,7 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ open, onClose, file
           </List>
         </ContentSection>
       </Box>
+      )}
     </StyledDrawer>
   );
 };

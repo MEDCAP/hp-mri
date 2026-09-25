@@ -31,10 +31,9 @@ import {
   Settings as SettingsIcon,
   LockOutlined as LockIcon,
 } from '@mui/icons-material';
-import { listGroups } from '../api/groups';
-import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub, isAuthenticated } from '../auth/cognito';
+import { useGroups } from '../hooks/useGroups';
+import { getCurrentUserName, getCurrentUserEmail, getCurrentUserSub, isAuthenticated } from '../../../auth/cognito';
 import { useNavigate } from 'react-router-dom';
-import { Group } from '../types/group';
 import CreateGroupDialog from './CreateGroupDialog';
 import JoinGroupDialog from './JoinGroupDialog';
 import JoinRequestStatus from './JoinRequestStatus';
@@ -49,15 +48,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { groups, loading, refresh: loadGroups } = useGroups(open && isAuthenticated());
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [joinGroupOpen, setJoinGroupOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadUserData();
-      loadGroups();
     }
   }, [open]);
 
@@ -66,17 +63,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
     const email = getCurrentUserEmail();
     setUserName(name || '');
     setUserEmail(email || '');
-  };
-
-  const loadGroups = async () => {
-    try {
-      setLoading(true);
-      setGroups(await listGroups());
-    } catch (error) {
-      console.error('Error loading groups:', error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleCreateGroup = () => {
