@@ -13,11 +13,9 @@ ignore-paths=^server/app/external/.*$,
 # top-level imports rather than package-relative ones.
 init-hook=import sys; sys.path.insert(0, "server")
 
-# A floor the current code clears today (6.84 on dev), meant to be ratcheted up
-# as debt is paid down -- not a target. Much of the gap is module-level mutable
-# state in the scientific modules, which is a real defect under multiple
-# gunicorn workers rather than lint noise, so it is not disabled away.
-fail-under=6.5
+# Ratchet: just below the current score (8.34). Raise it as debt is paid down;
+# never lower it.
+fail-under=8.3
 
 jobs=0
 

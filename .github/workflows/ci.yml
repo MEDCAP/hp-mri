@@ -32,10 +32,13 @@ jobs:
           --health-retries 10
 
     steps:
-      # No submodule needed here: the tests never read an MRD file, and pylint
-      # excludes app/external via .pylintrc ignore-paths. The image job below
-      # does need it.
       - uses: actions/checkout@v4
+
+      # The tests need the submodule: data.py imports app.external.python.mrd,
+      # so without it collection fails. pylint still skips it via ignore-paths.
+      - uses: ./.github/actions/fetch-mrd-submodule
+        with:
+          deploy-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
 
       - uses: actions/setup-python@v5
         with:
@@ -60,18 +63,7 @@ jobs:
           # Without this the integration tests skip rather than fail, which is
           # right locally and wrong in CI.
           MONGO_TEST_URI: mongodb://localhost:27017
-        # Exit 5 means "no tests collected". dev has no test suite until
-        # backend/api-tests lands, and this workflow must not fail on its own
-        # merge for that reason. Remove the tolerance once tests exist.
-        run: |
-          set +e
-          pytest
-          code=$?
-          if [ "$code" -eq 5 ]; then
-            echo "::notice::No tests collected yet."
-            exit 0
-          fi
-          exit "$code"
+        run: pytest
 
   frontend:
     name: Frontend lint, types and build
@@ -90,10 +82,8 @@ jobs:
 
       - run: npm ci
 
-      # Non-blocking for now: dev carries ~94 lint errors (87 of them
-      # no-explicit-any) in files the frontend reconciliation replaces with the
-      # refactored versions, which are already clean. Fixing them here first
-      # would be thrown away. Make this blocking once that reconciliation lands.
+      # Non-blocking until the viewer reconciliation clears dev's remaining
+      # lint problems (~37). Make this blocking then.
       - name: Lint
         run: npm run lint
         continue-on-error: true
@@ -105,12 +95,12 @@ jobs:
     name: Backend image builds
     runs-on: ubuntu-latest
     steps:
-      # This one genuinely needs the submodule: the Dockerfile COPYs app/,
-      # including app/external.
+      # The Dockerfile COPYs app/, including app/external.
       - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/fetch-mrd-submodule
         with:
-          submodules: recursive
-          ssh-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
+          deploy-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
 
       - uses: docker/setup-buildx-action@v3
 

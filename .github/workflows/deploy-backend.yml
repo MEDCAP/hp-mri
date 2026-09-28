@@ -39,9 +39,10 @@ jobs:
       # The Dockerfile COPYs app/ including app/external, so the submodule is
       # mandatory here.
       - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/fetch-mrd-submodule
         with:
-          submodules: recursive
-          ssh-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
+          deploy-key: ${{ secrets.MRD_FORK_DEPLOY_KEY }}
 
       - name: Resolve image tag
         id: tag

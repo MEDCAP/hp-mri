@@ -29,6 +29,7 @@ cd server && ./setup_aws.sh && python run.py          # API on :5000
 cd server && pytest                                   # unit tests
 docker compose -f docker-compose.test.yml up -d       # local MongoDB for integration tests
 cd server && MONGO_TEST_URI=mongodb://localhost:27017 pytest
+pylint server                                         # from repo root; floor is fail-under in .pylintrc
 cd hp-mri-frontend && npm install && npm run dev      # SPA on :5173, /api proxied to :5000
 npm run build && npm run lint
 ```
@@ -168,6 +169,10 @@ when the file has no renderable image data.
 - **Frontend pages:** pages inside `MRDLayout` do not render their own header.
 - **Tests:** new or changed routes get tests in `server/tests/`. Visibility and
   permission behaviour is tested in `test_access_integration.py`.
+- **CI** (`.github/workflows/ci.yml`): `pylint server`, `pytest` with a real
+  MongoDB, frontend build (blocking) and lint (non-blocking), backend image
+  build. Raise `fail-under` in `.pylintrc` as the score rises; never lower it.
+  Deploy jobs run only when the repo variable `DEPLOY_ENABLED` is `true`.
 - **Secrets:** never commit `server/.env.development`. It holds temporary AWS
   credentials; regenerate with `server/setup_aws.sh`.
 - **Local files:** ignore `server/.medcap/` and `server/venv/`.
