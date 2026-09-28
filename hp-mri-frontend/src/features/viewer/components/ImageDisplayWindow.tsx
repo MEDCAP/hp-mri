@@ -10,7 +10,8 @@ import {
 } from '@mui/material';
 import {
   AddPhotoAlternate,
-  SwapHoriz
+  SwapHoriz,
+  Close
 } from '@mui/icons-material';
 import ImagingPlotComponent from './ImagingPlotComponent';
 import TracePlotComponent from './TracePlotComponent';
@@ -20,7 +21,10 @@ import ArrayMenuButton from './ArrayMenuButton';
 import { ViewerWindowState } from '../hooks/useViewerState';
 
 interface ImageDisplayWindowProps {
+  windowIndex: number;
   window: ViewerWindowState;
+  showCloseButton: boolean;
+  onClose: () => void;
   onFileSelect: () => void;
   onSelectArray: (key: string) => void;
   // Control setters
@@ -36,7 +40,10 @@ interface ImageDisplayWindowProps {
 }
 
 const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
+  windowIndex,
   window,
+  showCloseButton,
+  onClose,
   onFileSelect,
   onSelectArray,
   setChannelIndex,
@@ -259,20 +266,44 @@ const ImageDisplayWindow: React.FC<ImageDisplayWindowProps> = ({
             </>
           ) : (
             <Typography variant="caption" sx={{ color: 'white', fontWeight: 'medium', opacity: 0.7 }}>
-              No file selected
+              Window {windowIndex + 1}
             </Typography>
           )}
         </Box>
 
-        {/* Right side - which array of the file to display */}
-        {selectedFile && (
-          <ArrayMenuButton
-            arrays={arrays}
-            loading={arraysLoading}
-            selectedKey={selectedArrayKey}
-            onSelect={onSelectArray}
-          />
-        )}
+        {/* Right side - which array of the file to display, and close */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+          {selectedFile && (
+            <ArrayMenuButton
+              arrays={arrays}
+              loading={arraysLoading}
+              selectedKey={selectedArrayKey}
+              onSelect={onSelectArray}
+            />
+          )}
+          {showCloseButton && (
+            <Tooltip title="Close this panel" placement="bottom" arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                sx={{
+                  color: 'white',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  width: 24,
+                  height: 24,
+                  minWidth: 24,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    transform: 'translateY(-1px)',
+                  }
+                }}
+              >
+                <Close sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
       </Box>
 
       {/* Main content area */}

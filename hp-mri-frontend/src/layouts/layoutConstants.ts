@@ -6,6 +6,12 @@
  * Single-sourced here so the values stay in sync across pages.
  */
 
+/** Width in px of the sidebar when expanded. */
+export const SIDEBAR_OPEN_WIDTH = 240;
+
+/** Width in px of the sidebar when collapsed. */
+export const SIDEBAR_CLOSED_WIDTH = 80;
+
 /** Left margin for page content when the sidebar is expanded. */
 export const SIDEBAR_OPEN_CONTENT_MARGIN = '260px';
 

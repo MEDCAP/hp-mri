@@ -6,7 +6,7 @@ import {
     Tooltip,
     SelectChangeEvent
 } from '@mui/material';
-import { CloudUpload, Save, Tune, AspectRatio, GridView } from '@mui/icons-material';
+import { CloudUpload, Save, Tune, AspectRatio, GridView, Merge } from '@mui/icons-material';
 import { useScreenshot } from '../hooks/useScreenshot';
 import ExportSection from './sidepanel/ExportSection';
 import ImageAdjustmentsSection from './sidepanel/ImageAdjustmentsSection';
@@ -47,6 +47,8 @@ interface ButtonProps {
     cols: number;
     rows: number;
     onLayoutChange: (cols: number, rows: number) => void;
+    /** Rendered when the concatenation tool is open. */
+    concatenationSection: React.ReactNode;
 }
 
 const ButtonPanel: React.FC<ButtonProps> = ({
@@ -82,6 +84,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
     cols,
     rows,
     onLayoutChange,
+    concatenationSection,
 }) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const { filename, setFilename, handleSaveScreenshot } = useScreenshot();
@@ -128,6 +131,12 @@ const ButtonPanel: React.FC<ButtonProps> = ({
                 <Tooltip title="Panel Layout" placement="right">
                     <IconButton sx={{ color: 'white' }} onClick={() => onOpenDrawer('layout')}>
                         <GridView />
+                    </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Concatenate Files" placement="right">
+                    <IconButton sx={{ color: 'white' }} onClick={() => onOpenDrawer('concatenate')}>
+                        <Merge />
                     </IconButton>
                 </Tooltip>
 
@@ -192,6 +201,7 @@ const ButtonPanel: React.FC<ButtonProps> = ({
 
                 {/* Panel layout button */}
                 {selectedTool === 'layout' && <LayoutSection cols={cols} rows={rows} onLayoutChange={onLayoutChange} />}
+                {selectedTool === 'concatenate' && concatenationSection}
                 {/* Image Adjustment button */}
                 {selectedTool === 'image' && <ImageAdjustmentsSection contrast={contrast} setContrast={setContrast} onContrastChange={onContrastChange} imageSlice={imageSlice} alpha={alpha} onAlphaChange={onAlphaChange} />}
                 {/* Setting button */}

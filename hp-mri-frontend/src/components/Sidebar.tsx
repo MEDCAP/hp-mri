@@ -17,6 +17,7 @@ import {
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 import SettingsModal from '../features/groups/components/SettingsModal';
+import { SIDEBAR_OPEN_WIDTH, SIDEBAR_CLOSED_WIDTH } from '../layouts/layoutConstants';
 import '../styles/sidebar.css';
 
 interface SidebarProps {
@@ -51,7 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, background_black =
     <Drawer
       variant="permanent"
       className="sidebar-drawer"
-      style={{ ['--sidebar-width' as any]: isOpen ? '240px' : '80px' }}
+      style={{ '--sidebar-width': `${isOpen ? SIDEBAR_OPEN_WIDTH : SIDEBAR_CLOSED_WIDTH}px` } as React.CSSProperties}
       sx={{
         '& .MuiDrawer-paper': {
           boxShadow: 3,

@@ -34,6 +34,15 @@ const arrayListCache = new Map<string, MrdArrayListResponse>();
 const arrayCache = new Map<string, MrdArrayResponse>();
 const MAX_CACHED_ARRAYS = 8;
 
+/**
+ * Forget every cached list and array. What a caller may read depends on their
+ * token, so the caches are dropped whenever the sign-in state changes.
+ */
+export function clearViewerCache(): void {
+  arrayListCache.clear();
+  arrayCache.clear();
+}
+
 /** GET /viewer/:id/arrays — list the arrays available in an MRD file. */
 export async function fetchMrdArrayList(fileId: string): Promise<MrdArrayListResponse> {
   const cached = arrayListCache.get(fileId);

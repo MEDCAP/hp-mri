@@ -1,57 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
+import { AddCircleOutline } from '@mui/icons-material';
 
 import Sidebar from '../../components/Sidebar';
 import HeaderAccount from '../../layouts/HeaderAccount';
+import { SIDEBAR_OPEN_WIDTH, SIDEBAR_CLOSED_WIDTH } from '../../layouts/layoutConstants';
+import { MRDFile } from '../../types/mrd';
 import ViewerSidePanel from './components/ViewerSidePanel';
 import ImageDisplayWindow from './components/ImageDisplayWindow';
 import FileSelector from './components/FileSelector';
-import { useViewerState } from './hooks/useViewerState';
+import ConcatenationSection from './components/sidepanel/ConcatenationSection';
+import { useViewerState, MAX_COLS } from './hooks/useViewerState';
 
-// Add global styles to override any border styling
-const viewerStyles = `
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    outline: none !important;
-    overflow: hidden !important;
-    width: 100vw !important;
-    height: 100vh !important;
-  }
-  
-  #root {
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    outline: none !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    display: block !important;
-    background: none !important;
-  }
-  
-  /* Override any parent flex container */
-  body > div {
-    display: block !important;
-  }
-  
-  /* Override root background */
-  :root {
-    background-color: transparent !important;
-  }
-  
-  /* Ensure viewer page fills entire viewport */
-  body {
-    background-color: #f5f5f5 !important;
-  }
-`;
+/** Width of the viewer's tool strip, between the sidebar and the panels. */
+const TOOL_STRIP_WIDTH = 60;
+const HEADER_HEIGHT = 64;
+
+/** Route state set by the file list when a row is double-clicked. */
+interface ViewerLocationState {
+  preloadFile?: MRDFile;
+}
 
 const ViewerPage: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
-  // Use the custom hook for viewer state management
+  const location = useLocation();
+
   const viewerState = useViewerState();
+  const { handleFileSelect } = viewerState;
+
+  // Open a file passed from the file list in the first panel
+  const preloadFile = (location.state as ViewerLocationState | null)?.preloadFile;
+  useEffect(() => {
+    if (preloadFile) handleFileSelect(preloadFile, 0);
+  }, [preloadFile, handleFileSelect]);
+
+  // The viewer fills the viewport; lock page scroll while it is mounted
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   // Global settings state
   const [showHpMriData, setShowHpMriData] = useState(true);
@@ -68,7 +56,8 @@ const ViewerPage: React.FC = () => {
   const [gifFps, setGifFps] = useState(10);
   const [gifFilename, setGifFilename] = useState('animation.gif');
 
-  const sidebarWidth = isSidebarOpen ? 240 : 80;
+  const sidebarWidth = isSidebarOpen ? SIDEBAR_OPEN_WIDTH : SIDEBAR_CLOSED_WIDTH;
+  const panelCount = viewerState.visibleWindows.length;
 
   const toggleHpMriData = () => setShowHpMriData(prev => !prev);
   const onThresholdChange = (_e: Event, value: number | number[]) => {
@@ -85,7 +74,7 @@ const ViewerPage: React.FC = () => {
       setSelectedTool(null);
       return;
     }
-    
+
     if (selectedTool === tool && openDrawer) {
       setOpenDrawer(false);
       setSelectedTool(null);
@@ -100,7 +89,6 @@ const ViewerPage: React.FC = () => {
 
   return (
     <>
-      <style>{viewerStyles}</style>
       <HeaderAccount background_black />
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} background_black/>
       <ViewerSidePanel
@@ -136,28 +124,36 @@ const ViewerPage: React.FC = () => {
         cols={viewerState.cols}
         rows={viewerState.rows}
         onLayoutChange={viewerState.setLayout}
+        concatenationSection={
+          <ConcatenationSection
+            availableFiles={viewerState.availableFiles}
+            selectedFiles={viewerState.concatenationFiles}
+            result={viewerState.concatenation}
+            loading={viewerState.concatenationLoading}
+            error={viewerState.concatenationError}
+            onSelectionChange={viewerState.setConcatenationFiles}
+            onConcatenate={viewerState.performConcatenation}
+            onLoadToWindow={viewerState.loadConcatenationToWindow}
+            panelCount={panelCount}
+          />
+        }
       />
-      
+
       {/* Main Content Area */}
-      <Box sx={{ 
+      <Box sx={{
         position: 'fixed',
-        top: '64px',
-        left: `${sidebarWidth + 60}px`,
+        top: `${HEADER_HEIGHT}px`,
+        left: `${sidebarWidth + TOOL_STRIP_WIDTH}px`,
         right: 0,
         bottom: 0,
         display: 'flex',
-        flexDirection: 'column',
         backgroundColor: '#f5f5f5',
-        margin: 0,
-        padding: 0,
-        border: 'none',
-        outline: 'none',
         overflow: 'hidden'
       }}>
         {/* Image display panels, filling the whole content area */}
         <Box id="viewer-grid-root" sx={{
           flex: 1,
-          minHeight: 0,
+          minWidth: 0,
           display: 'grid',
           // minmax(0, 1fr) rather than 1fr: Plotly children have an intrinsic
           // width that would otherwise push the tracks past the container.
@@ -169,7 +165,10 @@ const ViewerPage: React.FC = () => {
           {viewerState.visibleWindows.map((window, index) => (
             <ImageDisplayWindow
               key={index}
+              windowIndex={index}
               window={window}
+              showCloseButton={panelCount > 1}
+              onClose={() => viewerState.closePanel(index)}
               onFileSelect={() => viewerState.setFileSelectorOpen(index, true)}
               onSelectArray={(key) => {
                 if (window.selectedFile) viewerState.selectArray(index, window.selectedFile._id, key);
@@ -185,20 +184,41 @@ const ViewerPage: React.FC = () => {
             />
           ))}
         </Box>
-        </Box>
 
-        {/* File Selector Dialogs */}
-        {viewerState.visibleWindows.map((window, index) => (
-          <FileSelector
-            key={index}
-            open={window.fileSelectorOpen}
-            onClose={() => viewerState.setFileSelectorOpen(index, false)}
-            onSelect={(file) => viewerState.handleFileSelect(file, index)}
-            windowNumber={index + 1}
-            availableFiles={viewerState.availableFiles}
-            filesLoading={viewerState.filesLoading}
-          />
-        ))}
+        {/* Add a column of panels; brightens on hover */}
+        {viewerState.cols < MAX_COLS && (
+          <Box
+            onClick={viewerState.addPanel}
+            title="Add a panel"
+            sx={{
+              width: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              opacity: 0.25,
+              transition: 'opacity 0.2s',
+              '&:hover': { opacity: 1 },
+            }}
+          >
+            <AddCircleOutline sx={{ color: 'rgba(100,100,100,0.9)', fontSize: 28 }} />
+          </Box>
+        )}
+      </Box>
+
+      {/* File Selector Dialogs */}
+      {viewerState.visibleWindows.map((window, index) => (
+        <FileSelector
+          key={index}
+          open={window.fileSelectorOpen}
+          onClose={() => viewerState.setFileSelectorOpen(index, false)}
+          onSelect={(file) => viewerState.handleFileSelect(file, index)}
+          windowNumber={index + 1}
+          availableFiles={viewerState.availableFiles}
+          filesLoading={viewerState.filesLoading}
+        />
+      ))}
     </>
   );
 };
