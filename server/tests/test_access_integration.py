@@ -184,6 +184,50 @@ def test_any_user_cannot_delete_a_legacy_file(db_app, db_client, user):
     assert "legacy-file" in visible_to(db_app, ALICE)
 
 
+# --- the viewer ---------------------------------------------------------------
+
+GUEST = None
+
+
+def open_in_viewer(db_client, user, file_id, sub):
+    """Status codes of listing a file's arrays, then fetching the first one."""
+    headers = user(sub) if sub else {}
+    listing = db_client.get(f"/api/viewer/{file_id}/arrays", headers=headers)
+    key = "0-imageFloat-magnitude-image"
+    array = db_client.get(f"/api/viewer/{file_id}/arrays/{key}", headers=headers)
+    return listing.status_code, array.status_code
+
+
+@pytest.mark.parametrize("sub, name, allowed", [
+    (GUEST, "public-file", True),
+    (GUEST, "alice-private", False),
+    (GUEST, "team-file", False),
+    (GUEST, "legacy-file", False),
+    (ALICE, "alice-private", True),
+    (BOB, "alice-private", False),
+    (BOB, "team-file", True),
+    (CAROL, "team-file", False),
+    (CAROL, "public-file", True),
+    (CAROL, "legacy-file", True),
+])
+def test_the_viewer_opens_exactly_the_files_the_caller_may_see(
+        db_app, db_client, user, s3_object, sub, name, allowed):
+    ids = seed(db_app)
+    get_object = s3_object()
+    statuses = open_in_viewer(db_client, user, str(ids[name]), sub)
+    assert statuses == ((200, 200) if allowed else (404, 404))
+    if not allowed:
+        get_object.assert_not_called()
+
+
+def test_a_guest_cannot_open_a_private_file_by_id(db_app, db_client, s3_object):
+    ids = seed(db_app)
+    s3_object()
+    response = db_client.get(f"/api/viewer/{ids['alice-private']}/arrays")
+    assert response.status_code == 404
+    assert "alice" not in response.get_data(as_text=True)
+
+
 # --- failure ------------------------------------------------------------------
 
 def test_a_real_outage_is_503_not_an_empty_list(db_app, db_client, user):

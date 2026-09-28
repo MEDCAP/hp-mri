@@ -9,10 +9,12 @@ Authentication is exercised for real except for signature verification:
 `user` patches app.auth._decode_token to return chosen claims, so requests
 still go through requires_auth / optional_auth exactly as in production.
 """
+import io
 import os
 import uuid
 from unittest import mock
 
+import numpy as np
 import pytest
 
 
@@ -58,6 +60,50 @@ def user():
 
     with mock.patch("app.auth._decode_token", side_effect=decode):
         yield headers
+
+
+# --- MRD files ----------------------------------------------------------------
+
+def build_mrd_bytes():
+    """
+    A small MRD stream: two 4x4 magnitude images with two frequencies each
+    (stacked into one image array of two measurements), and one waveform.
+    The second image's values are 10x the first's, so scaling is visible.
+    """
+    import app.external.python.mrd as mrd  # pylint: disable=import-outside-toplevel
+
+    def image(scale):
+        data = np.arange(32, dtype=np.float32).reshape(1, 1, 4, 4, 2) * scale
+        head = mrd.ImageHeader(image_type=mrd.ImageType.MAGNITUDE)
+        return mrd.StreamItem.ImageFloat(mrd.ImageFloat(head=head, data=data))
+
+    waveform = mrd.WaveformUint32(waveform_id=3, data=np.arange(10, dtype=np.uint32).reshape(1, 10))
+    buffer = io.BytesIO()
+    with mrd.BinaryMrdWriter(buffer) as writer:
+        writer.write_header(mrd.Header())
+        writer.write_data([image(1), image(10), mrd.StreamItem.WaveformUint32(waveform)])
+    return buffer.getvalue()
+
+
+@pytest.fixture()
+def s3_object():
+    """
+    Serve bytes as every file's S3 object. Call it with the bytes to serve;
+    the returned mock records which ids were fetched.
+    """
+    import data  # pylint: disable=import-outside-toplevel
+
+    data._MRD_BYTES_CACHE.clear()  # pylint: disable=protected-access
+    with mock.patch("data._get_mrd_object") as get_object:
+        def serve(body=None, error=None):
+            if error is not None:
+                get_object.side_effect = error
+            else:
+                payload = build_mrd_bytes() if body is None else body
+                get_object.side_effect = lambda _id: {"Body": io.BytesIO(payload)}
+            return get_object
+        yield serve
+    data._MRD_BYTES_CACHE.clear()  # pylint: disable=protected-access
 
 
 # --- integration against a real MongoDB -------------------------------------

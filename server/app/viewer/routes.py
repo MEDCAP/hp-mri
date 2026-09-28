@@ -12,7 +12,11 @@ from data import (
     get_image_array_from_mrdfile,
     get_pulse_array_from_mrdfile,
     get_mrdfile_by_id_with_auth,
-    get_public_mrdfile_by_id
+    get_public_mrdfile_by_id,
+    list_mrd_arrays,
+    get_mrd_array,
+    MrdContentError,
+    UnknownArrayKey,
 )
 from app.auth import optional_auth
 from app.errors import ApiError, BadRequest, NotFound
@@ -46,6 +50,46 @@ def _unrenderable(exc):
     they are content problems, so 422 with the same safe text.
     """
     return ApiError(str(exc), code="unrenderable", status=422)
+
+
+def _unreadable():
+    return ApiError("This file could not be read as MRD", code="unreadable", status=422)
+
+
+@viewer_bp.route("/viewer/<file_id>/arrays", methods=["GET"])
+@optional_auth
+def fetch_array_list(file_id: str):
+    """
+    List every array the viewer can render from an MRD file, without bulk data.
+
+    @return {file_id, arrays: [{key, name, kind, tag, shape, dim_labels, labels,
+             dtype, transform, item_count}], unsupported: [{tag, count}]}
+    """
+    _authorized_file(file_id)
+    try:
+        arrays, unsupported = list_mrd_arrays(file_id)
+    except MrdContentError as exc:
+        raise _unreadable() from exc
+    return jsonify({"file_id": file_id, "arrays": arrays, "unsupported": unsupported}), 200
+
+
+@viewer_bp.route("/viewer/<file_id>/arrays/<key>", methods=["GET"])
+@optional_auth
+def fetch_array(file_id: str, key: str):
+    """
+    One named array from an MRD file, unscaled.
+
+    @return the array's descriptor plus value_min, value_max and data: 6-D
+            (channel, slice, rows, cols, frequency, measurement) when kind is
+            "image", 3-D (series, samples, measurement) when kind is "trace"
+    """
+    _authorized_file(file_id)
+    try:
+        return jsonify(get_mrd_array(file_id, key)), 200
+    except MrdContentError as exc:
+        raise _unreadable() from exc
+    except UnknownArrayKey:
+        raise NotFound("Unknown array key") from None
 
 
 @viewer_bp.route("/viewer/<file_id>", methods=["GET"])

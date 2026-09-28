@@ -252,6 +252,93 @@ def test_pulse_array_with_no_pulses_is_empty_not_an_error(client):
     assert response.get_json() == {"pulse_data": [], "pulse_phase": []}
 
 
+def visible(value={"_id": 1}):  # pylint: disable=dangerous-default-value
+    """Make the viewer's guest access check find (or, with None, not find) the file."""
+    return mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value=value)
+
+
+def test_array_list_describes_each_stream_without_data(client, s3_object):
+    s3_object()
+    with visible():
+        response = client.get(f"/api/viewer/{OID}/arrays")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["file_id"] == OID
+    assert body["unsupported"] == []
+    image, trace = body["arrays"]
+    assert (image["kind"], image["tag"], image["item_count"]) == ("image", "imageFloat", 2)
+    assert image["shape"] == [1, 1, 4, 4, 2, 2]
+    assert image["dim_labels"] == ["CHANNEL", "Z", "Y", "X", "FREQUENCY", "MEASUREMENT"]
+    assert (trace["kind"], trace["name"], trace["shape"]) == ("trace", "Waveform 3", [1, 10, 1])
+    assert all("data" not in array for array in body["arrays"])
+
+
+def test_an_array_is_returned_unscaled_with_its_range(client, s3_object):
+    s3_object()
+    with visible():
+        key = client.get(f"/api/viewer/{OID}/arrays").get_json()["arrays"][0]["key"]
+        response = client.get(f"/api/viewer/{OID}/arrays/{key}")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert (body["value_min"], body["value_max"]) == (0.0, 310.0)
+    # [channel][slice][row][col][frequency][measurement]; the second image is 10x the first.
+    assert body["data"][0][0][3][3][1] == [31.0, 310.0]
+
+
+def test_the_file_is_downloaded_once_for_the_list_and_an_array(client, s3_object):
+    get_object = s3_object()
+    with visible():
+        key = client.get(f"/api/viewer/{OID}/arrays").get_json()["arrays"][1]["key"]
+        client.get(f"/api/viewer/{OID}/arrays/{key}")
+    assert get_object.call_count == 1
+
+
+def test_an_unknown_array_key_is_404(client, s3_object):
+    s3_object()
+    with visible():
+        response = client.get(f"/api/viewer/{OID}/arrays/9-nope")
+    assert response.status_code == 404
+    assert response.get_json()["code"] == "not_found"
+
+
+@pytest.mark.parametrize("suffix", ["arrays", "arrays/0-imageFloat-magnitude-image"])
+def test_missing_s3_object_is_404(client, s3_object, suffix):
+    s3_object(error=FileNotFoundError(OID))
+    with visible():
+        assert client.get(f"/api/viewer/{OID}/{suffix}").status_code == 404
+
+
+@pytest.mark.parametrize("suffix", ["arrays", "arrays/0-imageFloat-magnitude-image"])
+def test_an_object_that_is_not_mrd_is_422_without_detail(client, s3_object, suffix):
+    s3_object(body=b"this is not an MRD stream")
+    with visible():
+        response = client.get(f"/api/viewer/{OID}/{suffix}")
+    assert response.status_code == 422
+    assert response.get_json() == {"error": "This file could not be read as MRD", "code": "unreadable"}
+
+
+@pytest.mark.parametrize("suffix", ["arrays", "arrays/0-imageFloat-magnitude-image"])
+def test_a_file_the_guest_cannot_see_is_404_and_never_downloaded(client, s3_object, suffix):
+    get_object = s3_object()
+    with visible(None) as public:
+        response = client.get(f"/api/viewer/{OID}/{suffix}")
+    assert response.status_code == 404
+    public.assert_called_once_with(OID)
+    get_object.assert_not_called()
+
+
+@pytest.mark.parametrize("suffix", ["arrays", "arrays/0-imageFloat-magnitude-image"])
+def test_a_signed_in_user_is_checked_against_their_own_access(client, user, s3_object, suffix):
+    get_object = s3_object()
+    with mock.patch("app.viewer.routes.get_mrdfile_by_id_with_auth", return_value=None) as authed, \
+         visible() as public:
+        response = client.get(f"/api/viewer/{OID}/{suffix}", headers=user("sub-7"))
+    assert response.status_code == 404
+    authed.assert_called_once_with(OID, "sub-7")
+    public.assert_not_called()
+    get_object.assert_not_called()
+
+
 @pytest.mark.parametrize("magnet, target", [
     ("HUPC", "app.viewer.magnets.hupc_processing.count_datasets"),
     ("MR Solutions", "app.viewer.magnets.mr_solutions_processing.count_datasets"),
