@@ -229,29 +229,6 @@ def test_share_null_string_means_private(client, user):
 
 # --- viewer -------------------------------------------------------------------
 
-def test_missing_s3_object_is_404(client):
-    with mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value={"_id": 1}), \
-         mock.patch("app.viewer.routes.get_image_array_from_mrdfile", side_effect=FileNotFoundError(OID)):
-        assert client.get(f"/api/viewer/{OID}").status_code == 404
-
-
-@pytest.mark.parametrize("message", ["Spectrum is displayed", f"No image data found in MRD file with id: {OID}"])
-def test_unrenderable_file_is_422_with_its_message(client, message):
-    """These are messages we wrote; the viewer shows them. They used to be 500s."""
-    with mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value={"_id": 1}), \
-         mock.patch("app.viewer.routes.get_image_array_from_mrdfile", side_effect=ValueError(message)):
-        response = client.get(f"/api/viewer/{OID}")
-    assert response.status_code == 422
-    assert response.get_json()["error"] == message
-
-
-def test_pulse_array_with_no_pulses_is_empty_not_an_error(client):
-    with mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value={"_id": 1}), \
-         mock.patch("app.viewer.routes.get_pulse_array_from_mrdfile", return_value=(None, None)):
-        response = client.get(f"/api/viewer/get_pulse_array/{OID}")
-    assert response.get_json() == {"pulse_data": [], "pulse_phase": []}
-
-
 def visible(value={"_id": 1}):  # pylint: disable=dangerous-default-value
     """Make the viewer's guest access check find (or, with None, not find) the file."""
     return mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value=value)
@@ -291,6 +268,15 @@ def test_the_file_is_downloaded_once_for_the_list_and_an_array(client, s3_object
         key = client.get(f"/api/viewer/{OID}/arrays").get_json()["arrays"][1]["key"]
         client.get(f"/api/viewer/{OID}/arrays/{key}")
     assert get_object.call_count == 1
+
+
+@pytest.mark.parametrize("path", [f"/api/viewer/{OID}", f"/api/viewer/get_pulse_array/{OID}",
+                                  f"/api/viewer/get_gradient_array/{OID}"])
+def test_the_single_array_viewer_routes_are_gone(client, s3_object, path):
+    get_object = s3_object()
+    with visible():
+        assert client.get(path).status_code == 404
+    get_object.assert_not_called()
 
 
 def test_an_unknown_array_key_is_404(client, s3_object):

@@ -31,25 +31,6 @@ export interface UploadCompleteResponse {
   metadata: Record<string, string>;
 }
 
-/** Response body for GET /viewer/:id. [channel][slice][row][col][frequency][measurement]. */
-export interface ImageArrayResponse {
-  image_array: number[][][][][][];
-  nmr_labels?: string[];
-}
-
-/** Response body for GET /viewer/get_pulse_array/:id. Both are [] when the file has none. */
-export interface PulseArrayResponse {
-  pulse_data: number[][][]; // [channels][samples][measurements]
-  pulse_phase: number[][]; // [samples][measurements]
-}
-
-/** Response body for GET /viewer/get_gradient_array/:id. Always [] until the backend extracts gradients. */
-export interface GradientArrayResponse {
-  gx?: number[][];
-  gy?: number[][];
-  gz?: number[][];
-}
-
 /**
  * How an MRD array is rendered. The server normalises every array it exposes
  * into one of exactly two layouts, so the viewer needs exactly two renderers.
