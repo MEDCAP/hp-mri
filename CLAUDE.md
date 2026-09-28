@@ -9,11 +9,15 @@ File metadata lives in MongoDB Atlas; MRD files live in S3.
 - `hp-mri-frontend/src/`
   - `api/` — HTTP functions
   - `auth/` — Cognito session, route guard
-  - `features/` — `auth`, `home`, `calculator`, `files`, `groups`, `simulator`,
-    `viewer`
+  - `features/` — `auth`, `home`, `calculator`, `files`, `groups`, `recon`,
+    `simulator`, `viewer`
   - `components/`, `layouts/`, `config/`, `utils/`, `types/`
 - `server/`
-  - `app/` — blueprints `mrds`, `viewer`, `groups`, plus `auth.py`, `errors.py`
+  - `app/` — blueprints `mrds`, `viewer`, `groups`, `recon`, `jobs`, plus
+    `auth.py`, `errors.py`
+  - `app/tyger/` — pipeline stages (`stages.py`: `convert`, `shift`, `recon`) and
+    the runner that chains them through the `tyger` CLI (shipped in the backend
+    image)
   - `data.py` — MongoDB and S3 access
   - `config.py`
   - `tests/`
@@ -57,12 +61,24 @@ npm run build && npm run lint
 `_id` (ObjectId), `fileName` (`MID<measurementId>-<protocolName>`), `studyDate`,
 `studyTime`, `ownerName`, `ownerId`, `groupName`, `subjectType`, `isReconstructed`,
 `protocolName`, `measurementId`, `stationName`, `original_filename`,
-`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`).
+`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A reconstruction's
+output also has `parentFileId` (the source file's id) and `reconStages` (the stages
+it ran).
+
+## Job document (`jobs` collection)
+
+`_id`, `kind` (`convert` | `recon`), `status` (`queued` | `running` | `succeeded` |
+`failed`), `stages: [{id, status, error, started_at, ended_at}]`, `input_file_id`,
+`staging_upload_id`, `output_file_id`, `params`, `ownerId` (the starter's sub),
+`ownerName`, `created_at`, `updated_at`, `error`. `error` fields hold a safe message
+only. A `running` job whose current stage is past its timeout (or that started no
+stage within 120 s) is reported `failed`.
 
 ## API
 
 All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` from the
-`mrds` and `viewer` blueprints, and `{"error": <string>}` from `groups`.
+`mrds`, `viewer`, `recon` and `jobs` blueprints, and `{"error": <string>}` from
+`groups`.
 `GET /api/health` → `{status, mode}`.
 
 ### Files — `app/mrds/routes.py`
@@ -71,9 +87,10 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 |---|---|---|---|
 | `GET /mrd-files` | optional | `?limit` (≤200, default 50), `?skip` (≥0) | List of visible file documents, newest `studyDate`/`studyTime` first. Guests get no `ownerId`, `measurementId`, `stationName`, `original_filename` or `s3_key` |
 | `GET /mrd-files/<id>` | required | — | Full document; 404 if not visible |
-| `POST /uploads/init` | required | `{filename, fileSize, groupName}` — `.bin`/`.mrd`/`.mrd2`, `fileSize` a positive int ≤ `MAX_UPLOAD_BYTES` (2 GiB), `groupName` null or a group the caller belongs to (else 403) | `{uploadId, uploadUrl, expiresIn}`; no database write |
+| `POST /uploads/init` | required | `{filename, fileSize, groupName, kind}` — `kind` `"mrd"` (default; `.bin`/`.mrd`/`.mrd2`) or `"raw-tar"` (`.tar`), `fileSize` a positive int ≤ `MAX_UPLOAD_BYTES` (2 GiB), `groupName` null or a group the caller belongs to (else 403) | `{uploadId, uploadUrl, expiresIn}`; no database write |
 | (browser) `PUT <uploadUrl>` | presigned | File bytes, `Content-Type: application/octet-stream`, no `Authorization` header | S3 stores it at `uploads/staging/<sub>/<uploadId>` |
 | `POST /uploads/<id>/complete` | required | `{filename, groupName}` | 201 `{fileId, s3_key, metadata}`; `ownerId`/`ownerName` come from the token. 404 if nothing was staged; 400 if the stored object exceeds the limit |
+| `POST /uploads/<id>/convert` | required | `{filename, groupName, converter}` — `.tar`, `groupName` as for init, `converter` `"convert"` | 202 `{jobId}` (a `convert` job). 404 if nothing is staged under the caller's prefix; 400 if it exceeds the limit. On success the file is stored at `mrd_files/<uploadId>` with `ownerId`/`ownerName` from the token and the given `groupName`, and `output_file_id` = `<uploadId>` |
 | `POST /uploads/<id>/abort` | required | — | 204, always |
 | `DELETE /mrd-file` | required | `{ids: [..]}` | `{message, deleted_count, s3_deleted_count, file_results: [{file_id, file_name, status, db_deleted, s3_deleted, error}]}`. Permitted for anyone who can see the file |
 | `POST /mrd-files/<id>/share` | required | `{groupName}` (null/`"null"` = private) | `{message}`; owner only, and the target group must include the owner |
@@ -85,6 +102,8 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 |---|---|---|---|
 | `GET /viewer/<id>/arrays` | optional | — | `{file_id, arrays, unsupported}`. `arrays`: one descriptor per renderable stream, `{key, name, kind, tag, shape, dim_labels, labels, dtype, transform, item_count}`, no data. `unsupported`: `[{tag, count}]` for skipped stream items (acquisitions and other non-array items) |
 | `GET /viewer/<id>/arrays/<key>` | optional | `key` from the list | The descriptor plus `value_min`, `value_max` and `data`, unscaled |
+| `GET /viewer/<id>/kspace` | optional | — | `{nswitch, encodings: [{ref, name, total, discard_pre, kept, echo, signal, brightest}]}`: acquisitions folded on the gradient switch, `signal` `nswitch × total` summed over views and repetitions. 404 when the file has no EPSI readout (no `nswitches` user parameter) |
+| `GET /viewer/<id>/waveforms` | optional | — | `{pulses, gradients, acquisitions, decimation}`; each trace `{name, t, values, samples, stride}`, `t` in seconds, at most 2000 points per trace and 24 items per group; `decimation: {max_points_per_trace, max_items_per_group, items_omitted: {pulses, gradients, acquisitions}}` |
 | `GET /get_count_datasets/<magnet>` | none | magnet ∈ `HUPC`, `Clinical`, `MR Solutions` | `{numDatasets}` |
 | `POST /get_proton_picture/<n>` | none | body `{magnetType}` | PNG |
 | `POST /get_hp_mri_data/<n>` | none | `?threshold`, `?magnetType` | Spectral data |
@@ -100,11 +119,30 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 - `labels`: per-frequency (metabolite) labels, `[]` if none.
 - `transform: "magnitude"` when a complex array was reduced to its magnitude; `dtype`
   is the stored type.
+- `meta`: the array's MRD meta as `{key: [value, ...]}` (strings and numbers; a
+  non-finite number is `null`). Reconstructions carry e.g. `xscale_ppm`,
+  `peak_names`, `peak_offsets_ppm`, `biggest_peak_index`, `fit_loss`.
 - Keys are stable for a given file.
 
-`/arrays` errors: 404 when the file is not visible to the caller, its S3 object is
-missing, or the key is unknown; 422 `{"code": "unreadable"}` when the object is not a
-readable MRD stream. A file with nothing renderable returns `arrays: []`.
+`/arrays`, `/kspace` and `/waveforms` errors: 404 when the file is not visible to
+the caller, its S3 object is missing, or the key is unknown; 422
+`{"code": "unreadable"}` when the object is not a readable MRD stream. A file with
+nothing renderable returns `arrays: []`.
+
+### Reconstruction — `app/recon/routes.py`
+
+| Route | Auth | Input | Output |
+|---|---|---|---|
+| `POST /recon` | required | `{fileId, stages: [{id, params}]}`. `id` ∈ `shift` (no params), `recon` (`{peaks: [{name, ppm, modifiers}], line_broadening?, fit_df?, fit_dw?, fit_dph?}`; `name` `[A-Za-z][A-Za-z0-9]*`, `modifiers` letters from `s`, `t`, `m`) | 202 `{jobId}` (a `recon` job). 404 when `fileId` is not visible to the caller (same rule as `GET /mrd-files/<id>`); 400 on a bad chain, before any job exists. On success the output is a new file owned by the caller, `groupName` null (private), with `parentFileId` and `reconStages` |
+
+### Jobs — `app/jobs/routes.py` (all require auth)
+
+A job is visible only to the user who started it (`ownerId` = the caller's sub).
+
+- `GET /jobs/<id>`: the job document without `ownerId`, dates as ISO strings. 404
+  when it does not exist, is malformed, or belongs to someone else.
+- `GET /jobs`: the caller's jobs, newest first, at most 50; `?fileId=` matches
+  `input_file_id`, `?status=` one of the four statuses (else 400).
 
 ### Groups — `app/groups/routes.py` (all require auth)
 
@@ -150,6 +188,13 @@ readable MRD stream. A file with nothing renderable returns `arrays: []`.
   - details pane; the owner can change visibility (Private / a group / Public)
   - upload: drag-and-drop of `.bin`/`.mrd`/`.mrd2` up to 2 GiB each, 3 in parallel,
     with a visibility picker, per-file progress and cancel
+  - upload of scan folders (drag-and-drop or browse): each folder is tarred in the
+    browser, staged as `raw-tar`, converted with `POST /uploads/<id>/convert`, and
+    its job polled until the converted file exists; the visibility picker applies
+  - Reconstruct (signed-in only): pick a visible file (the selected one is
+    preselected), build a `shift`/`recon` pipeline with peaks and tunables, start
+    `POST /recon` and follow the job's stages; the list is re-fetched when it
+    succeeds
   - batch delete
 - **Groups** (`/groups`, `/groups/:groupName`), signed-in only: create, join by
   code, search and request to join, members, admins, invite codes, join requests,
@@ -160,6 +205,10 @@ readable MRD stream. A file with nothing renderable returns `arrays: []`.
   - each panel shows one file: pick any of its arrays; images get channel, slice,
     metabolite and measurement controls, traces one line per series at the chosen
     measurement
+  - a view selector per panel offers what the file supports: arrays; the fitted
+    spectrum (`*_global_spect`, with `*_global_spect_fit` and
+    `*_lorentzian_centers_ppm`); metabolite maps (`*_amplitude` or `*_area`), with a
+    voxel picker; k-space; waveforms (when there are any traces)
   - a file double-clicked in the file list opens in the first panel
   - side-panel tools: concatenation of several files' first image arrays along the
     measurement axis, loaded into a panel; screenshot export; image adjustments;
