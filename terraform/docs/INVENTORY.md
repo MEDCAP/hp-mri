@@ -118,11 +118,11 @@ exists. Every route that returns a full document or changes data still requires 
 token (see the API table in the root `CLAUDE.md`).
 
 What remains true: CloudFront Function `secureApiForwarding` rejects `/api/*`
-requests whose `Referer` does not contain `medcap.ai`, then injects
-`x-origin-verify: MO~g3>!p3N`. `Referer` is client-controlled, the substring test
-also passes for `medcap.ai.example.com`, and nothing in the backend reads the
-injected header — while its value sits in plaintext for anyone with
-`cloudfront:GetFunction`. It filters casual traffic and nothing more. Delete it; the
+requests whose `Referer` does not contain `medcap.ai`, then injects a static
+shared-secret header (`x-origin-verify: <redacted>`). `Referer` is
+client-controlled, the substring test also passes for `medcap.ai.example.com`, and
+nothing in the backend reads the injected header — while its value sits in
+plaintext for anyone with `cloudfront:GetFunction`. It filters casual traffic and nothing more. Delete it; the
 real control is the token check behind it.
 
 F2 and F3 below stand on their own, but they are no longer reachable by an
