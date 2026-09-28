@@ -8,6 +8,7 @@ import UploadCompletionModal from './components/UploadCompletionModal';
 import { UploadFile } from './hooks/useUpload';
 import DeleteConfirmationDialog from './components/DeleteConfirmationDialog';
 import FileDetailsPanel from './components/FileDetailsPanel';
+import ReconstructModal from '../recon/ReconstructModal';
 import {
   Container,
   Typography,
@@ -48,6 +49,7 @@ const RetrievePage: React.FC = () => {
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [fileDeleteStatuses, setFileDeleteStatuses] = useState<Array<{fileName: string; status: 'pending' | 'deleting' | 'success' | 'error'; error?: string}>>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reconstructModalOpen, setReconstructModalOpen] = useState(false);
 
   const isGuest = !isSignedIn;
   const detailsPanelOpen = selectedFiles.length > 0;
@@ -202,6 +204,7 @@ const RetrievePage: React.FC = () => {
             setUploadProgressModalOpen(false);
             setUploadModalOpen(true);
           }}
+          onReconstructClick={() => setReconstructModalOpen(true)}
           onRefresh={fetchFiles}
           onDelete={handleDelete}
           isAnyFileSelected={selectedFiles.length > 0}
@@ -296,6 +299,15 @@ const RetrievePage: React.FC = () => {
           {deleteError}
         </Alert>
       </Snackbar>
+
+      {!isGuest && (
+        <ReconstructModal
+          open={reconstructModalOpen}
+          onClose={() => setReconstructModalOpen(false)}
+          initialFileId={selectedFiles.length === 1 ? selectedFiles[0]._id : null}
+          onReconstructSucceeded={fetchFiles}
+        />
+      )}
 
       <FileDetailsPanel
         selection={selectedFiles}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, Slide, styled } from '@mui/material';
+import { Box, Dialog, Slide, styled } from '@mui/material';
 import { TransitionProps } from '@mui/material/transitions';
 
 // Shared slide-up transition used by all app dialogs.
@@ -29,3 +29,11 @@ export const StyledDialog = styled(Dialog, {
     },
   }),
 );
+
+// Shared section container (used by ReconstructModal).
+export const SectionBox = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
+  backgroundColor: theme.palette.background.paper,
+  borderRadius: 8,
+  marginBottom: theme.spacing(2),
+}));
