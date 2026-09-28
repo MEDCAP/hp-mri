@@ -123,8 +123,6 @@ def test_a_job_runs_queued_then_running_then_succeeded(db_app, monkeypatch):
                                          "inputFileId": "507f1f77bcf86cd799439011"},
                                work_fn=work)
 
-        from bson import ObjectId  # pylint: disable=import-outside-toplevel
-
         oid = ObjectId(job_id)
 
         running = _await_status(db, oid, RUNNING)
@@ -153,7 +151,6 @@ def test_a_failing_stage_records_a_safe_message_and_logs_the_rest(
             return None
 
     with db_app.app_context():
-        from bson import ObjectId  # pylint: disable=import-outside-toplevel
         from data import get_db  # pylint: disable=import-outside-toplevel
 
         with db_app.test_request_context("/api/recon"):

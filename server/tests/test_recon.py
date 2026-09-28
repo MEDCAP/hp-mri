@@ -178,9 +178,9 @@ def test_a_failing_stage_leaves_no_output_file(
         assert get_db().mrdfiles.count_documents({}) == 1
 
 
+@pytest.mark.usefixtures("db_app")
 def test_an_unexpected_failure_records_no_exception_text(
-    db_app, db_client, user, monkeypatch, fake_s3, await_job, stored_file
-):
+        db_client, user, monkeypatch, fake_s3, await_job, stored_file):
     def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
         with stage_context("shift"):
             raise RuntimeError("s3://secret-bucket/internal/path exploded")

@@ -209,7 +209,8 @@ def test_a_file_with_no_switch_count_folds_to_nothing():
     assert fold_kspace(1, [_acquisition(echo_column=4)]) == []
 
 
-def test_kspace_route_returns_the_reduction(client, visible):
+@pytest.mark.usefixtures("visible")
+def test_kspace_route_returns_the_reduction(client):
     reduction = {"nswitch": 8, "encodings": [{"ref": 0}]}
     with mock.patch("app.viewer.routes.reduce_kspace", return_value=reduction):
         response = client.get(f"/api/viewer/{OID}/kspace")
@@ -218,7 +219,8 @@ def test_kspace_route_returns_the_reduction(client, visible):
     assert response.get_json() == reduction
 
 
-def test_kspace_route_404s_a_file_with_no_epsi_readout(client, visible):
+@pytest.mark.usefixtures("visible")
+def test_kspace_route_404s_a_file_with_no_epsi_readout(client):
     with mock.patch("app.viewer.routes.reduce_kspace", return_value=None):
         response = client.get(f"/api/viewer/{OID}/kspace")
 
@@ -300,7 +302,8 @@ def test_the_item_budget_is_reported_rather_than_silently_applied():
     assert traces["decimation"]["items_omitted"]["pulses"] == 0
 
 
-def test_a_file_carrying_none_of_them_is_an_empty_answer_not_an_error(client, visible):
+@pytest.mark.usefixtures("visible")
+def test_a_file_carrying_none_of_them_is_an_empty_answer_not_an_error(client):
     empty = {"pulses": [], "gradients": [], "acquisitions": [],
              "decimation": {"items_omitted": {}}}
     with mock.patch("app.viewer.routes.waveform_traces", return_value=empty):
@@ -311,7 +314,8 @@ def test_a_file_carrying_none_of_them_is_an_empty_answer_not_an_error(client, vi
 
 
 @pytest.mark.parametrize("route", ["kspace", "waveforms"])
-def test_a_missing_object_is_404_on_both_routes(client, visible, route):
+@pytest.mark.usefixtures("visible")
+def test_a_missing_object_is_404_on_both_routes(client, route):
     target = {"kspace": "app.viewer.routes.reduce_kspace",
               "waveforms": "app.viewer.routes.waveform_traces"}[route]
     with mock.patch(target, side_effect=FileNotFoundError(OID)):
@@ -341,7 +345,8 @@ def test_a_file_the_caller_cannot_see_is_404_and_never_downloaded(
 
 
 @pytest.mark.parametrize("route", ["kspace", "waveforms"])
-def test_an_object_that_is_not_mrd_is_422_without_detail(client, visible, s3_object, route):
+@pytest.mark.usefixtures("visible")
+def test_an_object_that_is_not_mrd_is_422_without_detail(client, s3_object, route):
     s3_object(b"definitely not an mrd stream")
     response = client.get(f"/api/viewer/{OID}/{route}")
     assert response.status_code == 422
@@ -349,21 +354,23 @@ def test_an_object_that_is_not_mrd_is_422_without_detail(client, visible, s3_obj
                                    "code": "unreadable"}
 
 
-def test_a_stream_with_no_switch_count_has_no_kspace(client, visible, s3_object):
+@pytest.mark.usefixtures("visible")
+def test_a_stream_with_no_switch_count_has_no_kspace(client, s3_object):
     s3_object()
     response = client.get(f"/api/viewer/{OID}/kspace")
     assert response.status_code == 404
     assert response.get_json()["error"] == "This file carries no EPSI readout."
 
 
-def test_waveforms_of_a_stream_with_no_acquisitions_are_empty_groups(
-        client, visible, s3_object):
+@pytest.mark.usefixtures("visible")
+def test_waveforms_of_a_stream_with_no_acquisitions_are_empty_groups(client, s3_object):
     s3_object()
     body = client.get(f"/api/viewer/{OID}/waveforms").get_json()
     assert body["pulses"] == body["gradients"] == body["acquisitions"] == []
 
 
-def test_the_array_list_carries_each_arrays_meta(client, visible, s3_object):
+@pytest.mark.usefixtures("visible")
+def test_the_array_list_carries_each_arrays_meta(client, s3_object):
     s3_object()
     arrays = client.get(f"/api/viewer/{OID}/arrays").get_json()["arrays"]
     assert all(isinstance(array["meta"], dict) for array in arrays)

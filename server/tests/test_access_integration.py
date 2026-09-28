@@ -10,14 +10,20 @@ tests do. They pin dev's rules as they stand:
   * files in the "public" group,
   * and legacy files with neither ownerId nor groupName.
 
+The viewer's figure routes and reconstruction follow the same read rule; a
+reconstruction is private to whoever ran it, and a job is visible only to the
+user who started it.
+
 Run with a local server (skipped otherwise; CI always runs them):
 
     docker compose -f ../docker-compose.test.yml up -d
     MONGO_TEST_URI=mongodb://localhost:27017 pytest
 """
+import io
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from bson import ObjectId
 
 import data
@@ -247,3 +253,170 @@ def test_insert_round_trips(db_app):
         inserted = data.insert_mrdfile_header({"fileName": "x", "ownerId": ALICE})
         assert isinstance(inserted, ObjectId)
         assert data.get_mrdfile_by_id_with_auth(str(inserted), ALICE)["fileName"] == "x"
+
+
+# --- k-space and waveforms --------------------------------------------------
+
+@pytest.mark.parametrize("route", ["kspace", "waveforms"])
+@pytest.mark.parametrize("sub, name, allowed", [
+    (GUEST, "public-file", True),
+    (GUEST, "alice-private", False),
+    (GUEST, "legacy-file", False),
+    (ALICE, "alice-private", True),
+    (BOB, "alice-private", False),
+    (BOB, "team-file", True),
+    (CAROL, "team-file", False),
+    (CAROL, "legacy-file", True),
+])
+def test_the_figure_routes_follow_the_viewers_rule(
+        db_app, db_client, user, s3_object, route, sub, name, allowed):
+    ids = seed(db_app)
+    get_object = s3_object()
+    headers = user(sub) if sub else {}
+    response = db_client.get(f"/api/viewer/{ids[name]}/{route}", headers=headers)
+    if allowed:
+        # The seeded stream has no EPSI readout, so k-space is its own 404; what
+        # matters is that the object was read.
+        assert response.status_code == (404 if route == "kspace" else 200)
+        get_object.assert_called()
+    else:
+        assert response.status_code == 404
+        get_object.assert_not_called()
+
+
+# --- reconstruction, conversion and jobs ------------------------------------
+
+STAGES = [{"id": "shift"}]
+
+
+def jobs_in(db_app):
+    with db_app.app_context():
+        return list(data.get_db().jobs.find({}))
+
+
+@pytest.fixture()
+def instant_chain(monkeypatch):
+    """Every stage succeeds at once and returns a fixed stream."""
+
+    def chain(stage_specs, _source, stage_context=None):
+        for spec in stage_specs:
+            with stage_context(spec["id"]):
+                pass
+        return io.BytesIO(b"reconstructed")
+
+    monkeypatch.setattr("app.recon.routes.run_chain", chain)
+    monkeypatch.setattr("app.mrds.routes.run_chain", chain)
+
+
+def reconstruct(db_client, user, sub, file_id):
+    return db_client.post("/api/recon", headers=user(sub),
+                          json={"fileId": str(file_id), "stages": STAGES})
+
+
+@pytest.mark.parametrize("sub, name, allowed", [
+    (ALICE, "alice-private", True),
+    (BOB, "alice-private", False),
+    (BOB, "team-file", True),
+    (CAROL, "team-file", False),
+    (CAROL, "public-file", True),
+    (CAROL, "legacy-file", True),
+])
+@pytest.mark.usefixtures("instant_chain")
+def test_recon_starts_only_on_a_file_the_caller_may_see(
+        db_app, db_client, user, fake_s3, await_job, sub, name, allowed):
+    ids = seed(db_app)
+    fake_s3.staged[f"mrd_files/{name}"] = b"raw scan"
+    response = reconstruct(db_client, user, sub, ids[name])
+    if allowed:
+        assert response.status_code == 202
+        assert await_job(response.get_json()["jobId"])["status"] == "succeeded"
+    else:
+        assert response.status_code == 404
+        assert jobs_in(db_app) == []
+        assert not fake_s3.uploaded
+
+
+@pytest.mark.usefixtures("instant_chain")
+def test_a_reconstruction_is_private_to_whoever_ran_it(
+        db_app, db_client, user, fake_s3, await_job):
+    """Bob reconstructs a team file: the output is Bob's alone, not the team's."""
+    ids = seed(db_app)
+    fake_s3.staged["mrd_files/team-file"] = b"raw scan"
+    job_id = reconstruct(db_client, user, BOB, ids["team-file"]).get_json()["jobId"]
+    output_id = await_job(job_id)["output_file_id"]
+
+    with db_app.app_context():
+        assert data.get_mrdfile_by_id_with_auth(output_id, BOB) is not None
+        assert data.get_mrdfile_by_id_with_auth(output_id, ALICE) is None
+        assert data.get_public_mrdfile_by_id(output_id) is None
+    assert db_client.get(f"/api/mrd-files/{output_id}", headers=user(ALICE)).status_code == 404
+
+
+@pytest.mark.usefixtures("instant_chain")
+def test_a_job_is_visible_only_to_the_user_who_started_it(
+        db_app, db_client, user, fake_s3, await_job):
+    ids = seed(db_app)
+    fake_s3.staged["mrd_files/team-file"] = b"raw scan"
+    job_id = reconstruct(db_client, user, ALICE, ids["team-file"]).get_json()["jobId"]
+    await_job(job_id)
+
+    assert db_client.get(f"/api/jobs/{job_id}", headers=user(ALICE)).status_code == 200
+    listed = db_client.get("/api/jobs", headers=user(ALICE)).get_json()
+    assert [j["_id"] for j in listed] == [job_id]
+
+    # Bob can see the input file, but not Alice's run over it or what it made.
+    stranger = db_client.get(f"/api/jobs/{job_id}", headers=user(BOB))
+    assert stranger.status_code == 404
+    assert stranger.get_json()["code"] == "not_found"
+    assert db_client.get("/api/jobs", headers=user(BOB)).get_json() == []
+    assert db_client.get(f"/api/jobs?fileId={ids['team-file']}",
+                         headers=user(BOB)).get_json() == []
+
+
+def _staged_head(fake_s3):
+    """The request-time S3 client: head_object answers from fake_s3.staged."""
+
+    def head_object(Bucket, Key):  # pylint: disable=invalid-name,unused-argument
+        if Key not in fake_s3.staged:
+            raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+        return {"ContentLength": len(fake_s3.staged[Key])}
+
+    s3 = mock.Mock()
+    s3.head_object.side_effect = head_object
+    return s3
+
+
+@pytest.mark.usefixtures("instant_chain")
+def test_a_converted_file_lands_in_the_group_the_uploader_chose(
+        db_app, db_client, user, fake_s3, await_job, monkeypatch):
+    seed(db_app)
+    upload_id = str(ObjectId())
+    fake_s3.staged[f"uploads/staging/{ALICE}/{upload_id}"] = b"tar bytes"
+    monkeypatch.setattr("app.mrds.routes.read_mrdfile_header",
+                        lambda source, **kw: {"fileName": "converted", "groupName": None,
+                                              "ownerId": None, "studyDate": "20260102",
+                                              "studyTime": "0"})
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=_staged_head(fake_s3)):
+        response = db_client.post(
+            f"/api/uploads/{upload_id}/convert", headers=user(ALICE),
+            json={"filename": "scan.tar", "converter": "convert", "groupName": "team-a"})
+    assert response.status_code == 202
+    assert await_job(response.get_json()["jobId"])["status"] == "succeeded"
+
+    assert "converted" in visible_to(db_app, ALICE)
+    assert "converted" in visible_to(db_app, BOB)
+    assert "converted" not in visible_to(db_app, CAROL)
+
+
+@pytest.mark.usefixtures("instant_chain")
+def test_convert_reads_only_the_callers_own_staging_prefix(db_app, db_client, user, fake_s3):
+    """Bob cannot convert an object Alice staged by guessing its upload id."""
+    seed(db_app)
+    upload_id = str(ObjectId())
+    fake_s3.staged[f"uploads/staging/{ALICE}/{upload_id}"] = b"tar bytes"
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=_staged_head(fake_s3)):
+        response = db_client.post(
+            f"/api/uploads/{upload_id}/convert", headers=user(BOB),
+            json={"filename": "scan.tar", "converter": "convert"})
+    assert response.status_code == 404
+    assert jobs_in(db_app) == []
