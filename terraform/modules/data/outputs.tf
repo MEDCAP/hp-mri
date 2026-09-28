@@ -10,8 +10,9 @@ output "bucket_arn" {
 output "access_policy_json" {
   description = <<-EOT
     Least-privilege document for the ECS task role: read/write/delete on
-    mrd_files/ and uploads/staging/, read on the demo dataset prefixes. This is the replacement for the AmazonS3FullAccess currently
-    attached to ecsTaskExecutionRole (finding F2).
+    mrd_files/ and uploads/staging/, read on the demo dataset prefixes. This
+    is the replacement for the AmazonS3FullAccess currently attached to
+    ecsTaskExecutionRole (finding F2).
   EOT
   value       = data.aws_iam_policy_document.access.json
 }

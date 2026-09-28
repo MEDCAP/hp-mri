@@ -13,8 +13,10 @@
  *       after a day. No such rule exists, so abandoned uploads accumulate.
  *
  * Enabling versioning on import is a real change, not an adoption. Import with
- * versioning_enabled = false so the first plan is clean, then flip it in a
- * follow-up PR whose diff shows exactly that one change.
+ * versioning_enabled = false, which maps to status "Disabled" (the bucket's
+ * never-versioned state), so the first plan is clean. Then flip it in a
+ * follow-up PR whose diff shows exactly that one change. Enabling is one-way:
+ * afterwards the bucket can be Suspended but never Disabled again.
  */
 terraform {
   required_version = "~> 1.9"
@@ -40,7 +42,11 @@ resource "aws_s3_bucket" "this" {
 resource "aws_s3_bucket_versioning" "this" {
   bucket = aws_s3_bucket.this.id
   versioning_configuration {
-    status = var.versioning_enabled ? "Enabled" : "Suspended"
+    # "Disabled", not "Suspended": the live bucket has never been versioned, and
+    # the provider reads that state as Disabled, so this imports as a no-op.
+    # Suspended would call PutBucketVersioning and could never be undone. Once
+    # versioning is Enabled, it can only be Suspended, never Disabled again.
+    status = var.versioning_enabled ? "Enabled" : "Disabled"
   }
 }
 

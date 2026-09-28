@@ -41,9 +41,10 @@ variable "staging_expiry_days" {
 
 variable "versioning_enabled" {
   description = <<-EOT
-    Import prod with this false so the first plan is clean, then flip it in a
-    follow-up PR. Enabling it is a real change and deserves its own reviewable
-    diff.
+    false sets status "Disabled", which matches a bucket that has never been
+    versioned. Import prod with this false so the first plan is clean, then
+    flip it in a follow-up PR. Enabling it is a real, irreversible change and
+    deserves its own reviewable diff.
   EOT
   type        = bool
   default     = true

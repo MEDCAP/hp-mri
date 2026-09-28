@@ -61,6 +61,21 @@ blue-green: nothing moves until step 6, and step 6 is one variable.
 | 8 | Delete the old cluster, service, ALB, security groups, log group, the `medcap_dev` database, the `E1LTBXHERJ8IYX` distribution, and `AmazonS3FullAccess` from `ecsTaskExecutionRole` | Nothing breaks. Bill drops |
 | 9 | Flip the `MONGO_DB_NAME` default in `server/config.py` from `medcap_dev` to `hpmri_dev` | An unconfigured local run no longer lands on a production database name |
 
+**Review the first prod plan before any apply.** It must show:
+
+- no changes for the imported resources: every import plans as a no-op;
+- on `medcap-data`, only the intended additions: the CORS configuration and the
+  `uploads/staging/` lifecycle rule. These change the live bucket and need
+  explicit sign-off. Versioning must not change (it stays `Disabled`);
+- CloudFront drift reviewed before apply. Origin ids, `comment`, `price_class`
+  and `compress` may not match the console-created distribution. The same
+  applies to the Cognito client (`prevent_user_existence_errors`, auth flows,
+  callback URLs). Fix the HCL to match live; do not apply the drift;
+- in `global`, no change to the `medcap-app` ECR repository. `scan_on_push` is
+  not recorded in `docs/INVENTORY.md`, so check it against the live value and
+  set the HCL to match. `ecr_lifecycle_policy_enabled` stays `false` for the
+  import.
+
 Step 3 is the one that silently breaks things if skipped: the new task role is a
 principal Atlas has never seen, so the service comes up healthy on its ALB
 health check and then fails every request that touches the database.

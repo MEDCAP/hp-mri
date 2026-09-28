@@ -50,12 +50,19 @@ resource "aws_ecr_repository" "app" {
   # but flipping it is a change, so it plans clean as MUTABLE first.
   image_tag_mutability = "MUTABLE"
 
+  # The live value is not recorded in docs/INVENTORY.md. If the first plan
+  # shows this changing, set it to the live value here instead; turning scan
+  # on is a follow-up change, not part of the import.
   image_scanning_configuration {
     scan_on_push = true
   }
 }
 
+# Off by default: the live repository has no lifecycle policy, and creating one
+# would expire older images, including rollback targets, on the first apply.
+# Turn it on in its own PR once the images it would expire have been reviewed.
 resource "aws_ecr_lifecycle_policy" "app" {
+  count      = var.ecr_lifecycle_policy_enabled ? 1 : 0
   repository = aws_ecr_repository.app.name
 
   policy = jsonencode({

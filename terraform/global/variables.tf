@@ -25,3 +25,13 @@ variable "site_buckets" {
     dev  = "medcap-dev.medcap.ai"
   }
 }
+
+variable "ecr_lifecycle_policy_enabled" {
+  description = <<-EOT
+    Create the keep-30-images lifecycle policy on the imported medcap-app
+    repository. Off by default so the import changes nothing live; enabling it
+    expires older images, including rollback targets.
+  EOT
+  type        = bool
+  default     = false
+}
