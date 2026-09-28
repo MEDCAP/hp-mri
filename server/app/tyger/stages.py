@@ -187,12 +187,29 @@ STAGES = {
 }
 
 
+# The stages that take a tar of a scan directory and produce an MRD2 stream.
+# Without this the convert route would accept any registered stage id, so
+# {"converter": "recon"} would start the recon image on a tar and fail inside
+# the container, where nobody can see it, rather than at the request.
+CONVERTERS = frozenset({"convert"})
+
+
 def get_stage(stage_id):
     """The stage with this id, or BadRequest."""
     try:
         return STAGES[stage_id]
     except (KeyError, TypeError):
         raise BadRequest(f"{stage_id!r} is not a pipeline stage.") from None
+
+
+def get_converter(stage_id):
+    """The converter stage with this id, or BadRequest."""
+    if stage_id not in CONVERTERS:
+        raise BadRequest(
+            f"{stage_id!r} is not a converter. "
+            f"Supported: {', '.join(sorted(CONVERTERS))}."
+        )
+    return get_stage(stage_id)
 
 
 def build_args(stage_id, params=None):

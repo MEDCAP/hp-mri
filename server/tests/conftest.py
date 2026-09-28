@@ -11,11 +11,13 @@ still go through requires_auth / optional_auth exactly as in production.
 """
 import io
 import os
+import time
 import uuid
 from unittest import mock
 
 import numpy as np
 import pytest
+from bson import ObjectId
 
 
 @pytest.fixture()
@@ -151,3 +153,62 @@ def db_app(mongo_uri, monkeypatch):
 @pytest.fixture()
 def db_client(db_app):
     return db_app.test_client()
+# --- the pieces a job thread reaches for ------------------------------------
+
+class FakeS3:
+    """
+    An S3 client holding its objects in dicts.
+
+    `staged` is what the bucket already contains, `uploaded` what the code under
+    test put there, and `deleted` the keys it removed.
+    """
+
+    def __init__(self):
+        self.staged = {}
+        self.uploaded = {}
+        self.deleted = []
+
+    def download_fileobj(self, _bucket, key, fileobj):
+        fileobj.write(self.staged[key])
+
+    def upload_fileobj(self, fileobj, _bucket, key):
+        self.uploaded[key] = fileobj.read()
+
+    def delete_object(self, Bucket=None, Key=None):  # noqa: N803  boto3's spelling
+        self.deleted.append(Key)
+
+
+@pytest.fixture()
+def fake_s3(monkeypatch):
+    """
+    The client a job thread builds for itself.
+
+    service._run_job makes its own boto3 session rather than sharing the
+    process-wide client, so this is patched at the session rather than at
+    data.get_s3_client.
+    """
+    s3 = FakeS3()
+    session = mock.Mock()
+    session.client.return_value = s3
+    monkeypatch.setattr("boto3.session.Session", lambda *a, **kw: session)
+    return s3
+
+
+@pytest.fixture()
+def await_job(db_app):
+    """Wait for a job to leave `running`, and return the document."""
+
+    def wait(job_id, timeout=5.0):
+        with db_app.app_context():
+            from data import get_db  # pylint: disable=import-outside-toplevel
+
+            db = get_db()
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                job = db.jobs.find_one({"_id": ObjectId(job_id)})
+                if job and job["status"] in ("succeeded", "failed"):
+                    return job
+                time.sleep(0.01)
+        raise AssertionError(f"job {job_id} never finished")
+
+    return wait
