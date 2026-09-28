@@ -1,0 +1,35 @@
+name: Fetch MRD submodule
+description: >
+  Fetches server/app/external (MEDCAP/mrd-fork) into an existing checkout.
+  .gitmodules uses an SSH URL. With a deploy key the submodule is fetched over
+  SSH; without one it is fetched anonymously over HTTPS, which works while the
+  fork is public. A failed fetch fails the step.
+
+inputs:
+  deploy-key:
+    description: >
+      Optional private half of a read-only deploy key on MEDCAP/mrd-fork.
+      Needed only if the fork is made private.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch submodule
+      shell: bash
+      env:
+        DEPLOY_KEY: ${{ inputs.deploy-key }}
+      run: |
+        if [ -n "$DEPLOY_KEY" ]; then
+          key="$RUNNER_TEMP/mrd_fork_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          git -c core.sshCommand="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+            submodule update --init --recursive --depth 1
+          rm -f "$key"
+        else
+          git -c url."https://github.com/".insteadOf="git@github.com:" \
+            submodule update --init --recursive --depth 1
+        fi
+        test -f server/app/external/python/mrd/__init__.py
