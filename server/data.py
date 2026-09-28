@@ -9,6 +9,7 @@ from botocore.exceptions import ClientError
 from collections import OrderedDict
 from datetime import datetime
 import os
+import threading
 import boto3
 import numpy as np
 from typing import Union, List, Optional
@@ -339,12 +340,62 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
 # AttributeError.
 # ---------------------------------------------------------------------------
 
+# Total bytes the MRD cache may hold per process. Uploads go up to 2 GiB, so a
+# count bound would let one worker hold several whole files; an object larger
+# than this is never cached.
+MRD_BYTES_CACHE_MAX_BYTES = 256 * 1024 * 1024
+
+
+class _BytesLRU:
+    """Thread-safe LRU of bytes values, bounded by their total size."""
+
+    def __init__(self, max_bytes):
+        self.max_bytes = max_bytes
+        self._items = OrderedDict()
+        self._total = 0
+        self._lock = threading.Lock()
+
+    def get(self, key):
+        with self._lock:
+            value = self._items.get(key)
+            if value is not None:
+                self._items.move_to_end(key)
+            return value
+
+    def put(self, key, value):
+        size = len(value)
+        if size > self.max_bytes:
+            return
+        with self._lock:
+            old = self._items.pop(key, None)
+            if old is not None:
+                self._total -= len(old)
+            self._items[key] = value
+            self._total += size
+            while self._total > self.max_bytes:
+                _, evicted = self._items.popitem(last=False)
+                self._total -= len(evicted)
+
+    def clear(self):
+        with self._lock:
+            self._items.clear()
+            self._total = 0
+
+    @property
+    def total_bytes(self):
+        with self._lock:
+            return self._total
+
+    def __contains__(self, key):
+        with self._lock:
+            return key in self._items
+
+
 # Downloaded MRD bytes, keyed by file_id. Listing a file's arrays and then
 # fetching one of them would otherwise download the same object twice. Objects
 # are immutable for a given ObjectId key, so entries never go stale. This is a
 # per-process cache; each gunicorn worker holds its own.
-_MRD_BYTES_CACHE = OrderedDict()
-_MRD_BYTES_CACHE_MAX = 3
+_MRD_BYTES_CACHE = _BytesLRU(MRD_BYTES_CACHE_MAX_BYTES)
 
 # Stream items that are never offered as arrays. Acquisitions are excluded
 # deliberately: a raw file holds thousands of them and shipping k-space as JSON
@@ -369,7 +420,8 @@ class UnknownArrayKey(KeyError):
 
 def _fetch_mrd_bytes(file_id):
     """
-    Download mrd_files/{file_id} from S3, with a small in-process LRU.
+    Download mrd_files/{file_id} from S3, with an in-process LRU bounded by
+    MRD_BYTES_CACHE_MAX_BYTES.
 
     @param file_id: file_id in mongodb of the mrd file
     @return: the raw object bytes
@@ -377,13 +429,11 @@ def _fetch_mrd_bytes(file_id):
     """
     cached = _MRD_BYTES_CACHE.get(file_id)
     if cached is not None:
-        _MRD_BYTES_CACHE.move_to_end(file_id)
         return cached
 
+    # Downloaded outside the lock; two concurrent misses may both fetch.
     body_bytes = _get_mrd_object(file_id)['Body'].read()
-    _MRD_BYTES_CACHE[file_id] = body_bytes
-    while len(_MRD_BYTES_CACHE) > _MRD_BYTES_CACHE_MAX:
-        _MRD_BYTES_CACHE.popitem(last=False)
+    _MRD_BYTES_CACHE.put(file_id, body_bytes)
     return body_bytes
 
 

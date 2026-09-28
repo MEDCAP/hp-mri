@@ -270,6 +270,33 @@ def test_the_file_is_downloaded_once_for_the_list_and_an_array(client, s3_object
     assert get_object.call_count == 1
 
 
+def test_the_mrd_cache_is_bounded_by_total_bytes():
+    import data  # pylint: disable=import-outside-toplevel
+
+    cache = data._BytesLRU(max_bytes=10)  # pylint: disable=protected-access
+    cache.put("a", b"x" * 4)
+    cache.put("b", b"x" * 4)
+    assert cache.get("a") is not None  # "b" is now least recently used
+    cache.put("c", b"x" * 4)
+    assert "b" not in cache and "a" in cache and "c" in cache
+    assert cache.total_bytes == 8
+
+    cache.put("big", b"x" * 11)
+    assert "big" not in cache
+    assert cache.total_bytes == 8
+
+
+def test_an_object_larger_than_the_bound_is_downloaded_every_time(client, s3_object):
+    import data  # pylint: disable=import-outside-toplevel
+
+    get_object = s3_object()
+    with visible(), mock.patch.object(data._MRD_BYTES_CACHE, "max_bytes", 1):  # pylint: disable=protected-access
+        key = client.get(f"/api/viewer/{OID}/arrays").get_json()["arrays"][1]["key"]
+        client.get(f"/api/viewer/{OID}/arrays/{key}")
+    assert get_object.call_count == 2
+    assert data._MRD_BYTES_CACHE.total_bytes == 0  # pylint: disable=protected-access
+
+
 @pytest.mark.parametrize("path", [f"/api/viewer/{OID}", f"/api/viewer/get_pulse_array/{OID}",
                                   f"/api/viewer/get_gradient_array/{OID}"])
 def test_the_single_array_viewer_routes_are_gone(client, s3_object, path):
