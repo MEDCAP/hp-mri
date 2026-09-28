@@ -172,7 +172,9 @@ when the file has no renderable image data.
 - **CI** (`.github/workflows/ci.yml`): `pylint server`, `pytest` with a real
   MongoDB, frontend build (blocking) and lint (non-blocking), backend image
   build. Raise `fail-under` in `.pylintrc` as the score rises; never lower it.
-  Deploy jobs run only when the repo variable `DEPLOY_ENABLED` is `true`.
+  Deploy jobs run only when the repo variable `DEPLOY_ENABLED` is `true`. The
+  backend deploy needs `ECS_CONTAINER_NAME` (Terraform's container name,
+  `hpmri-api`) and `PUBLIC_BASE_URL` set on the GitHub Environment.
 - **Secrets:** never commit `server/.env.development`. It holds temporary AWS
   credentials; regenerate with `server/setup_aws.sh`.
 - **Local files:** ignore `server/.medcap/` and `server/venv/`.

@@ -93,11 +93,22 @@ jobs:
             --task-definition "$FAMILY" \
             --query 'taskDefinition' > taskdef.json
 
+      # The container name is set by Terraform (hpmri-api); keep this
+      # environment variable in step with it.
+      - name: Check container name is set
+        env:
+          CONTAINER: ${{ vars.ECS_CONTAINER_NAME }}
+        run: |
+          if [ -z "$CONTAINER" ]; then
+            echo "::error::Set the ECS_CONTAINER_NAME variable on the ${{ inputs.environment }} environment."
+            exit 1
+          fi
+
       - id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: taskdef.json
-          container-name: hpmri-api
+          container-name: ${{ vars.ECS_CONTAINER_NAME }}
           image: ${{ steps.ecr.outputs.registry }}/medcap-app:${{ steps.tag.outputs.tag }}
 
       - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
