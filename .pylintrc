@@ -23,8 +23,6 @@ jobs=0
 disable=missing-module-docstring,
         too-few-public-methods,
         duplicate-code,
-        # Third-party and the vendored MRD library are not installed in the lint job.
-        import-error,
         # `from . import routes` at the foot of a blueprint's __init__ is the
         # documented Flask pattern; pylint reads it as a cycle.
         cyclic-import,

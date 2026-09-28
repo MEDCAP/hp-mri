@@ -1,7 +1,8 @@
 name: Release
 
-# Dev auto-deploys on every merge to main; prod deploys only on a v* tag, and
-# only after a human approves the prod GitHub Environment.
+# Dev auto-deploys on every push to dev (ci.yml); prod deploys only on a v* tag,
+# and only after a human approves the prod GitHub Environment. Nothing here
+# touches AWS until the repository variable DEPLOY_ENABLED is true.
 #
 # A research group should not have an unreviewed merge reach the app their
 # instruments feed. Two gates is right for this one.
@@ -37,6 +38,7 @@ jobs:
           echo "$TAG matches VERSION."
 
   backend:
+    if: vars.DEPLOY_ENABLED == 'true'
     needs: guard
     uses: ./.github/workflows/deploy-backend.yml
     with:
@@ -45,6 +47,7 @@ jobs:
     secrets: inherit
 
   frontend:
+    if: vars.DEPLOY_ENABLED == 'true'
     # The SPA goes last so it is never newer than the API it talks to.
     needs: [guard, backend]
     uses: ./.github/workflows/deploy-frontend.yml

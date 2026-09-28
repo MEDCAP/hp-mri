@@ -29,6 +29,9 @@ permissions:
 
 jobs:
   deploy:
+    # Inert until the infrastructure exists. Gated here rather than in each
+    # caller, so workflow_dispatch and every caller are covered.
+    if: vars.DEPLOY_ENABLED == 'true'
     name: Deploy to ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}

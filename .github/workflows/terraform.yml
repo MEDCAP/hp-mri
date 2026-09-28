@@ -149,16 +149,17 @@ jobs:
 
       - run: terraform init -input=false
       # Re-planned here rather than reusing the PR artifact: plan files carry
-      # secrets and go stale after merge. The reviewer gate below covers the
-      # window that opens up.
+      # secrets and go stale after merge. Prod is applied only by a manual
+      # dispatch, behind the prod Environment's reviewer gate.
       - run: terraform apply -input=false -auto-approve -lock-timeout=5m
 
   apply-prod:
+    # Manual only: a push to dev never applies prod. No `needs: apply-dev`,
+    # which would skip this job on a prod dispatch (apply-dev is skipped then).
     if: >-
-      (github.event_name == 'push' || inputs.environment == 'prod')
+      github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
       && vars.DEPLOY_ENABLED == 'true'
     name: Apply (prod)
-    needs: apply-dev
     runs-on: ubuntu-latest
     # Configure this GitHub Environment with required reviewers.
     environment: prod
