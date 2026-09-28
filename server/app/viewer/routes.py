@@ -13,6 +13,8 @@ from data import (
     get_public_mrdfile_by_id,
     list_mrd_arrays,
     get_mrd_array,
+    reduce_kspace,
+    waveform_traces,
     MrdContentError,
     UnknownArrayKey,
 )
@@ -77,6 +79,46 @@ def fetch_array(file_id: str, key: str):
         raise _unreadable() from exc
     except UnknownArrayKey:
         raise NotFound("Unknown array key") from None
+
+
+@viewer_bp.route("/viewer/<file_id>/kspace", methods=["GET"])
+@optional_auth
+def fetch_kspace(file_id: str):
+    """
+    The file's k-space, folded on the gradient switch and summed on the server.
+
+    The acquisitions themselves are not offered as arrays and are not offered
+    here either: a raw file holds thousands, and this is the reduction they are
+    read through.
+
+    @return {nswitch, encodings: [{ref, name, total, discard_pre, kept, echo,
+             signal, brightest}]}; signal is nswitch x total summed over views
+             and repetitions, brightest the peak column of each switch
+    """
+    _authorized_file(file_id)
+    try:
+        kspace = reduce_kspace(file_id)
+    except MrdContentError as exc:
+        raise _unreadable() from exc
+    if kspace is None:
+        raise NotFound("This file carries no EPSI readout.")
+    return jsonify(kspace), 200
+
+
+@viewer_bp.route("/viewer/<file_id>/waveforms", methods=["GET"])
+@optional_auth
+def fetch_waveforms(file_id: str):
+    """
+    The file's pulse, gradient and acquisition time-series, decimated.
+
+    @return {pulses, gradients, acquisitions: [{name, t, values, samples,
+             stride}], decimation}; t in seconds
+    """
+    _authorized_file(file_id)
+    try:
+        return jsonify(waveform_traces(file_id)), 200
+    except MrdContentError as exc:
+        raise _unreadable() from exc
 
 
 # Per-magnet capability table, replacing an if/elif chain repeated in three
