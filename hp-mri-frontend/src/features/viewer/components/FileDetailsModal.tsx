@@ -28,7 +28,8 @@ import {
   Storage,
   Info
 } from '@mui/icons-material';
-import { MRDFile } from '../../types/mrd';
+import { MRDFile, fileVisibility } from '../../../types/mrd';
+import { formatUploadTimestamp } from '../../../utils/format';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -86,29 +87,6 @@ const FileDetailsModal: React.FC<FileDetailsModalProps> = ({ open, onClose, file
     return `${date} at ${time}`;
   };
 
-  const formatUploadTimestamp = (timestamp: any) => {
-    if (!timestamp) return 'Unknown';
-    
-    // Handle MongoDB date format
-    if (timestamp.$date) {
-      const date = new Date(timestamp.$date);
-      return date.toLocaleString();
-    }
-    
-    // Handle string format
-    if (typeof timestamp === 'string') {
-      const date = new Date(timestamp);
-      return date.toLocaleString();
-    }
-    
-    // Handle Date object
-    if (timestamp instanceof Date) {
-      return timestamp.toLocaleString();
-    }
-    
-    return 'Unknown';
-  };
-
   const getFileIcon = () => {
     return <Description sx={{ fontSize: 40, color: 'primary.main' }} />;
   };
@@ -153,7 +131,7 @@ const FileDetailsModal: React.FC<FileDetailsModalProps> = ({ open, onClose, file
         
         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 1 }}>
           <Chip 
-            label={file.groupName} 
+            label={fileVisibility(file).label}
             variant="outlined" 
             size="small"
             icon={<Group />}
@@ -256,7 +234,7 @@ const FileDetailsModal: React.FC<FileDetailsModalProps> = ({ open, onClose, file
               </ListItemIcon>
               <ListItemText
                 primary={<DetailLabel>Upload Date</DetailLabel>}
-                secondary={<DetailValue>{formatUploadTimestamp(file.upload_timestamp)}</DetailValue>}
+                secondary={<DetailValue>{formatUploadTimestamp(file.upload_timestamp, 'Unknown')}</DetailValue>}
               />
             </DetailItem>
           )}

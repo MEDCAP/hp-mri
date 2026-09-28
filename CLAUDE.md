@@ -9,10 +9,9 @@ File metadata lives in MongoDB Atlas; MRD files live in S3.
 - `hp-mri-frontend/src/`
   - `api/` — HTTP functions
   - `auth/` — Cognito session, route guard
-  - `features/` — `auth`, `home`, `calculator`, `files`, `groups`, `simulator`
+  - `features/` — `auth`, `home`, `calculator`, `files`, `groups`, `simulator`,
+    `viewer`
   - `components/`, `layouts/`, `config/`, `utils/`, `types/`
-  - viewer: `pages/viewerpages/`, `components/viewer/`, `components/visualize/`,
-    `hooks/useViewerState.ts`
 - `server/`
   - `app/` — blueprints `mrds`, `viewer`, `groups`, plus `auth.py`, `errors.py`
   - `data.py` — MongoDB and S3 access
@@ -82,18 +81,30 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 
 ### Viewer — `app/viewer/routes.py`
 
-| Route | Auth | Output |
-|---|---|---|
-| `GET /viewer/<id>` | optional | `{image_array, nmr_labels}`. `image_array` is 6-D `(channels, slice, rows, cols, frequencies, measurements)`, scaled 0–255 |
-| `GET /viewer/get_pulse_array/<id>` | optional | `{pulse_data, pulse_phase}` (empty lists if the file has no pulses) |
-| `GET /viewer/get_gradient_array/<id>` | optional | `{gx, gy, gz}`, always empty |
-| `GET /get_count_datasets/<magnet>` | none | `{numDatasets}`; magnet ∈ `HUPC`, `Clinical`, `MR Solutions` |
-| `POST /get_proton_picture/<n>` | none | PNG; body `{magnetType}` |
-| `POST /get_hp_mri_data/<n>` | none | Spectral data; `?threshold`, `?magnetType` |
-| `POST /viewer-upload`, `GET /get_imaging_metadata`, `GET /get_imaging_matrix` | none | Non-functional |
+| Route | Auth | Input | Output |
+|---|---|---|---|
+| `GET /viewer/<id>/arrays` | optional | — | `{file_id, arrays, unsupported}`. `arrays`: one descriptor per renderable stream, `{key, name, kind, tag, shape, dim_labels, labels, dtype, transform, item_count}`, no data. `unsupported`: `[{tag, count}]` for skipped stream items (acquisitions and other non-array items) |
+| `GET /viewer/<id>/arrays/<key>` | optional | `key` from the list | The descriptor plus `value_min`, `value_max` and `data`, unscaled |
+| `GET /get_count_datasets/<magnet>` | none | magnet ∈ `HUPC`, `Clinical`, `MR Solutions` | `{numDatasets}` |
+| `POST /get_proton_picture/<n>` | none | body `{magnetType}` | PNG |
+| `POST /get_hp_mri_data/<n>` | none | `?threshold`, `?magnetType` | Spectral data |
+| `POST /viewer-upload`, `GET /get_imaging_metadata`, `GET /get_imaging_matrix` | none | — | Non-functional |
 
-The `/viewer/*` routes return 404 when the file is not visible to the caller, and 422
-when the file has no renderable image data.
+`/arrays` descriptors:
+- `kind: "image"`: `data` is 6-D `[channel][slice][row][col][frequency][measurement]`;
+  `dim_labels` is `CHANNEL, Z, Y, X, FREQUENCY, MEASUREMENT`.
+- `kind: "trace"` (waveforms, 1-D arrays, spectra): `data` is 3-D
+  `[series][sample][measurement]`.
+- Stream items with the same tag, type, labels and shape are stacked on the
+  measurement axis; `item_count` is how many.
+- `labels`: per-frequency (metabolite) labels, `[]` if none.
+- `transform: "magnitude"` when a complex array was reduced to its magnitude; `dtype`
+  is the stored type.
+- Keys are stable for a given file.
+
+`/arrays` errors: 404 when the file is not visible to the caller, its S3 object is
+missing, or the key is unknown; 422 `{"code": "unreadable"}` when the object is not a
+readable MRD stream. A file with nothing renderable returns `arrays: []`.
 
 ### Groups — `app/groups/routes.py` (all require auth)
 
@@ -144,10 +155,16 @@ when the file has no renderable image data.
   code, search and request to join, members, admins, invite codes, join requests,
   settings
 - **Viewer** (`/viewer`), open to guests:
-  - up to 3 image windows with per-window file, channel, slice, metabolite and
-    measurement selection
-  - pulse waveform plot, concatenation along the measurement axis, screenshot
-    export
+  - a grid of panels, up to 3×2 or 1×3 (layout picker in the side panel); opens on one
+    panel, `+` adds a column, each panel can be closed
+  - each panel shows one file: pick any of its arrays; images get channel, slice,
+    metabolite and measurement controls, traces one line per series at the chosen
+    measurement
+  - a file double-clicked in the file list opens in the first panel
+  - side-panel tools: concatenation of several files' first image arrays along the
+    measurement axis, loaded into a panel; screenshot export; image adjustments;
+    settings
+  - on sign-in or sign-out the file list is re-fetched and the panels are cleared
 - **Simulator** (`/simulator`): "coming soon" placeholder. `/simulate` and
   `/new-simulator` redirect to it.
 - Every header shows "Welcome, <name>" with Sign Out when signed in, and Sign In

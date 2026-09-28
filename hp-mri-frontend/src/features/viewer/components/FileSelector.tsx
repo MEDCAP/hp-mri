@@ -19,7 +19,7 @@ import {
   FileOpen,
   Close
 } from '@mui/icons-material';
-import { MRDFile } from '../../types/mrd';
+import { MRDFile } from '../../../types/mrd';
 
 interface FileSelectorProps {
   open: boolean;

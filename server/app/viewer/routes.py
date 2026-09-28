@@ -9,10 +9,12 @@ from app.viewer.magnets import (
     mr_solutions_processing,
 )
 from data import (
-    get_image_array_from_mrdfile,
-    get_pulse_array_from_mrdfile,
     get_mrdfile_by_id_with_auth,
-    get_public_mrdfile_by_id
+    get_public_mrdfile_by_id,
+    list_mrd_arrays,
+    get_mrd_array,
+    MrdContentError,
+    UnknownArrayKey,
 )
 from app.auth import optional_auth
 from app.errors import ApiError, BadRequest, NotFound
@@ -24,9 +26,8 @@ def _authorized_file(file_id):
     """
     The file document if the caller may see it, else a 404.
 
-    Authenticated users see their own, their groups' and legacy public files;
-    guests see files in the public group only. This was written out in each of
-    the three routes below.
+    Authenticated users see their own, their groups', public and legacy files;
+    guests see files in the public group only.
     """
     file_doc = (
         get_mrdfile_by_id_with_auth(file_id, g.user_sub)
@@ -38,61 +39,44 @@ def _authorized_file(file_id):
     return file_doc
 
 
-def _unrenderable(exc):
-    """
-    Array extraction raises ValueError with messages we wrote ourselves --
-    "No image data found", "Spectrum is displayed" -- which the viewer shows.
-    They used to travel as str(e) in a 500 alongside every other exception;
-    they are content problems, so 422 with the same safe text.
-    """
-    return ApiError(str(exc), code="unrenderable", status=422)
+def _unreadable():
+    return ApiError("This file could not be read as MRD", code="unreadable", status=422)
 
 
-@viewer_bp.route("/viewer/<file_id>", methods=["GET"])
+@viewer_bp.route("/viewer/<file_id>/arrays", methods=["GET"])
 @optional_auth
-def fetch_image_array_from_bucket(file_id: str):
+def fetch_array_list(file_id: str):
     """
-    Load image array from S3 bucket and return as JSON serializable nested lists.
-    Authenticated users can access their own and group files.
-    Unauthenticated guests can access public files only (groupName='public').
+    List every array the viewer can render from an MRD file, without bulk data.
+
+    @return {file_id, arrays: [{key, name, kind, tag, shape, dim_labels, labels,
+             dtype, transform, item_count}], unsupported: [{tag, count}]}
     """
     _authorized_file(file_id)
     try:
-        img_array, nmr_labels = get_image_array_from_mrdfile(file_id)
-    except ValueError as exc:
-        raise _unrenderable(exc) from exc
-    return jsonify({"image_array": img_array.tolist(), "nmr_labels": nmr_labels}), 200
+        arrays, unsupported = list_mrd_arrays(file_id)
+    except MrdContentError as exc:
+        raise _unreadable() from exc
+    return jsonify({"file_id": file_id, "arrays": arrays, "unsupported": unsupported}), 200
 
-@viewer_bp.route("/viewer/get_pulse_array/<file_id>", methods=["GET"])
+
+@viewer_bp.route("/viewer/<file_id>/arrays/<key>", methods=["GET"])
 @optional_auth
-def fetch_pulse_array_from_bucket(file_id: str):
+def fetch_array(file_id: str, key: str):
     """
-    Load pulse array from S3 bucket and return as JSON serializable nested lists.
-    Authenticated users can access their own and group files.
-    Unauthenticated guests can access public files only (groupName='public').
+    One named array from an MRD file, unscaled.
+
+    @return the array's descriptor plus value_min, value_max and data: 6-D
+            (channel, slice, rows, cols, frequency, measurement) when kind is
+            "image", 3-D (series, samples, measurement) when kind is "trace"
     """
     _authorized_file(file_id)
     try:
-        pulse_data, pulse_phase = get_pulse_array_from_mrdfile(file_id)
-    except ValueError as exc:
-        raise _unrenderable(exc) from exc
-    return jsonify({
-        "pulse_data": pulse_data.tolist() if pulse_data is not None else [],
-        "pulse_phase": pulse_phase.tolist() if pulse_phase is not None else []
-    }), 200
-
-@viewer_bp.route("/viewer/get_gradient_array/<file_id>", methods=["GET"])
-@optional_auth
-def fetch_gradient_array_from_bucket(file_id: str):
-    """
-    Load gradient array from S3 bucket and return as JSON serializable nested lists.
-    Authenticated users can access their own and group files.
-    Unauthenticated guests can access public files only (groupName='public').
-    """
-    _authorized_file(file_id)
-    # TODO: Implement gradient extraction function
-    # gx, gy, gz = get_gradient_from_mrdfile(file_id)
-    return jsonify({"gx": [], "gy": [], "gz": []}), 200
+        return jsonify(get_mrd_array(file_id, key)), 200
+    except MrdContentError as exc:
+        raise _unreadable() from exc
+    except UnknownArrayKey:
+        raise NotFound("Unknown array key") from None
 
 
 # Per-magnet capability table, replacing an if/elif chain repeated in three

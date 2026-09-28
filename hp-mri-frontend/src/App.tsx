@@ -29,7 +29,7 @@ import MRCalculatorPage from './features/calculator/MRCalculatorPage';
 // Feature pages
 import RetrievePage from './features/files/RetrievePage';
 import SimulatorPage from './features/simulator/SimulatorPage';
-import ViewerPage from './pages/viewerpages/ViewerPage';
+import ViewerPage from './features/viewer/ViewerPage';
 
 // Group pages
 import GroupsPage from './features/groups/GroupsPage';

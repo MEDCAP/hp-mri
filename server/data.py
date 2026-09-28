@@ -6,8 +6,10 @@ from flask import current_app
 from bson import ObjectId
 from bson.errors import InvalidId
 from botocore.exceptions import ClientError
+from collections import OrderedDict
 from datetime import datetime
 import os
+import threading
 import boto3
 import numpy as np
 from typing import Union, List, Optional
@@ -325,86 +327,394 @@ def insert_mrdfiles_batch(header_data_list: list) -> list:
     # return the object ids of inserted mrd header documents
     return result.inserted_ids
 
-def get_image_array_from_mrdfile(file_id):
+# ---------------------------------------------------------------------------
+# MRD array extraction
+#
+# The viewer lets each panel pick any named array in an MRD file, so everything
+# below walks the stream generically. The MRD library is a generated (yardl)
+# submodule whose StreamItem variants and header field names differ between
+# revisions of the fork, so this code never does isinstance(item,
+# mrd.StreamItem.X) and never reads a header attribute directly: it keys off
+# the union case's `tag` and uses getattr() everywhere. That way a file written
+# by a different fork revision degrades to "unsupported" instead of raising
+# AttributeError.
+# ---------------------------------------------------------------------------
+
+# Total bytes the MRD cache may hold per process. Uploads go up to 2 GiB, so a
+# count bound would let one worker hold several whole files; an object larger
+# than this is never cached.
+MRD_BYTES_CACHE_MAX_BYTES = 256 * 1024 * 1024
+
+
+class _BytesLRU:
+    """Thread-safe LRU of bytes values, bounded by their total size."""
+
+    def __init__(self, max_bytes):
+        self.max_bytes = max_bytes
+        self._items = OrderedDict()
+        self._total = 0
+        self._lock = threading.Lock()
+
+    def get(self, key):
+        with self._lock:
+            value = self._items.get(key)
+            if value is not None:
+                self._items.move_to_end(key)
+            return value
+
+    def put(self, key, value):
+        size = len(value)
+        if size > self.max_bytes:
+            return
+        with self._lock:
+            old = self._items.pop(key, None)
+            if old is not None:
+                self._total -= len(old)
+            self._items[key] = value
+            self._total += size
+            while self._total > self.max_bytes:
+                _, evicted = self._items.popitem(last=False)
+                self._total -= len(evicted)
+
+    def clear(self):
+        with self._lock:
+            self._items.clear()
+            self._total = 0
+
+    @property
+    def total_bytes(self):
+        with self._lock:
+            return self._total
+
+    def __contains__(self, key):
+        with self._lock:
+            return key in self._items
+
+
+# Downloaded MRD bytes, keyed by file_id. Listing a file's arrays and then
+# fetching one of them would otherwise download the same object twice. Objects
+# are immutable for a given ObjectId key, so entries never go stale. This is a
+# per-process cache; each gunicorn worker holds its own.
+_MRD_BYTES_CACHE = _BytesLRU(MRD_BYTES_CACHE_MAX_BYTES)
+
+# Stream items that are never offered as arrays. Acquisitions are excluded
+# deliberately: a raw file holds thousands of them and shipping k-space as JSON
+# is not viable.
+_SKIP_TAGS = frozenset({"acquisition", "acquisitionBucket", "reconData", "imageArray"})
+
+# Meta keys checked, in order, for a human-readable array name.
+_META_NAME_KEYS = ("name", "array_name", "label", "title", "description", "imagecomments")
+
+# Canonical axis order of a `kind="image"` array, before the trailing
+# measurement axis appended by stacking.
+_IMAGE_AXES = ("CHANNEL", "Z", "Y", "X", "FREQUENCY")
+
+
+class MrdContentError(ValueError):
+    """The stored object could not be parsed as an MRD stream."""
+
+
+class UnknownArrayKey(KeyError):
+    """The file holds no array with the requested key."""
+
+
+def _fetch_mrd_bytes(file_id):
     """
-    Extracts 6D image array of dimension (channel, slice, rows, cols, frequencies, measurements) 
-    and header from mrd file in S3 bucket
-    -   MRDfile read_data is an iterable object, which you read by for loop one at a time
-    -   Each iteration yields item.value.data as 5D image array (channels, slice, rows, cols, frequencies) and 
-        item.value.head to specify metabolite label and measurement number
+    Download mrd_files/{file_id} from S3, with an in-process LRU bounded by
+    MRD_BYTES_CACHE_MAX_BYTES.
+
     @param file_id: file_id in mongodb of the mrd file
-    @return
-        - image_array: an image array of dimension (channel, slice, rows, cols, frequencies, measurements)
-        - nmr_labels: list of label of frequencies converted from nparray of object. If frequencies dimension is 0, return an empty list
+    @return: the raw object bytes
+    @raise FileNotFoundError: if no such object exists in the bucket
     """
-    obj = _get_mrd_object(file_id)
-    # Initialize variables to avoid scope issues
-    image_array = None
-    nmr_labels = []
-    body_bytes = obj['Body'].read()
-    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
-        h = r.read_header()
-        for item in r.read_data():
-            if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
-                image = item.value
-                # check if image.data has correct shape
-                if image.data.ndim != 5:
-                    raise ValueError(f"Invalid shape of image array: {image.data.shape}")
-                # if rows and cols are 1, then image.data is spectrum
-                if image.rows() == 1 or image.cols() == 1:
-                    raise ValueError("Spectrum is displayed")
-                # fetch header information from the first image
-                if image_array is None:
-                    # image.data is 5D image array (channels, slice, rows, cols, frequencies)
-                    image_array = image.data[..., np.newaxis]
-                    image_array *= 255 / image.data.max()
-                    meas_freq = image.head.measurement_freq
-                    repetition = image.head.repetition
-                    # append nmr_labels if it exists in MRD ImageHeader, otherwise return []
-                    if image.head.measurement_freq_label is not None:
-                        # image.head.measurement_freq_label is in nparray, need to convert to list
-                        nmr_labels = image.head.measurement_freq_label.tolist()
-                # if image_array is not None, there are image data to the existing image_array as 
-                else:
-                    # image_array is 6D image array (channels, slice, rows, cols, frequencies, measurements)
-                    image_array = np.concatenate([image_array, image.data[..., np.newaxis]], axis=-1)
+    cached = _MRD_BYTES_CACHE.get(file_id)
+    if cached is not None:
+        return cached
 
-    # Check if any image data was found
-    if image_array is None:
-        raise ValueError(f"No image data found in MRD file with id: {file_id}")
-    return image_array, nmr_labels
+    # Downloaded outside the lock; two concurrent misses may both fetch.
+    body_bytes = _get_mrd_object(file_id)['Body'].read()
+    _MRD_BYTES_CACHE.put(file_id, body_bytes)
+    return body_bytes
 
-def get_pulse_array_from_mrdfile(file_id):
+
+def _item_tag(item):
+    """Union case tag of a stream item, e.g. 'imageFloat' or 'ndArrayDouble'."""
+    return getattr(item, "tag", type(item).__name__)
+
+
+def _enum_name(value):
+    """Name of an enum member, or None if value is not one."""
+    name = getattr(value, "name", None)
+    return name if isinstance(name, str) else None
+
+
+def _prettify(enum_name):
+    """T1_MAP -> 'T1 map', MAGNITUDE -> 'Magnitude'."""
+    words = enum_name.replace("_", " ").strip()
+    return words[:1].upper() + words[1:].lower()
+
+
+def _meta_string(meta):
     """
-    Extract pulse.data and pulse.phase from MRD file
+    First string-valued entry of an Image.meta / NdArrayHeader.meta dict whose
+    key looks like a name. Values are union cases with .tag and .value.
+    """
+    if not meta:
+        return None
+    for wanted in _META_NAME_KEYS:
+        for key, values in meta.items():
+            if str(key).lower() != wanted:
+                continue
+            for value in values or []:
+                if getattr(value, "tag", None) != "string":
+                    continue
+                text = str(getattr(value, "value", "")).strip()
+                if text:
+                    return text
+    return None
+
+
+def _freq_labels(head):
+    """measurement_frequency_label as a list of str; [] when absent."""
+    raw = getattr(head, "measurement_frequency_label", None)
+    if raw is None:
+        # Older revisions of the fork spell it without the 'uency'.
+        raw = getattr(head, "measurement_freq_label", None)
+    if raw is None:
+        return []
+    values = raw.tolist() if hasattr(raw, "tolist") else list(raw)
+    return [str(v) for v in values if v is not None]
+
+
+def _dim_labels(head):
+    """NdArrayHeader.dimension_labels as a list of str; [] when absent."""
+    raw = getattr(head, "dimension_labels", None) or []
+    return [name for name in (_enum_name(d) for d in raw) if name]
+
+
+def _slug(text):
+    """Lowercase, URL-safe fragment used in an array key."""
+    out = []
+    for ch in str(text).lower():
+        out.append(ch if ch.isalnum() else "-")
+    slug = "-".join(part for part in "".join(out).split("-") if part)
+    return slug[:40] or "array"
+
+
+def _describe_item(tag, value):
+    """
+    Classify one stream item.
+
+    @return: (kind, name, dim_labels, labels, extra_key) or None if the item
+             carries no usable ndarray.
+    """
+    data = getattr(value, "data", None)
+    if not isinstance(data, np.ndarray) or data.size == 0:
+        return None
+
+    head = getattr(value, "head", None)
+    meta_name = _meta_string(getattr(value, "meta", None) or getattr(head, "meta", None))
+    labels = _freq_labels(head)
+
+    if tag.startswith("ndArray"):
+        dim_labels = _dim_labels(head)
+        array_type = _enum_name(getattr(head, "array_type", None))
+        # An NdArray is an image when it is laid out over both spatial axes.
+        is_image = "Y" in dim_labels and "X" in dim_labels
+        name = meta_name or (_prettify(array_type) if array_type else "NdArray")
+        return ("image" if is_image else "trace", name, dim_labels, labels, array_type)
+
+    if tag.startswith("waveform"):
+        waveform_id = getattr(value, "waveform_id", None)
+        name = meta_name or (f"Waveform {waveform_id}" if waveform_id is not None else "Waveform")
+        return ("trace", name, ["CHANNEL", "SAMPLES"], labels, None)
+
+    if tag.startswith("image"):
+        image_type = _enum_name(getattr(head, "image_type", None))
+        # A 5-D image with real spatial extent is a picture; a degenerate one
+        # (1x1 in-plane) is a spectrum sampled over the frequency axis.
+        is_image = data.ndim == 5 and data.shape[2] > 1 and data.shape[3] > 1
+        name = meta_name
+        if not name:
+            name = f"{_prettify(image_type)} image" if image_type else "Image"
+            if labels:
+                shown = ", ".join(labels[:3]) + ("…" if len(labels) > 3 else "")
+                name = f"{name} ({shown})"
+        dim_labels = list(_IMAGE_AXES) if data.ndim == 5 else []
+        return ("image" if is_image else "trace", name, dim_labels, labels, image_type)
+
+    return None
+
+
+def _to_image_6d(arr, dim_labels):
+    """
+    Reshape a stacked array into (channel, slice, rows, cols, frequency, measurement).
+
+    @param arr: stacked array whose LAST axis is already the measurement axis
+    @param dim_labels: labels of arr's leading axes, when known
+    """
+    base_ndim = arr.ndim - 1
+    if len(dim_labels) == base_ndim and all(label in _IMAGE_AXES for label in dim_labels):
+        # Reorder the axes we have into canonical order, then insert length-1
+        # axes for the ones this array does not carry.
+        present = [axis for axis in _IMAGE_AXES if axis in dim_labels]
+        arr = np.transpose(arr, [dim_labels.index(axis) for axis in present] + [base_ndim])
+        for position, axis in enumerate(_IMAGE_AXES):
+            if axis not in present:
+                arr = np.expand_dims(arr, axis=position)
+        return arr
+
+    # Unlabelled: assume the last two leading axes are the in-plane ones and
+    # fold anything before them into the channel axis.
+    base_shape = arr.shape[:-1]
+    measurements = arr.shape[-1]
+    if len(base_shape) < 2:
+        # Not enough axes to be in-plane data; give it a 1-row image.
+        return arr.reshape((1, 1, 1, int(np.prod(base_shape)) or 1, 1, measurements))
+    rows, cols = base_shape[-2], base_shape[-1]
+    channels = int(np.prod(base_shape[:-2])) if len(base_shape) > 2 else 1
+    return arr.reshape((channels, 1, rows, cols, 1, measurements))
+
+
+def _to_trace_3d(arr):
+    """Reshape a stacked array into (series, samples, measurement)."""
+    measurements = arr.shape[-1]
+    base_shape = arr.shape[:-1]
+    if not base_shape:
+        return arr.reshape((1, 1, measurements))
+    samples = base_shape[-1]
+    series = int(np.prod(base_shape[:-1])) if len(base_shape) > 1 else 1
+    return arr.reshape((series, samples, measurements))
+
+
+def _walk_mrd_arrays(file_id):
+    """
+    Read an MRD file and group its stream items into named arrays.
+
+    Items that agree on tag, type, labels and shape are stacked along a new
+    trailing measurement axis — the same semantics the old image endpoint gave
+    to repeated images. Shape is part of the grouping key on purpose: a file
+    holding two same-tag streams of different shapes yields two arrays rather
+    than silently interleaving them.
+
     @param file_id: file_id in mongodb of the mrd file
-    @return 
-        - pulse_data: pulse data of float32 of 3D nparray(channels, samples, measurements)
-        - pulse_phase: pulse phase of float32 of 2D nparray(samples, measurements)
-        - start_time: pulse start time of float32 as list (measurements,)
-        - dt: pulse sample time of float32 in ns as single value
+    @return: (arrays, unsupported) where arrays is a list of dicts carrying the
+             descriptor fields plus 'data' (an ndarray), and unsupported is a
+             list of {tag, count} for stream items that were skipped.
     """
-    obj = _get_mrd_object(file_id)
+    groups = OrderedDict()
+    unsupported = OrderedDict()
 
-    body_bytes = obj['Body'].read()
-    with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
-        h = r.read_header()
-        pulse_data = None
-        pulse_phase = None
-        for item in r.read_data():
-            if isinstance(item, mrd.StreamItem.Pulse):
-                pulse = item.value
-                if pulse_data is None:
-                    start_time = [pulse.head.pulse_time_stamp_ns]
-                    dt = pulse.head.sample_time_ns
-                    pulse_data = pulse.amplitude[..., np.newaxis]  # float 3D (channels, samples, measurements)
-                    pulse_phase = pulse.phase[..., np.newaxis]     # float 2D (samples, measurements)  
-                else:
-                    start_time.append(pulse.head.pulse_time_stamp_ns)
-                    pulse_data = np.concatenate([pulse_data, pulse.amplitude[..., np.newaxis]], axis=-1)
-                    pulse_phase = np.concatenate([pulse_phase, pulse.phase[..., np.newaxis]], axis=-1)
-    # return pulse_data, pulse_phase, start_time, dt
-    return pulse_data, pulse_phase
+    body_bytes = _fetch_mrd_bytes(file_id)
+    try:
+        with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as r:
+            r.read_header()
+            for item in r.read_data():
+                tag = _item_tag(item)
+                described = None if tag in _SKIP_TAGS else _describe_item(tag, item.value)
+                if described is None:
+                    unsupported[tag] = unsupported.get(tag, 0) + 1
+                    continue
+
+                kind, name, dim_labels, labels, extra_key = described
+                data = item.value.data
+                group_key = (tag, kind, name, extra_key, tuple(dim_labels),
+                             tuple(labels), tuple(data.shape))
+                group = groups.get(group_key)
+                if group is None:
+                    group = {"tag": tag, "kind": kind, "name": name, "labels": labels,
+                             "dim_labels": dim_labels, "chunks": []}
+                    groups[group_key] = group
+                group["chunks"].append(data)
+    except (RuntimeError, EOFError, ValueError) as exc:
+        # The MRD reader signals bad magic, a schema mismatch or truncation
+        # with these; all mean the stored object is not a readable MRD stream.
+        raise MrdContentError(file_id) from exc
+
+    arrays = []
+    used_names = {}
+    for ordinal, group in enumerate(groups.values()):
+        stacked = np.stack(group["chunks"], axis=-1)
+        transform = "none"
+        if np.iscomplexobj(stacked):
+            # JSON has no complex type; ship the magnitude and say so.
+            dtype = str(stacked.dtype)
+            stacked = np.abs(stacked)
+            transform = "magnitude"
+        else:
+            dtype = str(stacked.dtype)
+
+        if group["kind"] == "image":
+            stacked = _to_image_6d(stacked, group["dim_labels"])
+            dim_labels = list(_IMAGE_AXES) + ["MEASUREMENT"]
+        else:
+            stacked = _to_trace_3d(stacked)
+            dim_labels = ["SERIES", "SAMPLES", "MEASUREMENT"]
+
+        # Two arrays can legitimately share a name (same type, different shape);
+        # disambiguate so the dropdown stays readable.
+        name = group["name"]
+        used_names[name] = used_names.get(name, 0) + 1
+        if used_names[name] > 1:
+            name = f"{name} #{used_names[name]}"
+
+        arrays.append({
+            "key": f"{ordinal}-{group['tag']}-{_slug(name)}",
+            "name": name,
+            "kind": group["kind"],
+            "tag": group["tag"],
+            "shape": list(stacked.shape),
+            "dim_labels": dim_labels,
+            "labels": group["labels"],
+            "dtype": dtype,
+            "transform": transform,
+            "item_count": len(group["chunks"]),
+            "data": stacked,
+        })
+
+    return arrays, [{"tag": tag, "count": count} for tag, count in unsupported.items()]
+
+
+def list_mrd_arrays(file_id):
+    """
+    Describe every array the viewer can render from an MRD file, without
+    returning any bulk data.
+
+    @param file_id: file_id in mongodb of the mrd file
+    @return: (descriptors, unsupported)
+    """
+    arrays, unsupported = _walk_mrd_arrays(file_id)
+    return [{k: v for k, v in array.items() if k != "data"} for array in arrays], unsupported
+
+
+def get_mrd_array(file_id, key):
+    """
+    Fetch a single named array as JSON-serializable nested lists.
+
+    Values are returned unscaled — the old image endpoint multiplied everything
+    by 255/max of the *first* image, which clipped later measurements and threw
+    the units away. 'value_min'/'value_max' are supplied instead so callers can
+    fix the colour scale themselves.
+
+    @param file_id: file_id in mongodb of the mrd file
+    @param key: array key from list_mrd_arrays
+    @return: descriptor dict plus 'value_min', 'value_max' and 'data'
+    @raise UnknownArrayKey: if the file holds no array with that key
+    """
+    arrays, _ = _walk_mrd_arrays(file_id)
+    for array in arrays:
+        if array["key"] != key:
+            continue
+        data = array.pop("data")
+        finite = data[np.isfinite(data)]
+        array["value_min"] = float(finite.min()) if finite.size else 0.0
+        array["value_max"] = float(finite.max()) if finite.size else 0.0
+        # NaN/Inf would serialize to bare NaN/Infinity tokens, which JSON.parse
+        # rejects; and rounding trims a meaningful slice off these payloads.
+        array["data"] = np.round(np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0), 6).tolist()
+        return array
+    raise UnknownArrayKey(key)
+
 
 # Group management functions
 

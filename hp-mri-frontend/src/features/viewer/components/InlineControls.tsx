@@ -9,13 +9,16 @@ import {
   ToggleButton,
   ToggleButtonGroup
 } from '@mui/material';
+import { MrdArrayKind } from '../../../api/types';
 
 interface InlineControlsProps {
+  /** Which renderer the panel is showing; trace arrays have no spatial axes. */
+  kind: MrdArrayKind;
   channelIndex: number[];
   sliceIndex: number;
   metaboliteIndex: number;
   measurementIndex: number;
-  nmrLabels: string[];
+  labels: string[];
   setChannelIndex: (value: number[]) => void;
   setSliceIndex: (value: number) => void;
   setMetaboliteIndex: (value: number) => void;
@@ -27,11 +30,12 @@ interface InlineControlsProps {
 }
 
 const InlineControls: React.FC<InlineControlsProps> = ({
+  kind,
   channelIndex,
   sliceIndex,
   metaboliteIndex,
   measurementIndex,
-  nmrLabels,
+  labels,
   setChannelIndex,
   setSliceIndex,
   setMetaboliteIndex,
@@ -52,27 +56,40 @@ const InlineControls: React.FC<InlineControlsProps> = ({
     setMeasurementIndex(newValue);
   }, [setMeasurementIndex]);
 
+  // The max props are already the top valid index, so `>` is the right bound.
   const handleSliceInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
-    if (isNaN(newValue) || newValue < 0 || newValue >= maxSlices) return;
+    if (isNaN(newValue) || newValue < 0 || newValue > maxSlices) return;
     setSliceIndex(newValue);
   }, [setSliceIndex, maxSlices]);
 
   const handleMeasurementInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
-    if (isNaN(newValue) || newValue < 0 || newValue >= maxMeasurements) return;
+    if (isNaN(newValue) || newValue < 0 || newValue > maxMeasurements) return;
     setMeasurementIndex(newValue);
   }, [setMeasurementIndex, maxMeasurements]);
 
-  const metaboliteOptions = (nmrLabels && nmrLabels.length > 0)
-    ? nmrLabels.map((label, idx) => ({ label, idx }))
+  const metaboliteOptions = (labels && labels.length > 0)
+    ? labels.map((label, idx) => ({ label, idx }))
     : Array.from({ length: Math.max(0, maxMetabolites + 1) }, (_, idx) => ({ label: `Metabolite ${idx}`, idx }));
+
+  // Spatial axes only exist for image arrays, and an axis of length 1 has
+  // nothing to choose — hiding those keeps a six-panel grid readable.
+  const isImage = kind === 'image';
+  const showChannels = isImage && maxChannels > 0;
+  const showMetabolites = isImage && maxMetabolites > 0;
+  const showSlices = isImage && maxSlices > 0;
+  const showMeasurements = maxMeasurements > 0;
+
+  if (!showChannels && !showMetabolites && !showSlices && !showMeasurements) {
+    return null;
+  }
 
   return (
     <Box sx={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 0.25,
+      gap: 0.5,
       p: 1,
       backgroundColor: 'rgba(255,255,255,0.06)',
       borderTop: '1px solid rgba(255,255,255,0.15)',
@@ -80,7 +97,8 @@ const InlineControls: React.FC<InlineControlsProps> = ({
     }} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       
       {/* Channel Selection */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+      {showChannels && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Typography variant="caption" sx={{ color: '#ddd', fontWeight: 500, minWidth: 75 }}>Channels</Typography>
         <ToggleButtonGroup
           value={channelIndex}
@@ -114,9 +132,11 @@ const InlineControls: React.FC<InlineControlsProps> = ({
           ))}
         </ToggleButtonGroup>
       </Box>
+      )}
 
       {/* Metabolite Selection */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: -2 }}>
+      {showMetabolites && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Typography variant="caption" sx={{ color: '#ddd', fontWeight: 500, minWidth: 75 }}>Metabolite</Typography>
         <TextField
           select
@@ -176,9 +196,11 @@ const InlineControls: React.FC<InlineControlsProps> = ({
           ))}
         </TextField>
       </Box>
+      )}
 
       {/* Slice Control */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: -0.5 }}>
+      {showSlices && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <Typography variant="caption" sx={{ color: '#ddd', fontWeight: 500, minWidth: 75 }}>Slice</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
           <Slider
@@ -228,8 +250,10 @@ const InlineControls: React.FC<InlineControlsProps> = ({
           </Typography>
         </Box>
       </Box>
+      )}
 
       {/* Measurement Control */}
+      {showMeasurements && (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <Typography variant="caption" sx={{ color: '#ddd', fontWeight: 500, minWidth: 75 }}>Measurement</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
@@ -280,6 +304,7 @@ const InlineControls: React.FC<InlineControlsProps> = ({
           </Typography>
         </Box>
       </Box>
+      )}
     </Box>
   );
 };

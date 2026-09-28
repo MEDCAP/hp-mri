@@ -130,7 +130,7 @@ def test_file_list_treats_an_invalid_token_as_a_guest(client):
 def test_guest_sees_only_public_files_in_the_viewer(client):
     with mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value=None) as public, \
          mock.patch("app.viewer.routes.get_mrdfile_by_id_with_auth") as authed:
-        response = client.get(f"/api/viewer/{OID}")
+        response = client.get(f"/api/viewer/{OID}/arrays")
     assert response.status_code == 404
     public.assert_called_once_with(OID)
     authed.assert_not_called()
@@ -138,7 +138,7 @@ def test_guest_sees_only_public_files_in_the_viewer(client):
 
 def test_signed_in_user_is_checked_against_their_own_access(client, user):
     with mock.patch("app.viewer.routes.get_mrdfile_by_id_with_auth", return_value=None) as authed:
-        client.get(f"/api/viewer/{OID}", headers=user("sub-7"))
+        client.get(f"/api/viewer/{OID}/arrays", headers=user("sub-7"))
     authed.assert_called_once_with(OID, "sub-7")
 
 
@@ -146,6 +146,6 @@ def test_a_bad_token_on_an_optional_route_falls_back_to_guest(client):
     """optional_auth treats an invalid token as a guest, not an error."""
     with mock.patch("app.auth._decode_token", side_effect=ValueError("bad")), \
          mock.patch("app.viewer.routes.get_public_mrdfile_by_id", return_value=None) as public:
-        response = client.get(f"/api/viewer/{OID}", headers={"Authorization": "Bearer junk"})
+        response = client.get(f"/api/viewer/{OID}/arrays", headers={"Authorization": "Bearer junk"})
     assert response.status_code == 404
     public.assert_called_once()
