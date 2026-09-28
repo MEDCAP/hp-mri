@@ -2,6 +2,7 @@ from flask import jsonify, request, current_app, g
 import io
 import logging
 import os
+import tempfile
 from bson import json_util, ObjectId
 from bson.errors import InvalidId
 from botocore.exceptions import BotoCoreError, ClientError
@@ -16,13 +17,22 @@ from data import (
 )
 from app.auth import optional_auth, requires_auth
 from app.errors import ApiError, BadRequest, NotFound
+from app.jobs.service import start_job
+from app.tyger.runner import run_chain
+from app.tyger.stages import get_converter
 
 # flask blueprint for mrds route
 from . import mrds_bp
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {'.bin', '.mrd', '.mrd2'}
+# What each kind of upload may carry. An "mrd" upload is a file the viewer can
+# read as it stands; a "raw-tar" one is a scan folder that has to go through a
+# converter before anything can open it.
+UPLOAD_KINDS = {
+    "mrd": {'.bin', '.mrd', '.mrd2'},
+    "raw-tar": {'.tar'},
+}
 
 
 def _pagination():
@@ -104,15 +114,18 @@ def get_file_details(file_id):
 # leaves no database state. Abandoned staging objects are reaped by the bucket
 # lifecycle rule on UPLOAD_STAGING_PREFIX.
 
-def _validated_upload_fields(require_size=False):
+def _validated_upload_fields(require_size=False, kind=None):
     """
     Validate the JSON body shared by the upload endpoints.
 
-    init and complete both declare a filename and a groupName (null for
-    private); only init also declares a size. The owner comes from the token,
-    never the body.
+    init, complete and convert all declare a filename and a groupName (null
+    for private); only init also declares a size. The owner comes from the
+    token, never the body.
 
     @param require_size: also validate and return fileSize (init only)
+    @param kind: the upload kind whose extensions apply. None reads it from the
+                 body (default "mrd"), which is how init learns what the client
+                 is about to stage; complete and convert each name their own.
     @return: (filename, group_name or None, file_size or None)
     @raise BadRequest: on any invalid or missing field
     @raise ApiError(403): if the caller is not a member of groupName
@@ -121,11 +134,17 @@ def _validated_upload_fields(require_size=False):
     filename = body.get("filename")
     group_name = body.get("groupName") or None
 
-    if not filename:
+    if kind is None:
+        kind = body.get("kind") or "mrd"
+    allowed = UPLOAD_KINDS.get(kind) if isinstance(kind, str) else None
+    if allowed is None:
+        raise BadRequest(f"Unknown upload kind. Supported: {', '.join(sorted(UPLOAD_KINDS))}")
+
+    if not filename or not isinstance(filename, str):
         raise BadRequest("filename is required")
     file_ext = os.path.splitext(filename)[1].lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        supported = ', '.join(sorted(ALLOWED_EXTENSIONS))
+    if file_ext not in allowed:
+        supported = ', '.join(sorted(allowed))
         raise BadRequest(f"File type {file_ext} not allowed. Supported: {supported}")
     if group_name is not None and not is_group_member(group_name, g.user_sub):
         raise ApiError("You are not a member of that group", code="forbidden", status=403)
@@ -149,6 +168,47 @@ def _staging_key(upload_id):
     complete and abort can only ever touch the caller's own staged objects.
     """
     return f"{current_app.config['UPLOAD_STAGING_PREFIX']}{g.user_sub}/{upload_id}"
+
+
+def _staged_size(s3, bucket, staging_key):
+    """
+    Size of the caller's staged object, enforcing the upload limit.
+
+    A presigned PUT cannot cap its own size, so this is where the limit is
+    actually enforced; an oversize object is deleted.
+
+    @raise NotFound: nothing is staged under that key
+    @raise BadRequest: the staged object exceeds MAX_UPLOAD_BYTES
+    """
+    try:
+        head = s3.head_object(Bucket=bucket, Key=staging_key)
+    except ClientError as exc:
+        # A genuinely unreachable S3 is a 503 from the shared handler; only a
+        # missing staged object is the client's problem.
+        code = str(exc.response.get("Error", {}).get("Code", ""))
+        if code not in ("404", "NoSuchKey", "NotFound"):
+            raise
+        raise NotFound(
+            "Uploaded object not found. The upload may have failed or expired."
+        ) from None
+
+    actual_size = head['ContentLength']
+    max_bytes = current_app.config['MAX_UPLOAD_BYTES']
+    if actual_size > max_bytes:
+        s3.delete_object(Bucket=bucket, Key=staging_key)
+        raise BadRequest(f"File exceeds the maximum upload size of {max_bytes} bytes")
+    return actual_size
+
+
+def _discard_staged(s3, bucket, staging_key):
+    """
+    Drop a staged object once it has been promoted. Best effort: a leftover is
+    harmless and the staging prefix lifecycle rule expires it.
+    """
+    try:
+        s3.delete_object(Bucket=bucket, Key=staging_key)
+    except (ClientError, BotoCoreError):
+        logger.warning("failed to clean up staging object %s", staging_key, exc_info=True)
 
 
 def _parse_upload_id(upload_id):
@@ -204,31 +264,12 @@ def complete_upload(upload_id):
     if object_id is None:
         raise BadRequest("Invalid upload id")
 
-    filename, group_name, _file_size = _validated_upload_fields()
+    filename, group_name, _file_size = _validated_upload_fields(kind="mrd")
 
     s3 = get_s3_client()
     bucket = current_app.config['S3_BUCKET']
     staging_key = _staging_key(object_id)
-
-    try:
-        head = s3.head_object(Bucket=bucket, Key=staging_key)
-    except ClientError as exc:
-        # A genuinely unreachable S3 is a 503 from the shared handler; only a
-        # missing staged object is the client's problem.
-        code = str(exc.response.get("Error", {}).get("Code", ""))
-        if code not in ("404", "NoSuchKey", "NotFound"):
-            raise
-        raise NotFound(
-            "Uploaded object not found. The upload may have failed or expired."
-        ) from None
-
-    # A presigned PUT cannot cap its own size, so this is where the limit is
-    # actually enforced.
-    actual_size = head['ContentLength']
-    max_bytes = current_app.config['MAX_UPLOAD_BYTES']
-    if actual_size > max_bytes:
-        s3.delete_object(Bucket=bucket, Key=staging_key)
-        raise BadRequest(f"File exceeds the maximum upload size of {max_bytes} bytes")
+    actual_size = _staged_size(s3, bucket, staging_key)
 
     obj = s3.get_object(Bucket=bucket, Key=staging_key)
     metadata = read_mrdfile_header(
@@ -250,12 +291,7 @@ def complete_upload(upload_id):
 
     inserted_id = insert_mrdfile_header({**metadata, "s3_key": s3_key}, doc_id=object_id)
 
-    # Best effort -- a leftover staging object is harmless and the lifecycle rule
-    # will expire it.
-    try:
-        s3.delete_object(Bucket=bucket, Key=staging_key)
-    except (ClientError, BotoCoreError):
-        logger.warning("failed to clean up staging object %s", staging_key, exc_info=True)
+    _discard_staged(s3, bucket, staging_key)
 
     # Mongo values (datetime, ObjectId) are not JSON-serializable as-is.
     serializable_metadata = {k: str(v) for k, v in metadata.items()}
@@ -265,6 +301,72 @@ def complete_upload(upload_id):
         "s3_key": s3_key,
         "metadata": serializable_metadata,
     }), 201
+
+
+@mrds_bp.route("/uploads/<upload_id>/convert", methods=["POST"])
+@requires_auth
+def convert_upload(upload_id):
+    """
+    Convert the caller's staged raw tar into an MRD file, as a background job.
+
+    Same sequence as complete, with a converter between the download and the
+    header parse, and so a job rather than a response: the converter runs for
+    minutes and gunicorn kills a request at 60 seconds. The file is owned by
+    the caller and shared with groupName, exactly as complete would record it.
+    """
+    object_id = _parse_upload_id(upload_id)
+    if object_id is None:
+        raise BadRequest("Invalid upload id")
+
+    filename, group_name, _file_size = _validated_upload_fields(kind="raw-tar")
+
+    converter = (request.get_json(silent=True) or {}).get("converter")
+    if not converter:
+        raise BadRequest("converter is required")
+    get_converter(converter)
+
+    bucket = current_app.config['S3_BUCKET']
+    staging_key = _staging_key(object_id)
+    _staged_size(get_s3_client(), bucket, staging_key)
+
+    # Read here rather than in the thread, which has no request context.
+    owner_id, owner_name = g.user_sub, g.user_name
+    s3_key = f"mrd_files/{str(object_id)}"
+    stages = [{"id": converter}]
+
+    def work(handle):
+        with tempfile.TemporaryFile() as staged:
+            handle.s3.download_fileobj(bucket, staging_key, staged)
+            staged.seek(0)
+            with run_chain(stages, staged, stage_context=handle.stage) as converted:
+                size = converted.seek(0, os.SEEK_END)
+                converted.seek(0)
+                metadata = read_mrdfile_header(
+                    converted,
+                    owner_name=owner_name,
+                    original_filename=filename,
+                    file_size=size,
+                )
+
+                # Uploaded before the document is written, so a listed file
+                # always has an object behind it.
+                converted.seek(0)
+                handle.s3.upload_fileobj(converted, bucket, s3_key)
+
+        metadata.pop("parse_error", None)
+        insert_mrdfile_header(
+            {**metadata, "ownerId": owner_id, "groupName": group_name, "s3_key": s3_key},
+            doc_id=object_id,
+        )
+        _discard_staged(handle.s3, bucket, staging_key)
+        return str(object_id)
+
+    job_id = start_job(
+        "convert",
+        {"stages": stages, "stagingUploadId": str(object_id)},
+        work,
+    )
+    return jsonify({"jobId": job_id}), 202
 
 
 @mrds_bp.route("/uploads/<upload_id>/abort", methods=["POST"])
