@@ -6,9 +6,9 @@
  * change them cannot be applied, it can only be fixed in HCL. If you see one,
  * stop -- do not reach for -replace.
  *
- * Note what this module does NOT do: the backend never validates the tokens
- * this pool issues. Cognito is client-side only today, so the pool is an
- * identity source and not, yet, an access control.
+ * The backend validates the ID tokens this pool issues (@requires_auth and
+ * @optional_auth in server/app/auth.py), so the pool is the API's access
+ * control, not only an identity source.
  */
 terraform {
   required_version = "~> 1.9"
