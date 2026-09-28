@@ -17,6 +17,7 @@ File metadata lives in MongoDB Atlas; MRD files live in S3.
   - `data.py` — MongoDB and S3 access
   - `config.py`
   - `tests/`
+- `terraform/` — AWS infrastructure; see `terraform/README.md`
 - `server/app/external/` — git submodule `MEDCAP/mrd-fork` (branch `dev`), the MRD
   library. Read-only here.
 
@@ -28,6 +29,7 @@ cd server && ./setup_aws.sh && python run.py          # API on :5000
 cd server && pytest                                   # unit tests
 docker compose -f docker-compose.test.yml up -d       # local MongoDB for integration tests
 cd server && MONGO_TEST_URI=mongodb://localhost:27017 pytest
+pylint server                                         # from repo root; floor is fail-under in .pylintrc
 cd hp-mri-frontend && npm install && npm run dev      # SPA on :5173, /api proxied to :5000
 npm run build && npm run lint
 ```
@@ -185,6 +187,13 @@ readable MRD stream. A file with nothing renderable returns `arrays: []`.
 - **Frontend pages:** pages inside `MRDLayout` do not render their own header.
 - **Tests:** new or changed routes get tests in `server/tests/`. Visibility and
   permission behaviour is tested in `test_access_integration.py`.
+- **CI** (`.github/workflows/ci.yml`): `pylint server`, `pytest` with a real
+  MongoDB, frontend build (blocking) and lint (non-blocking), backend image
+  build. Raise `fail-under` in `.pylintrc` as the score rises; never lower it.
+  Every job that touches AWS runs only when the repo variable `DEPLOY_ENABLED`
+  is `true`; prod Terraform applies only on manual dispatch. The backend deploy
+  needs Environment variables `ECS_CONTAINER_NAME` (`hpmri-api`) and
+  `PUBLIC_BASE_URL`.
 - **Secrets:** never commit `server/.env.development`. It holds temporary AWS
   credentials; regenerate with `server/setup_aws.sh`.
 - **Local files:** ignore `server/.medcap/` and `server/venv/`.
