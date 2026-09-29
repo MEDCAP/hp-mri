@@ -75,6 +75,9 @@ def test_a_new_job_is_queued_with_every_stage_queued(app, monkeypatch):
             pass
 
     monkeypatch.setattr("app.jobs.service._jobs", FakeCollection)
+    # Only the inserted document is under test; a real job thread would build
+    # a boto3 client, whose credential lookup can reach the EC2 metadata endpoint.
+    monkeypatch.setattr("app.jobs.service._run_job", lambda *args: None)
 
     with app.test_request_context("/api/recon"):
         _signed_in("user-1", "kento")
@@ -101,6 +104,8 @@ def test_an_unknown_stage_fails_the_request_not_the_thread(app):
 
 # --- lifecycle against a real database --------------------------------------
 
+# fake_s3: the job thread builds its own S3 client, kept off the network.
+@pytest.mark.usefixtures("fake_s3")
 def test_a_job_runs_queued_then_running_then_succeeded(db_app, monkeypatch):
     monkeypatch.setattr("app.tyger.runner.subprocess.run", _fake_tyger())
 
@@ -137,6 +142,7 @@ def test_a_job_runs_queued_then_running_then_succeeded(db_app, monkeypatch):
     assert all(s["started_at"] and s["ended_at"] for s in finished["stages"])
 
 
+@pytest.mark.usefixtures("fake_s3")
 def test_a_failing_stage_records_a_safe_message_and_logs_the_rest(
     db_app, db_client, user, monkeypatch, caplog
 ):
