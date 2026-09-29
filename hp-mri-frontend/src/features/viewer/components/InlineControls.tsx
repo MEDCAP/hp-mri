@@ -10,10 +10,15 @@ import {
   ToggleButtonGroup
 } from '@mui/material';
 import { MrdArrayKind } from '../../../api/types';
+import { ViewKind, VoxelSelection } from '../hooks/useViewerState';
 
 interface InlineControlsProps {
   /** Which renderer the panel is showing; trace arrays have no spatial axes. */
   kind: MrdArrayKind;
+  /** Which view the panel is showing; each uses a different subset of these. */
+  viewKind: ViewKind;
+  voxel: VoxelSelection | null;
+  setVoxel: (voxel: VoxelSelection) => void;
   channelIndex: number[];
   sliceIndex: number;
   metaboliteIndex: number;
@@ -31,6 +36,9 @@ interface InlineControlsProps {
 
 const InlineControls: React.FC<InlineControlsProps> = ({
   kind,
+  viewKind,
+  voxel,
+  setVoxel,
   channelIndex,
   sliceIndex,
   metaboliteIndex,
@@ -69,19 +77,38 @@ const InlineControls: React.FC<InlineControlsProps> = ({
     setMeasurementIndex(newValue);
   }, [setMeasurementIndex, maxMeasurements]);
 
+  const handleVoxelInputChange = useCallback(
+    (axis: 'row' | 'col') => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const next = parseInt(e.target.value);
+      if (isNaN(next) || next < 0) return;
+      setVoxel(axis === 'row'
+        ? { row: next, col: voxel?.col ?? 0 }
+        : { row: voxel?.row ?? 0, col: next });
+    },
+    [setVoxel, voxel]
+  );
+
   const metaboliteOptions = (labels && labels.length > 0)
     ? labels.map((label, idx) => ({ label, idx }))
     : Array.from({ length: Math.max(0, maxMetabolites + 1) }, (_, idx) => ({ label: `Metabolite ${idx}`, idx }));
 
   // Spatial axes only exist for image arrays, and an axis of length 1 has
-  // nothing to choose — hiding those keeps a six-panel grid readable.
+  // nothing to choose — hiding those keeps a six-panel grid readable. Each of
+  // the other views drives a different subset of the same controls.
   const isImage = kind === 'image';
-  const showChannels = isImage && maxChannels > 0;
-  const showMetabolites = isImage && maxMetabolites > 0;
-  const showSlices = isImage && maxSlices > 0;
-  const showMeasurements = maxMeasurements > 0;
+  const isArrayView = viewKind === 'array';
+  const showChannels = isArrayView && isImage && maxChannels > 0;
+  const showMetabolites = isArrayView && isImage && maxMetabolites > 0;
+  const showSlices = isArrayView && isImage && maxSlices > 0;
+  const showMeasurements =
+    (isArrayView || viewKind === 'maps' || viewKind === 'spectrum') && maxMeasurements > 0;
+  const showVoxelReadout = viewKind === 'maps';
+  const showVoxelPicker = viewKind === 'spectrum';
 
-  if (!showChannels && !showMetabolites && !showSlices && !showMeasurements) {
+  if (
+    !showChannels && !showMetabolites && !showSlices && !showMeasurements
+    && !showVoxelReadout && !showVoxelPicker
+  ) {
     return null;
   }
 
@@ -303,6 +330,46 @@ const InlineControls: React.FC<InlineControlsProps> = ({
             / {maxMeasurements}
           </Typography>
         </Box>
+      </Box>
+      )}
+
+      {/* Voxel readout, set by clicking a tile of the montage */}
+      {showVoxelReadout && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="caption" sx={{ color: '#ddd', fontWeight: 500, minWidth: 75 }}>Voxel</Typography>
+        <Typography variant="caption" sx={{ color: '#999', fontSize: '0.7rem' }}>
+          {voxel ? `row ${voxel.row}, col ${voxel.col}` : 'click a voxel to select it'}
+        </Typography>
+      </Box>
+      )}
+
+      {/* Voxel picker */}
+      {showVoxelPicker && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="caption" sx={{ color: '#ddd', fontWeight: 500, minWidth: 75 }}>Voxel</Typography>
+        {(['row', 'col'] as const).map(axis => (
+          <Box key={axis} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="caption" sx={{ color: '#999', fontSize: '0.7rem' }}>{axis}</Typography>
+            <OutlinedInput
+              size="small"
+              value={voxel?.[axis] ?? 0}
+              onChange={handleVoxelInputChange(axis)}
+              sx={{
+                width: 60,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#fff',
+                '& fieldset': { border: 'none' },
+                '& input': {
+                  color: '#fff',
+                  fontSize: '0.75rem',
+                  textAlign: 'center',
+                  padding: '4px 8px'
+                }
+              }}
+            />
+          </Box>
+        ))}
       </Box>
       )}
     </Box>

@@ -67,6 +67,10 @@ def create_app():
     app.register_blueprint(viewer_bp, url_prefix="/api")
     from app.groups import groups_bp
     app.register_blueprint(groups_bp, url_prefix="/api")
+    from app.recon import recon_bp
+    app.register_blueprint(recon_bp, url_prefix="/api")
+    from app.jobs import jobs_bp
+    app.register_blueprint(jobs_bp, url_prefix="/api")
 
     # Health check endpoint for AWS ALB
     @app.route("/api/health", methods=["GET"])

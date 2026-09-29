@@ -9,7 +9,8 @@ import {
   CloudDownload,
   Delete,
   UploadFile,
-  Refresh
+  Refresh,
+  PlayArrow
 } from '@mui/icons-material';
 
 interface FilesToolbarProps {
@@ -18,6 +19,7 @@ interface FilesToolbarProps {
   /** Guests only get search: the actions need a signed-in user. */
   showActions: boolean;
   onUploadClick: () => void;
+  onReconstructClick: () => void;
   onRefresh: () => void;
   onDelete: () => void;
   isAnyFileSelected: boolean;
@@ -28,6 +30,7 @@ const FilesToolbar: React.FC<FilesToolbarProps> = ({
   onSearchChange,
   showActions,
   onUploadClick,
+  onReconstructClick,
   onRefresh,
   onDelete,
   isAnyFileSelected,
@@ -46,6 +49,11 @@ const FilesToolbar: React.FC<FilesToolbarProps> = ({
           <Tooltip title="Upload new file">
             <Button variant="outlined" startIcon={<UploadFile />} onClick={onUploadClick} sx={{ flex: 1 }}>
               Upload
+            </Button>
+          </Tooltip>
+          <Tooltip title="Run a reconstruction pipeline over a file">
+            <Button variant="outlined" startIcon={<PlayArrow />} onClick={onReconstructClick} sx={{ flex: 1 }}>
+              Reconstruct
             </Button>
           </Tooltip>
           <Tooltip title="Refresh MRD files">

@@ -1,6 +1,20 @@
 import React from 'react';
-import { Paper, Box, Typography, Chip, Fade, Grow, Zoom, styled, alpha } from '@mui/material';
-import { CloudUpload } from '@mui/icons-material';
+import { Paper, Box, Typography, Chip, Button, Fade, Grow, Zoom, styled, alpha } from '@mui/material';
+import { CloudUpload, InsertDriveFile, FolderOpen } from '@mui/icons-material';
+
+/**
+ * `webkitdirectory` is how a browser offers a folder picker, and React's DOM
+ * typings do not carry it.
+ */
+declare module 'react' {
+  // The type parameter is unused here but has to match React's declaration for
+  // the two to merge.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface InputHTMLAttributes<T> {
+    webkitdirectory?: string;
+    directory?: string;
+  }
+}
 
 const UploadZone = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isDragOver'
@@ -61,8 +75,11 @@ interface UploadDropzoneProps {
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
   onBrowseClick: () => void;
+  onBrowseFoldersClick: () => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
+  folderInputRef: React.RefObject<HTMLInputElement>;
   onFileInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFolderInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const UploadDropzone: React.FC<UploadDropzoneProps> = ({
@@ -71,8 +88,11 @@ const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   onDragLeave,
   onDrop,
   onBrowseClick,
+  onBrowseFoldersClick,
   fileInputRef,
+  folderInputRef,
   onFileInputChange,
+  onFolderInputChange,
 }) => {
   return (
     <>
@@ -93,16 +113,41 @@ const UploadDropzone: React.FC<UploadDropzoneProps> = ({
 
             <Grow in={true} timeout={700}>
               <Typography variant="h6" gutterBottom fontWeight="medium">
-                Drop MRD files here
+                Drop MRD files or scan folders here
               </Typography>
             </Grow>
 
             <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-              or click to browse files
+              A scan folder is converted on the cluster; an MRD file is read as it is.
             </Typography>
 
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mb: 2 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<InsertDriveFile />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBrowseClick();
+                }}
+              >
+                Browse files
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<FolderOpen />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBrowseFoldersClick();
+                }}
+              >
+                Browse folders
+              </Button>
+            </Box>
+
             <Chip
-              label="Supported: .bin, .mrd, .mrd2"
+              label="Files: .bin, .mrd, .mrd2 · Folders: one per experiment"
               size="small"
               variant="outlined"
               color="primary"
@@ -118,6 +163,17 @@ const UploadDropzone: React.FC<UploadDropzoneProps> = ({
         multiple
         accept=".bin,.mrd,.mrd2"
         onChange={(e) => onFileInputChange(e)}
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden folder input; each picked file carries its webkitRelativePath */}
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        webkitdirectory=""
+        directory=""
+        onChange={(e) => onFolderInputChange(e)}
         style={{ display: 'none' }}
       />
     </>

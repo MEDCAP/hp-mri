@@ -208,6 +208,12 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
+# What an unparseable file's document records as parse_error. The exception
+# itself goes to the log: its text can carry paths and library internals, and
+# GET /mrd-files/<id> returns the document as stored.
+PARSE_ERROR_MESSAGE = "The file could not be read as an MRD stream."
+
+
 def read_mrdfile_header(source, owner_name=None, original_filename=None, file_size=None):
     """
     Read the mrd file header as dict in mongodb mrd-files collection format
@@ -257,11 +263,9 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
                 "file_size": file_size
             }
         return header_for_db
-    except Exception as e:
+    except Exception:  # pylint: disable=broad-except
         # Not a failure path: an unparseable file is still stored, with basic
-        # metadata and the reason recorded so the uploader can see why. The full
-        # traceback goes to the log; parse_error keeps the short reason, which is
-        # genuinely useful to the researcher who uploaded it.
+        # metadata and a fixed parse_error. The traceback goes to the log only.
         logger.warning("MRD parsing failed for %s", original_filename, exc_info=True)
         # Create basic metadata for files that can't be parsed as MRD
         filename = original_filename
@@ -282,7 +286,7 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
             "original_filename": filename,
             "upload_timestamp": datetime.utcnow(),
             "file_size": file_size,
-            "parse_error": str(e)
+            "parse_error": PARSE_ERROR_MESSAGE
         }
         return basic_metadata
 
@@ -474,6 +478,38 @@ def _meta_string(meta):
     return None
 
 
+def _meta_values(meta):
+    """
+    Every meta entry, unwrapped from its union case, as {key: [value, ...]}.
+
+    A key maps to a list because several of the ones the viewer needs hold one
+    value per peak: peak_names and peak_offsets_ppm are the fitted pattern, and
+    a scalar like fit_loss is simply a list of one. Values are converted by
+    their union tag so what leaves here is always JSON-safe.
+    """
+    values_by_key = {}
+    for key, entries in (meta or {}).items():
+        unwrapped = []
+        for entry in entries or []:
+            tag = getattr(entry, "tag", None)
+            raw = getattr(entry, "value", None)
+            try:
+                if tag == "string":
+                    unwrapped.append(str(raw))
+                elif tag == "int64":
+                    unwrapped.append(int(raw))
+                elif tag == "float64":
+                    number = float(raw)
+                    # A fit that did not converge records a NaN loss, and bare
+                    # NaN is not JSON.
+                    unwrapped.append(number if np.isfinite(number) else None)
+            except (TypeError, ValueError):
+                continue
+        if unwrapped:
+            values_by_key[str(key)] = unwrapped
+    return values_by_key
+
+
 def _freq_labels(head):
     """measurement_frequency_label as a list of str; [] when absent."""
     raw = getattr(head, "measurement_frequency_label", None)
@@ -505,15 +541,21 @@ def _describe_item(tag, value):
     """
     Classify one stream item.
 
-    @return: (kind, name, dim_labels, labels, extra_key) or None if the item
-             carries no usable ndarray.
+    @return: (kind, name, dim_labels, labels, extra_key, meta) or None if the
+             item carries no usable ndarray.
     """
     data = getattr(value, "data", None)
     if not isinstance(data, np.ndarray) or data.size == 0:
         return None
 
     head = getattr(value, "head", None)
-    meta_name = _meta_string(getattr(value, "meta", None) or getattr(head, "meta", None))
+    raw_meta = getattr(value, "meta", None) or getattr(head, "meta", None)
+    meta_name = _meta_string(raw_meta)
+    # Carried through rather than read here: xscale_ppm, peak_names,
+    # peak_offsets_ppm, biggest_peak_index, biggest_peak_name and fit_loss are
+    # what the fitted-spectrum and metabolite-map figures are drawn from, and
+    # this is the only place they are in hand.
+    meta = _meta_values(raw_meta)
     labels = _freq_labels(head)
 
     if tag.startswith("ndArray"):
@@ -522,12 +564,13 @@ def _describe_item(tag, value):
         # An NdArray is an image when it is laid out over both spatial axes.
         is_image = "Y" in dim_labels and "X" in dim_labels
         name = meta_name or (_prettify(array_type) if array_type else "NdArray")
-        return ("image" if is_image else "trace", name, dim_labels, labels, array_type)
+        return ("image" if is_image else "trace", name, dim_labels, labels,
+                array_type, meta)
 
     if tag.startswith("waveform"):
         waveform_id = getattr(value, "waveform_id", None)
         name = meta_name or (f"Waveform {waveform_id}" if waveform_id is not None else "Waveform")
-        return ("trace", name, ["CHANNEL", "SAMPLES"], labels, None)
+        return ("trace", name, ["CHANNEL", "SAMPLES"], labels, None, meta)
 
     if tag.startswith("image"):
         image_type = _enum_name(getattr(head, "image_type", None))
@@ -541,7 +584,8 @@ def _describe_item(tag, value):
                 shown = ", ".join(labels[:3]) + ("…" if len(labels) > 3 else "")
                 name = f"{name} ({shown})"
         dim_labels = list(_IMAGE_AXES) if data.ndim == 5 else []
-        return ("image" if is_image else "trace", name, dim_labels, labels, image_type)
+        return ("image" if is_image else "trace", name, dim_labels, labels,
+                image_type, meta)
 
     return None
 
@@ -616,14 +660,18 @@ def _walk_mrd_arrays(file_id):
                     unsupported[tag] = unsupported.get(tag, 0) + 1
                     continue
 
-                kind, name, dim_labels, labels, extra_key = described
+                kind, name, dim_labels, labels, extra_key, meta = described
                 data = item.value.data
                 group_key = (tag, kind, name, extra_key, tuple(dim_labels),
                              tuple(labels), tuple(data.shape))
                 group = groups.get(group_key)
                 if group is None:
+                    # The first item's meta stands for the group. A stacked
+                    # array is one array measured repeatedly, and what the
+                    # figures read off the meta -- the ppm axis, the peak
+                    # pattern -- describes the array, not the repetition.
                     group = {"tag": tag, "kind": kind, "name": name, "labels": labels,
-                             "dim_labels": dim_labels, "chunks": []}
+                             "dim_labels": dim_labels, "meta": meta, "chunks": []}
                     groups[group_key] = group
                 group["chunks"].append(data)
     except (RuntimeError, EOFError, ValueError) as exc:
@@ -666,6 +714,7 @@ def _walk_mrd_arrays(file_id):
             "shape": list(stacked.shape),
             "dim_labels": dim_labels,
             "labels": group["labels"],
+            "meta": group["meta"],
             "dtype": dtype,
             "transform": transform,
             "item_count": len(group["chunks"]),
@@ -714,6 +763,325 @@ def get_mrd_array(file_id, key):
         array["data"] = np.round(np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0), 6).tolist()
         return array
     raise UnknownArrayKey(key)
+
+
+# ---------------------------------------------------------------------------
+# k-space
+#
+# Acquisitions stay out of the array endpoints above: a raw file holds thousands
+# and shipping k-space as JSON is not viable. What is viable is the reduction
+# mrdplot.py::plot_kspace draws, which is the picture the science is actually
+# read off. Every sample of an EPSI readout falls at one of `total` positions
+# inside a gradient switch, so folding a readout on the switch count and summing
+# over views and repetitions turns thousands of acquisitions into one
+# nswitch x total image per encoding. The echo should sit on one column in every
+# row; an echo that walks across the columns is the drift the shift stage takes
+# out.
+# ---------------------------------------------------------------------------
+
+_NOISE_MEASUREMENT_FLAG = int(
+    getattr(getattr(mrd, "AcquisitionFlags", None), "IS_NOISE_MEASUREMENT", 1 << 18)
+)
+
+
+def _header_nswitches(header):
+    """The switch count the converter recorded, or 0 for a file with no EPSI readout."""
+    parameters = getattr(header, "user_parameters", None)
+    for item in getattr(parameters, "user_parameter_long", None) or []:
+        if getattr(item, "name", None) == "nswitches":
+            try:
+                return int(item.value)
+            except (TypeError, ValueError):
+                return 0
+    return 0
+
+
+def _encoding_name(header, ref):
+    """What to call an encoding space in the UI."""
+    encodings = getattr(header, "encoding", None) or []
+    if ref < len(encodings):
+        description = getattr(encodings[ref], "trajectory_description", None)
+        identifier = getattr(description, "identifier", None)
+        if identifier:
+            return str(identifier)
+        trajectory = _enum_name(getattr(encodings[ref], "trajectory", None))
+        if trajectory:
+            return f"{_prettify(trajectory)} encoding {ref}"
+    return f"encoding {ref}"
+
+
+def _readout(acquisition):
+    """The magnitude of an acquisition's first channel, or None."""
+    data = np.asarray(getattr(acquisition, "data", None))
+    if data.size == 0:
+        return None
+    return np.abs(data[0] if data.ndim > 1 else data)
+
+
+class _SwitchFold:
+    """
+    One encoding's acquisitions, summed position-within-switch against switch.
+
+    Held as a running sum rather than a list of readouts: the sum is the whole
+    answer and a raw encoding is thousands of readouts wide.
+    """
+
+    def __init__(self, acquisition, nswitch):
+        head = getattr(acquisition, "head", None)
+        row = _readout(acquisition)
+        self.samples = 0 if row is None else int(row.size)
+        self.total = self.samples // nswitch
+        self.discard_pre = int(getattr(head, "discard_pre", 0) or 0)
+        self.discard_post = int(getattr(head, "discard_post", 0) or 0)
+        # Decided on the first acquisition, as mrdplot does: the averaged
+        # prescan calibrates a reconstruction rather than being reconstructed,
+        # and its own drift says nothing about the series beside it.
+        self.prescan = bool(int(getattr(head, "flags", 0) or 0)
+                            & _NOISE_MEASUREMENT_FLAG)
+        self.foldable = self.total >= 2 and not self.prescan
+        self.signal = (np.zeros((nswitch, self.total), dtype=float)
+                       if self.foldable else None)
+        self.nswitch = nswitch
+        self.summed = 0
+        self.seen = 0
+
+    def add(self, acquisition):
+        self.seen += 1
+        if not self.foldable:
+            return
+        row = _readout(acquisition)
+        # An acquisition at another geometry belongs in no row of this image.
+        if row is None or row.size != self.samples:
+            return
+        used = self.nswitch * self.total
+        self.signal += row[:used].reshape(self.nswitch, self.total)
+        self.summed += 1
+
+    def summary(self, ref, name):
+        kept = self.total - self.discard_pre - self.discard_post
+        return {
+            "ref": ref,
+            "name": name,
+            "total": self.total,
+            "discard_pre": self.discard_pre,
+            # what make_buffer keeps: whatever the two discards leave of the
+            # switch, which is the readout axis the reconstruction transforms
+            "kept": kept,
+            # the echo belongs at the middle of the kept window, where k-space
+            # crosses zero
+            "echo": self.discard_pre + kept // 2 if kept > 0 else None,
+            "signal": np.round(self.signal, 6).tolist(),
+            "brightest": [int(column) for column in np.argmax(self.signal, axis=1)],
+        }
+
+
+def fold_kspace(nswitch, acquisitions, header=None):
+    """
+    Fold acquisitions on the gradient switch, one entry per encoding space.
+
+    @param nswitch: the switch count the file's header records
+    @param acquisitions: an iterable of Acquisition, in the order the file holds
+                         them. mrdplot sorts by time stamp first; the sum does
+                         not depend on the order, and the values that do come
+                         from each encoding's first acquisition either way.
+    @return: a list of encoding summaries; empty when nothing could be folded
+    """
+    if nswitch <= 1:
+        return []
+
+    folds = OrderedDict()
+    for acquisition in acquisitions:
+        head = getattr(acquisition, "head", None)
+        ref = int(getattr(head, "encoding_space_ref", 0) or 0)
+        fold = folds.get(ref)
+        if fold is None:
+            fold = folds[ref] = _SwitchFold(acquisition, nswitch)
+        fold.add(acquisition)
+
+    return [fold.summary(ref, _encoding_name(header, ref))
+            for ref, fold in sorted(folds.items()) if fold.foldable]
+
+
+def reduce_kspace(file_id):
+    """
+    The k-space of a stored file, folded on the gradient switch.
+
+    @param file_id: file_id in mongodb of the mrd file
+    @return: {'nswitch', 'encodings'}, or None when the file carries no EPSI
+             readout to fold — which is how a spectral file looks.
+    @raise MrdContentError: the stored object is not a readable MRD stream
+    """
+    body_bytes = _fetch_mrd_bytes(file_id)
+    try:
+        with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as reader:
+            header = reader.read_header()
+            nswitch = _header_nswitches(header)
+            acquisitions = (item.value for item in reader.read_data()
+                            if _item_tag(item) == "acquisition")
+            # The stream is read to the end either way: the reader refuses to
+            # close on a stream it has not finished.
+            encodings = fold_kspace(nswitch, acquisitions, header) if nswitch > 1 else []
+            for _ in acquisitions:
+                pass
+    except (RuntimeError, EOFError, ValueError) as exc:
+        raise MrdContentError(file_id) from exc
+
+    if not encodings:
+        return None
+    return {"nswitch": nswitch, "encodings": encodings}
+
+
+# ---------------------------------------------------------------------------
+# Waveforms
+#
+# The pulse, gradient and acquisition time-series mrdplot's first figure draws.
+# Decimated here rather than in the browser: a scan is minutes of samples and
+# the point of the figure is the shape, not every sample of it.
+#
+# Pulses and gradients are read by stream tag, like everything else in this
+# file, and the pinned revision of the MRD fork carries neither as a stream
+# item. They come back empty for every file that revision can write, and start
+# appearing the day the fork does, with nothing here to change.
+# ---------------------------------------------------------------------------
+
+_WAVEFORM_MAX_POINTS = 2000
+_WAVEFORM_MAX_TRACES = 24
+
+_NS = 1.0e-9
+
+
+def _decimated(times, values, max_points):
+    """One trace, thinned to at most max_points samples."""
+    samples = int(len(values))
+    stride = max(1, -(-samples // max_points))
+    return {
+        "t": [round(float(t), 9) for t in times[::stride]],
+        "values": [round(float(v), 6) for v in values[::stride]],
+        "samples": samples,
+        "stride": stride,
+    }
+
+
+def _timeline(count, start_ns, step_ns, offset=0):
+    """Sample times in seconds, from a start stamp and a sample interval."""
+    return (np.arange(count) + offset) * (float(step_ns or 0) * _NS) + \
+        float(start_ns or 0) * _NS
+
+
+def _pulse_traces(pulse, index, max_points):
+    amplitude = np.asarray(getattr(pulse, "amplitude", None))
+    if amplitude.size == 0:
+        return []
+    head = getattr(pulse, "head", None)
+    if amplitude.ndim == 1:
+        amplitude = amplitude[np.newaxis, :]
+
+    traces = []
+    for channel in range(amplitude.shape[0]):
+        # A zero either side, so a pulse reads as a shape on the line rather
+        # than as a step out of nowhere.
+        values = np.concatenate(([0.0], amplitude[channel], [0.0]))
+        times = _timeline(values.size, getattr(head, "pulse_time_stamp_ns", 0),
+                          getattr(head, "sample_time_ns", 0), offset=-1)
+        traces.append({"name": f"pulse {index} channel {channel}",
+                       **_decimated(times, values, max_points)})
+    return traces
+
+
+def _gradient_traces(gradient, index, max_points):
+    head = getattr(gradient, "head", None)
+    traces = []
+    for axis in ("rl", "ap", "fh"):
+        raw = getattr(gradient, axis, None)
+        if raw is None:
+            continue
+        values = np.asarray(raw)
+        if values.size == 0:
+            continue
+        times = _timeline(values.size, getattr(head, "gradient_time_stamp_ns", 0),
+                          getattr(head, "gradient_sample_time_ns", 0))
+        traces.append({"name": f"gradient {index} {axis}",
+                       **_decimated(times, values, max_points)})
+    return traces
+
+
+def _acquisition_traces(acquisition, index, max_points):
+    data = np.asarray(getattr(acquisition, "data", None))
+    if data.size == 0:
+        return []
+    head = getattr(acquisition, "head", None)
+    channel = data[0] if data.ndim > 1 else data
+    times = _timeline(channel.size, getattr(head, "acquisition_time_stamp_ns", 0),
+                      getattr(head, "sample_time_ns", 0))
+    return [
+        {"name": f"acquisition {index} real",
+         **_decimated(times, np.real(channel), max_points)},
+        {"name": f"acquisition {index} imaginary",
+         **_decimated(times, np.imag(channel), max_points)},
+    ]
+
+
+# Which stream items become which group of traces. A table rather than a chain
+# of ifs, because the only thing that differs per group is how one item turns
+# into traces.
+_WAVEFORM_GROUPS = (
+    ("pulses", lambda tag: tag.startswith("pulse"), _pulse_traces),
+    ("gradients", lambda tag: tag.startswith("gradient"), _gradient_traces),
+    ("acquisitions", lambda tag: tag == "acquisition", _acquisition_traces),
+)
+
+
+def collect_waveforms(items, max_points=_WAVEFORM_MAX_POINTS,
+                      max_traces=_WAVEFORM_MAX_TRACES):
+    """
+    Turn a stream into decimated time-series, grouped by what drew them.
+
+    @param items: an iterable of (tag, value) stream items
+    @return: {'pulses', 'gradients', 'acquisitions', 'decimation'} where each
+             trace is {name, t, values, samples, stride} and 'decimation' says
+             what was thinned and what was left out
+    """
+    traces = {group: [] for group, _matches, _build in _WAVEFORM_GROUPS}
+    seen = {group: 0 for group in traces}
+
+    for tag, value in items:
+        for group, matches, build in _WAVEFORM_GROUPS:
+            if not matches(tag):
+                continue
+            index = seen[group]
+            seen[group] += 1
+            if index < max_traces:
+                traces[group].extend(build(value, index, max_points))
+            break
+
+    return {
+        **traces,
+        "decimation": {
+            "max_points_per_trace": max_points,
+            "max_items_per_group": max_traces,
+            "items_omitted": {group: max(0, count - max_traces)
+                              for group, count in seen.items()},
+        },
+    }
+
+
+def waveform_traces(file_id, max_points=_WAVEFORM_MAX_POINTS,
+                    max_traces=_WAVEFORM_MAX_TRACES):
+    """
+    The pulse, gradient and acquisition time-series a stored file carries.
+
+    @param file_id: file_id in mongodb of the mrd file
+    @return: the shape collect_waveforms describes
+    @raise MrdContentError: the stored object is not a readable MRD stream
+    """
+    body_bytes = _fetch_mrd_bytes(file_id)
+    try:
+        with mrd.BinaryMrdReader(io.BytesIO(body_bytes)) as reader:
+            reader.read_header()
+            items = ((_item_tag(item), item.value) for item in reader.read_data())
+            return collect_waveforms(items, max_points, max_traces)
+    except (RuntimeError, EOFError, ValueError) as exc:
+        raise MrdContentError(file_id) from exc
 
 
 # Group management functions

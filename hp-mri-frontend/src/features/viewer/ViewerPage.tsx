@@ -176,7 +176,9 @@ const ViewerPage: React.FC = () => {
               setChannelIndex={(value) => viewerState.setChannelIndex(index, value)}
               setSliceIndex={(value) => viewerState.setSliceIndex(index, value)}
               setMetaboliteIndex={(value) => viewerState.setMetaboliteIndex(index, value)}
+              onSelectView={(kind) => viewerState.selectView(index, kind)}
               setMeasurementIndex={(value) => viewerState.setMeasurementIndex(index, value)}
+              setVoxel={(voxel) => viewerState.setVoxel(index, voxel)}
               alpha={alpha}
               colorScale={colorScale}
               scaleByIntensity={scaleByIntensity}
