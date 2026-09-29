@@ -13,7 +13,7 @@ from pymongo.errors import PyMongoError
 from data import (
     list_mrdfiles_for_user, insert_mrdfile_header, read_mrdfile_header,
     get_mrdfile_by_id_with_auth, change_file_visibility, is_group_member,
-    get_db, get_s3_client
+    get_db, get_s3_client, PARSE_ERROR_MESSAGE
 )
 from app.auth import optional_auth, requires_auth
 from app.errors import ApiError, BadRequest, NotFound
@@ -98,6 +98,10 @@ def get_file_details(file_id):
     file_data = get_mrdfile_by_id_with_auth(file_id, g.user_sub)
     if not file_data:
         raise NotFound("File not found or access denied")
+    # Documents stored before parse_error became a fixed message hold the
+    # exception text itself.
+    if file_data.get("parse_error"):
+        file_data["parse_error"] = PARSE_ERROR_MESSAGE
     # json_util handles BSON types like ObjectId
     return json.loads(json_util.dumps(file_data)), 200
 

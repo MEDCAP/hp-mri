@@ -5,6 +5,8 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
+from data import PARSE_ERROR_MESSAGE
+
 SECRET = "arn:aws:iam::862065604168:role/secret"
 OID = "507f1f77bcf86cd799439011"
 
@@ -134,6 +136,30 @@ def test_complete_without_a_group_is_private(client, user):
     assert response.status_code == 201
     assert insert.call_args.args[0]["groupName"] is None
     member.assert_not_called()
+
+
+def test_an_unparseable_upload_stores_and_returns_no_exception_text(client, user, caplog):
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=staged_s3()), \
+         mock.patch("data.mrd.BinaryMrdReader", side_effect=RuntimeError(SECRET)), \
+         mock.patch("app.mrds.routes.insert_mrdfile_header", return_value=OID) as insert:
+        response = client.post(f"/api/uploads/{OID}/complete", headers=user(),
+                               json={"filename": "scan.mrd", "groupName": None})
+
+    assert response.status_code == 201
+    assert SECRET not in response.get_data(as_text=True)
+    assert response.get_json()["metadata"]["parse_error"] == PARSE_ERROR_MESSAGE
+    assert insert.call_args.args[0]["parse_error"] == PARSE_ERROR_MESSAGE
+    assert SECRET in caplog.text, "the exception must still reach the log"
+
+
+def test_file_details_hide_exception_text_stored_before_the_fix(client, user):
+    legacy = {"_id": OID, "fileName": "scan.mrd", "parse_error": SECRET}
+    with mock.patch("app.mrds.routes.get_mrdfile_by_id_with_auth", return_value=legacy):
+        response = client.get(f"/api/mrd-files/{OID}", headers=user())
+
+    assert response.status_code == 200
+    assert SECRET not in response.get_data(as_text=True)
+    assert response.get_json()["parse_error"] == PARSE_ERROR_MESSAGE
 
 
 def test_complete_rejects_an_oversize_object_and_deletes_it(client, user):

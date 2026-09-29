@@ -61,7 +61,9 @@ npm run build && npm run lint
 `_id` (ObjectId), `fileName` (`MID<measurementId>-<protocolName>`), `studyDate`,
 `studyTime`, `ownerName`, `ownerId`, `groupName`, `subjectType`, `isReconstructed`,
 `protocolName`, `measurementId`, `stationName`, `original_filename`,
-`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A reconstruction's
+`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A file that could
+not be parsed as MRD also has `parse_error`, always the fixed message
+`"The file could not be read as an MRD stream."`. A reconstruction's
 output also has `parentFileId` (the source file's id) and `reconStages` (the stages
 it ran).
 

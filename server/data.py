@@ -208,6 +208,12 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
+# What an unparseable file's document records as parse_error. The exception
+# itself goes to the log: its text can carry paths and library internals, and
+# GET /mrd-files/<id> returns the document as stored.
+PARSE_ERROR_MESSAGE = "The file could not be read as an MRD stream."
+
+
 def read_mrdfile_header(source, owner_name=None, original_filename=None, file_size=None):
     """
     Read the mrd file header as dict in mongodb mrd-files collection format
@@ -257,11 +263,9 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
                 "file_size": file_size
             }
         return header_for_db
-    except Exception as e:
+    except Exception:  # pylint: disable=broad-except
         # Not a failure path: an unparseable file is still stored, with basic
-        # metadata and the reason recorded so the uploader can see why. The full
-        # traceback goes to the log; parse_error keeps the short reason, which is
-        # genuinely useful to the researcher who uploaded it.
+        # metadata and a fixed parse_error. The traceback goes to the log only.
         logger.warning("MRD parsing failed for %s", original_filename, exc_info=True)
         # Create basic metadata for files that can't be parsed as MRD
         filename = original_filename
@@ -282,7 +286,7 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
             "original_filename": filename,
             "upload_timestamp": datetime.utcnow(),
             "file_size": file_size,
-            "parse_error": str(e)
+            "parse_error": PARSE_ERROR_MESSAGE
         }
         return basic_metadata
 
