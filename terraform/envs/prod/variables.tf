@@ -9,7 +9,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_ids" {
-  description = "All four subnets; the ALB spans both AZs."
+  description = "All four subnets in the VPC, two per AZ."
   type        = list(string)
   default = [
     "subnet-0d5062cc077c10efe", # us-east-1a

@@ -33,8 +33,8 @@ terraform {
 }
 
 locals {
-  s3_origin_id  = "site"
-  alb_origin_id = "api"
+  s3_origin_id  = var.origin_ids.site
+  alb_origin_id = var.origin_ids.api
 
   # CloudFront's managed policies, by id rather than name because that is what
   # the distribution stores.
@@ -85,7 +85,8 @@ data "aws_iam_policy_document" "site_public_read" {
       type        = "*"
       identifiers = ["*"]
     }
-    resources = ["${aws_s3_bucket.site.arn}/*"]
+    # Built from the name, not the resource, so the policy is known at plan time.
+    resources = ["arn:aws:s3:::${var.site_bucket_name}/*"]
   }
 }
 
@@ -100,8 +101,9 @@ resource "aws_cloudfront_distribution" "this" {
   aliases             = var.aliases
   default_root_object = "index.html"
   price_class         = var.price_class
-  comment             = var.comment
+  comment             = var.comment == "" ? null : var.comment
   web_acl_id          = var.web_acl_arn
+  is_ipv6_enabled     = true
 
   origin {
     origin_id   = local.s3_origin_id
@@ -112,7 +114,8 @@ resource "aws_cloudfront_distribution" "this" {
       origin_protocol_policy = "http-only"
       http_port              = 80
       https_port             = 443
-      origin_ssl_protocols   = ["TLSv1.2"]
+      # Unused over http-only; kept equal to the live value.
+      origin_ssl_protocols = var.site_origin_ssl_protocols
     }
   }
 
@@ -129,12 +132,13 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   default_cache_behavior {
-    target_origin_id       = local.s3_origin_id
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = local.site_cache_policy_id
-    compress               = true
+    target_origin_id         = local.s3_origin_id
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = local.site_cache_policy_id
+    origin_request_policy_id = var.site_origin_request_policy_id
+    compress                 = true
   }
 
   ordered_cache_behavior {
@@ -163,9 +167,10 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Deep links must reach the SPA router rather than S3's 404.
   custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 10
   }
 
   restrictions {
