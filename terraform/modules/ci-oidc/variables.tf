@@ -22,8 +22,8 @@ variable "subject_claims" {
 }
 
 variable "policy_json" {
-  type    = string
-  default = ""
+  description = "Inline policy for the role. Every CI role needs one."
+  type        = string
 }
 
 variable "managed_policy_arns" {
