@@ -9,7 +9,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_ids" {
-  description = "All four subnets; the ALB spans both AZs."
+  description = "All four subnets in the VPC, two per AZ."
   type        = list(string)
   default = [
     "subnet-0d5062cc077c10efe", # us-east-1a
@@ -88,5 +88,5 @@ variable "api_origin_dns_name" {
     Delete the variable once the old ALB is gone.
   EOT
   type        = string
-  default     = "medcap-app-public-alb-1585919488.us-east-1.elb.amazonaws.com"
+  default     = ""
 }

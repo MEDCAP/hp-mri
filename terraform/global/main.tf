@@ -50,11 +50,10 @@ resource "aws_ecr_repository" "app" {
   # but flipping it is a change, so it plans clean as MUTABLE first.
   image_tag_mutability = "MUTABLE"
 
-  # The live value is not recorded in docs/INVENTORY.md. If the first plan
-  # shows this changing, set it to the live value here instead; turning scan
-  # on is a follow-up change, not part of the import.
+  # The live value, read from the first plan. Turning scan on is a follow-up
+  # change, not part of the import.
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = false
   }
 }
 
@@ -104,6 +103,22 @@ data "aws_iam_policy_document" "state_access" {
 }
 
 /**
+ * ReadOnlyAccess includes s3:GetObject on every bucket, which would let any PR
+ * workflow read the research data. A plan only reads bucket configuration, so
+ * object reads are denied everywhere except the state bucket.
+ */
+data "aws_iam_policy_document" "plan" {
+  source_policy_documents = [data.aws_iam_policy_document.state_access.json]
+
+  statement {
+    sid           = "NoObjectReadsOutsideState"
+    effect        = "Deny"
+    actions       = ["s3:GetObject", "s3:GetObjectVersion"]
+    not_resources = ["arn:aws:s3:::${local.state_bucket}/*"]
+  }
+}
+
+/**
  * Plan role: read-only plus state.
  *
  * Scoped to pull_request, which is the only claim available to a PR workflow.
@@ -119,7 +134,7 @@ module "terraform_plan" {
   subject_claims    = ["${local.repo}:pull_request"]
 
   managed_policy_arns = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
-  policy_json         = data.aws_iam_policy_document.state_access.json
+  policy_json         = data.aws_iam_policy_document.plan.json
 }
 
 /**

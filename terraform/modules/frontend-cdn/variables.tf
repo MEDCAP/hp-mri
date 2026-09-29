@@ -67,3 +67,26 @@ variable "comment" {
   type    = string
   default = ""
 }
+
+variable "origin_ids" {
+  description = "Origin ids inside the distribution. The imported prod distribution keeps its console-generated ids."
+  type = object({
+    site = string
+    api  = string
+  })
+  default = {
+    site = "site"
+    api  = "api"
+  }
+}
+
+variable "site_origin_ssl_protocols" {
+  type    = list(string)
+  default = ["TLSv1.2"]
+}
+
+variable "site_origin_request_policy_id" {
+  description = "Origin request policy on the default (site) behaviour; null for none."
+  type        = string
+  default     = null
+}

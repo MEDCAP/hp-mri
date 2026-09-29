@@ -65,3 +65,40 @@ variable "logout_urls" {
   type    = list(string)
   default = []
 }
+
+variable "phone_recovery" {
+  description = "Offer a verified phone number as the second account-recovery method."
+  type        = bool
+  default     = false
+}
+
+variable "ses_email" {
+  description = "Send pool email through this SES identity. Null uses Cognito's default sender."
+  type = object({
+    source_arn         = string
+    from_email_address = string
+  })
+  default = null
+}
+
+variable "oauth" {
+  description = "Hosted-UI OAuth flows and scopes for the web client. Null disables OAuth."
+  type = object({
+    flows  = list(string)
+    scopes = list(string)
+  })
+  default = null
+}
+
+variable "token_validity" {
+  type = object({
+    access_minutes = number
+    id_minutes     = number
+    refresh_days   = number
+  })
+  default = {
+    access_minutes = 60
+    id_minutes     = 60
+    refresh_days   = 30
+  }
+}

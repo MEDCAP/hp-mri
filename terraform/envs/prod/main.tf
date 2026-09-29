@@ -62,10 +62,30 @@ module "auth" {
 
   # Auto-generated name on the live pool; it must be reproduced verbatim.
   pool_name   = "User pool - lwrhys"
-  client_name = "medcap-web"
+  client_name = "medcap-frontend"
 
-  callback_urls = [local.web_origin, "${local.web_origin}/account"]
-  logout_urls   = [local.web_origin]
+  # Everything below matches the live pool and client, so the import plans
+  # clean. The callback is a retired CloudFront domain; the SPA signs in with
+  # SRP and never uses it.
+  explicit_auth_flows = ["ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_AUTH", "ALLOW_USER_SRP_AUTH"]
+  callback_urls       = ["https://d84l1y8p4kdic.cloudfront.net"]
+  logout_urls         = []
+
+  oauth = {
+    flows  = ["code"]
+    scopes = ["email", "openid", "phone"]
+  }
+  token_validity = {
+    access_minutes = 60
+    id_minutes     = 60
+    refresh_days   = 5
+  }
+
+  phone_recovery = true
+  ses_email = {
+    source_arn         = "arn:aws:ses:us-east-1:862065604168:identity/medcap.ai"
+    from_email_address = "MEDCAP Verification <no-reply@medcap.ai>"
+  }
 }
 
 module "data" {
@@ -94,7 +114,7 @@ module "backend" {
   region      = var.region
 
   vpc_id                    = module.network.vpc_id
-  public_subnet_ids         = var.subnet_ids
+  public_subnet_ids         = var.service_subnet_ids
   service_subnet_ids        = var.service_subnet_ids
   alb_security_group_id     = module.network.alb_security_group_id
   service_security_group_id = module.network.service_security_group_id
@@ -149,6 +169,16 @@ module "frontend" {
   # Present so the import plans clean. It is a Referer check, not access
   # control -- see finding F1.
   api_function_arn = var.api_function_arn
+
+  # The live distribution's console-created values, so the import plans clean.
+  comment     = "Cloudfront to host S3 static site of medcap.ai"
+  price_class = "PriceClass_All"
+  origin_ids = {
+    site = "medcap.ai.s3-website-us-east-1.amazonaws.com"
+    api  = "medcap-app-alb-v1-677209935.us-east-1.elb.amazonaws.com"
+  }
+  site_origin_ssl_protocols     = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
+  site_origin_request_policy_id = "59781a5b-3903-41f3-afcb-af62929ccde1"
 }
 
 /**
