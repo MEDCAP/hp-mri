@@ -88,5 +88,5 @@ variable "api_origin_dns_name" {
     Delete the variable once the old ALB is gone.
   EOT
   type        = string
-  default     = "medcap-app-public-alb-1585919488.us-east-1.elb.amazonaws.com"
+  default     = ""
 }
