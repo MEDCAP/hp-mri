@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
+from pymongo.errors import DuplicateKeyError
 from bson import ObjectId
 
 import data
@@ -420,3 +421,17 @@ def test_convert_reads_only_the_callers_own_staging_prefix(db_app, db_client, us
             json={"filename": "scan.tar", "converter": "convert"})
     assert response.status_code == 404
     assert jobs_in(db_app) == []
+
+
+def test_startup_indexes_make_group_names_unique(db_app):
+    db = db_app.mongo_client.get_database(db_app.config["MONGO_DB_NAME"])
+    data.ensure_indexes(db)
+    data.ensure_indexes(db)
+
+    assert db.groups.index_information()["name_1"]["unique"] is True
+    assert {"ownerId_1", "groupName_1", "groupName_1_studyDate_-1_studyTime_-1"} <= set(
+        db.mrdfiles.index_information()
+    )
+    db.groups.insert_one({"name": "lab", "members": []})
+    with pytest.raises(DuplicateKeyError):
+        db.groups.insert_one({"name": "lab", "members": []})

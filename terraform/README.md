@@ -59,7 +59,7 @@ blue-green: nothing moves until step 6, and step 6 is one variable.
 | 6 | **Cut over:** set `api_origin_dns_name = ""` and apply | `curl https://medcap.ai/api/health` still works, now served by the new stack. This is the only step that touches live traffic |
 | 7 | Watch. Rollback is restoring the old value and applying | |
 | 8 | Delete the old cluster, service, ALB, security groups, log group, the `medcap_dev` database, the `E1LTBXHERJ8IYX` distribution, and `AmazonS3FullAccess` from `ecsTaskExecutionRole` | Nothing breaks. Bill drops |
-| 9 | Flip the `MONGO_DB_NAME` default in `server/config.py` from `medcap_dev` to `hpmri_dev` | An unconfigured local run no longer lands on a production database name |
+| 9 | Done: the `MONGO_DB_NAME` default in `server/config.py` is `hpmri_dev` | An unconfigured local run no longer lands on a production database name |
 
 **Review the first prod plan before any apply.** It must show:
 

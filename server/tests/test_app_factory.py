@@ -143,15 +143,7 @@ def test_config_is_environment_driven(monkeypatch):
     assert app.config["S3_BUCKET"] == "medcap-data-dev"
 
 
-def test_database_default_is_still_production(monkeypatch):
-    """
-    Deliberate, and temporary. The live task definition sets no environment
-    variables, so MONGO_DB_NAME must default to the database production uses --
-    "medcap_dev", despite the name -- or the next deploy points production at an
-    empty database. Flip the default to "hpmri_dev" (and this test with it) only
-    once the Terraform task definition sets MONGO_DB_NAME explicitly and the
-    rename to hpmri_prod is done. See terraform/README.md.
-    """
+def test_database_default_is_not_production(monkeypatch):
     monkeypatch.delenv("MONGO_DB_NAME", raising=False)
     app = build(monkeypatch, FLASK_ENV="production", MONGO_URI="mongodb://x")
-    assert app.config["MONGO_DB_NAME"] == "medcap_dev"
+    assert app.config["MONGO_DB_NAME"] == "hpmri_dev"
