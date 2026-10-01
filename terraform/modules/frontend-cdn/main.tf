@@ -96,6 +96,26 @@ resource "aws_s3_bucket_policy" "site" {
   depends_on = [aws_s3_bucket_public_access_block.site]
 }
 
+# Deep links must reach the SPA router. A distribution-wide custom_error_response
+# would also turn every /api/* 404 into index.html with a 200; attached to the
+# default behavior only, this never sees the API.
+resource "aws_cloudfront_function" "spa_fallback" {
+  name    = "${replace(var.site_bucket_name, ".", "-")}-spa-fallback"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrite extensionless paths to /index.html"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      var last = request.uri.split('/').pop();
+      if (last.indexOf('.') === -1) {
+        request.uri = '/index.html';
+      }
+      return request;
+    }
+  EOT
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   aliases             = var.aliases
@@ -139,6 +159,11 @@ resource "aws_cloudfront_distribution" "this" {
     cache_policy_id          = local.site_cache_policy_id
     origin_request_policy_id = var.site_origin_request_policy_id
     compress                 = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_fallback.arn
+    }
   }
 
   ordered_cache_behavior {
@@ -163,14 +188,6 @@ resource "aws_cloudfront_distribution" "this" {
         function_arn = var.api_function_arn
       }
     }
-  }
-
-  # Deep links must reach the SPA router rather than S3's 404.
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
   }
 
   restrictions {
