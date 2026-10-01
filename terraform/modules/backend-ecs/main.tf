@@ -220,8 +220,7 @@ resource "aws_ecs_task_definition" "seed" {
         for k, v in local.environment : { name = k, value = tostring(v) }
       ]
 
-      # Only values a console viewer should not see belong here; today that is
-      # the Mongo connection string and nothing else.
+      # Only values a console viewer should not see belong here.
       secrets = [
         for k, arn in var.secret_environment : { name = k, valueFrom = arn }
       ]
@@ -238,10 +237,10 @@ resource "aws_ecs_task_definition" "seed" {
     }
   ])
 
-  lifecycle {
-    # CI rolls the image forward; Terraform should not roll it back.
-    ignore_changes = [container_definitions]
-  }
+  # Not ignoring container_definitions: a change to environment or secrets
+  # registers a new revision here, and deploy-backend.yml copies the latest
+  # revision and patches only its image. The service ignores task_definition,
+  # so this never rolls the running image back.
 }
 
 resource "aws_ecs_service" "api" {

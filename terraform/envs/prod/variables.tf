@@ -76,6 +76,12 @@ variable "mongo_uri" {
   sensitive   = true
 }
 
+variable "tyger_server_url" {
+  description = "The Tyger server the convert/recon stages run on."
+  type        = string
+  default     = "https://spinhance.tyger.cloud"
+}
+
 variable "api_origin_dns_name" {
   description = <<-EOT
     The ALB CloudFront sends /api/* to.
