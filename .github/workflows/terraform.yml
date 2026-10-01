@@ -25,7 +25,8 @@ permissions:
 jobs:
   # Every job here assumes the GitHub OIDC roles from terraform/global exist.
   # Until DEPLOY_ENABLED=true, they are skipped rather than failing -- including
-  # on the very PR that introduces the Terraform.
+  # on the very PR that introduces the Terraform. Dev additionally needs
+  # DEV_DEPLOY_ENABLED=true, since envs/dev has not been applied yet.
   plan:
     if: github.event_name == 'pull_request' && vars.DEPLOY_ENABLED == 'true'
     name: Plan (${{ matrix.env }})
@@ -33,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [dev, prod]
+        env: ${{ fromJSON(vars.DEV_DEPLOY_ENABLED == 'true' && '["dev", "prod"]' || '["prod"]') }}
     defaults:
       run:
         working-directory: terraform/envs/${{ matrix.env }}
@@ -123,7 +124,7 @@ jobs:
   apply-dev:
     if: >-
       (github.event_name == 'push' || inputs.environment == 'dev')
-      && vars.DEPLOY_ENABLED == 'true'
+      && vars.DEV_DEPLOY_ENABLED == 'true'
     name: Apply (dev)
     runs-on: ubuntu-latest
     # No required reviewers on this environment.

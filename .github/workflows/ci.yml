@@ -115,13 +115,13 @@ jobs:
   # Merging to dev ships the dev environment. Prod waits for a v* tag and a
   # human; see release.yml.
   deploy-dev-backend:
-    # Inert until the infrastructure exists: set the repository variable
-    # DEPLOY_ENABLED=true once terraform/global is applied and the dev GitHub
-    # Environment is configured. Without the gate, merging this workflow would
-    # immediately try to deploy to a cluster that does not exist.
+    # Gated separately from prod: set the repository variable
+    # DEV_DEPLOY_ENABLED=true once terraform/envs/dev is applied and the dev
+    # GitHub Environment is configured. Until then a push to dev would try to
+    # deploy to a cluster that does not exist.
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/dev'
-      && vars.DEPLOY_ENABLED == 'true'
+      && vars.DEV_DEPLOY_ENABLED == 'true'
     needs: [backend, frontend, image]
     # A called workflow cannot hold more than its caller grants, and GitHub
     # checks this at startup even when the job is skipped.
@@ -137,7 +137,7 @@ jobs:
   deploy-dev-frontend:
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/dev'
-      && vars.DEPLOY_ENABLED == 'true'
+      && vars.DEV_DEPLOY_ENABLED == 'true'
     needs: deploy-dev-backend
     # A called workflow cannot hold more than its caller grants, and GitHub
     # checks this at startup even when the job is skipped.

@@ -1,6 +1,7 @@
 name: Release
 
-# Dev auto-deploys on every push to dev (ci.yml); prod deploys only on a v* tag,
+# Dev auto-deploys on every push to dev once DEV_DEPLOY_ENABLED is true
+# (ci.yml); prod deploys only on a v* tag,
 # and only after a human approves the prod GitHub Environment. Nothing here
 # touches AWS until the repository variable DEPLOY_ENABLED is true.
 #
