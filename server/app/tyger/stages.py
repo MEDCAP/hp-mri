@@ -14,11 +14,8 @@ and both pass `--input/--output`, which MRStomrd2.py's parser does not accept
 mean an image that cannot be pulled running argv it would reject. They become
 one table entry each on the day the images exist.
 
-Nothing here has been verified end to end against the live cluster: tyger
-reaches it and transfers buffers, but every `ghcr.io/medcap/*` image returns 403
-to an anonymous pull and the cluster has no pull secret for that namespace, so
-each run dies in ImagePullBackOff. The unit tests mock subprocess.run for that
-reason.
+The images live under `ghcr.io/medcap/mrs_to_mrd/` and are public, so the
+cluster pulls them without a pull secret. The unit tests mock subprocess.run.
 
 This module is also where untrusted input stops. Everything built here becomes
 argv on a container, so a parameter is matched against a pattern and refused
@@ -148,7 +145,7 @@ def _recon_args(params):
 STAGES = {
     "convert": Stage(
         id="convert",
-        image="ghcr.io/medcap/mrs-convert:latest",
+        image="ghcr.io/medcap/mrs_to_mrd/mrs-convert:latest",
         cpu=1,
         # the whole scan is held in memory: the format's parameter block sits
         # after the data at EOF, and the header needs the phantom count across
@@ -161,7 +158,7 @@ STAGES = {
     ),
     "shift": Stage(
         id="shift",
-        image="ghcr.io/medcap/mrs-shift:latest",
+        image="ghcr.io/medcap/mrs_to_mrd/mrs-shift:latest",
         # the drift search sweeps the whole switch train per candidate slope,
         # over acquisitions that are all in memory at once
         cpu=2,
@@ -173,7 +170,7 @@ STAGES = {
     ),
     "recon": Stage(
         id="recon",
-        image="ghcr.io/medcap/mrs-recon:latest",
+        image="ghcr.io/medcap/mrs_to_mrd/mrs-recon:latest",
         # the fit runs once on the summed spectrum and then once per voxel per
         # repetition, and the whole acquisition set is buffered before any of it
         # is written

@@ -59,6 +59,7 @@ COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.0 /lambda-adapter /opt
 # copy application code
 COPY --chown=appuser:appuser app app
 COPY run.py config.py data.py ./
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # FLASK_ENV is a *default*, not a fixture: docker run -e and an ECS task
 # definition both override it. It stays so that a container which loses the
@@ -75,4 +76,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 # run gunicorn using set PATH variable
 # app.py as entrypoint and app = create_app()
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["gunicorn", "run:create_app()"]
