@@ -143,10 +143,19 @@ module "backend" {
   mongo_db_name = "hpmri_prod"
   cors_origins  = [local.web_origin]
 
-  secret_environment = {
-    MONGO_URI = aws_ssm_parameter.mongo_uri.arn
+  extra_environment = {
+    TYGER_SERVER_URL = var.tyger_server_url
   }
-  secret_parameter_arns = [aws_ssm_parameter.mongo_uri.arn]
+
+  secret_environment = {
+    MONGO_URI               = aws_ssm_parameter.mongo_uri.arn
+    TYGER_CERT_PEM          = aws_ssm_parameter.tyger["TYGER_CERT_PEM"].arn
+    TYGER_SERVICE_PRINCIPAL = aws_ssm_parameter.tyger["TYGER_SERVICE_PRINCIPAL"].arn
+  }
+  secret_parameter_arns = concat(
+    [aws_ssm_parameter.mongo_uri.arn],
+    [for p in aws_ssm_parameter.tyger : p.arn],
+  )
 
   log_retention_days = 30
 }
@@ -189,6 +198,25 @@ module "frontend" {
  * hand) and then ignored, so that rotating it in the console is not reverted by
  * the next apply and so it never lands in a committed tfvars file.
  */
+/*
+ * The Tyger service principal the container logs in as (docker-entrypoint.sh).
+ * Created with a placeholder and written once out of band, so the PEM never
+ * passes through Terraform state or a tfvars file:
+ *   aws ssm put-parameter --overwrite --name /hpmri/prod/TYGER_CERT_PEM \
+ *     --type SecureString --value file://tyger-sp.pem
+ */
+resource "aws_ssm_parameter" "tyger" {
+  for_each = toset(["TYGER_CERT_PEM", "TYGER_SERVICE_PRINCIPAL"])
+
+  name  = "/hpmri/prod/${each.key}"
+  type  = "SecureString"
+  value = "set-out-of-band"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
 resource "aws_ssm_parameter" "mongo_uri" {
   name  = "/hpmri/prod/MONGO_URI"
   type  = "SecureString"
