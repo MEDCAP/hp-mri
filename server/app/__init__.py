@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import threading
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import DevelopmentConfig, ProductionConfig
@@ -60,6 +61,14 @@ def create_app():
     register_error_handlers(app)
 
     app.mongo_client = MongoClient(app.config['MONGO_URI'])
+    # In the background so an unreachable database cannot hold up worker boot
+    # for the full server-selection timeout.
+    from data import ensure_indexes  # pylint: disable=import-outside-toplevel
+    threading.Thread(
+        target=ensure_indexes,
+        args=(app.mongo_client.get_database(app.config['MONGO_DB_NAME']),),
+        daemon=True,
+    ).start()
     # Register the mrds blueprint
     from app.mrds import mrds_bp
     app.register_blueprint(mrds_bp, url_prefix="/api")

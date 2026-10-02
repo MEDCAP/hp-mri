@@ -29,12 +29,12 @@ File metadata lives in MongoDB Atlas; MRD files live in S3.
 
 ```bash
 git submodule update --init
-cd server && ./setup_aws.sh && python run.py          # API on :5000
+cd server && ./setup_aws.sh && python run.py          # API on :5001
 cd server && pytest                                   # unit tests
 docker compose -f docker-compose.test.yml up -d       # local MongoDB for integration tests
 cd server && MONGO_TEST_URI=mongodb://localhost:27017 pytest
 pylint server                                         # from repo root; floor is fail-under in .pylintrc
-cd hp-mri-frontend && npm install && npm run dev      # SPA on :5173, /api proxied to :5000
+cd hp-mri-frontend && npm install && npm run dev      # SPA on :5173, /api proxied to :5001
 npm run build && npm run lint
 ```
 
@@ -228,8 +228,8 @@ A job is visible only to the user who started it (`ownerId` = the caller's sub).
 - **Backend identity:** comes from `@requires_auth`/`@optional_auth` via
   `g.user_sub`, `g.user_name` and `g.user_groups`, never from the request body.
 - **Database and S3:** through `data.py` (`get_db()`, `get_s3_client()`).
-  - Configuration from env: `MONGO_URI`, `MONGO_DB_NAME` (default `medcap_dev`,
-    production's database), `S3_BUCKET` (default `medcap-data`), `CORS_ORIGINS`,
+  - Configuration from env: `MONGO_URI`, `MONGO_DB_NAME` (default `hpmri_dev`;
+    production sets `hpmri_prod`), `S3_BUCKET` (default `medcap-data`), `CORS_ORIGINS`,
     `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`.
 - **Frontend HTTP:** only through `src/api/`; lint rejects `axios` imports
   elsewhere.

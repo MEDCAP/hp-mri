@@ -6,6 +6,7 @@ from flask import current_app
 from bson import ObjectId
 from bson.errors import InvalidId
 from botocore.exceptions import ClientError
+from pymongo.errors import PyMongoError
 from collections import OrderedDict
 from datetime import datetime
 import os
@@ -18,6 +19,34 @@ import io
 import app.external.python.mrd as mrd
 
 logger = logging.getLogger(__name__)
+
+_INDEXES = {
+    "groups": [
+        (["name"], {"unique": True}),
+        (["members"], {}),
+        (["createdBy"], {}),
+    ],
+    "mrdfiles": [
+        (["ownerId"], {}),
+        (["groupName"], {}),
+        ([("groupName", 1), ("studyDate", -1), ("studyTime", -1)], {}),
+    ],
+}
+
+
+def ensure_indexes(db):
+    """
+    Create the indexes the routes rely on. create_index is a no-op when the
+    index exists, so this runs on every start; groups.name's uniqueness is
+    what makes POST /groups' 409 hold under concurrent creates.
+    """
+    for collection, indexes in _INDEXES.items():
+        for keys, options in indexes:
+            try:
+                db[collection].create_index(keys, **options)
+            except PyMongoError:
+                logger.exception("could not create index %s on %s", keys, collection)
+
 
 def get_db(db_name=None):
     """

@@ -17,14 +17,9 @@ class Config:
     # Database inside the Atlas cluster. Previously a hardcoded default argument
     # on data.get_db().
     #
-    # The default stays "medcap_dev" -- which is PRODUCTION's database, despite
-    # the name -- because the live task definition sets no environment
-    # variables at all. Defaulting to anything else would point production at
-    # an empty database the moment this deploys. Once the Terraform task
-    # definition sets MONGO_DB_NAME explicitly and the rename to hpmri_prod is
-    # done (terraform/README.md), flip this default to "hpmri_dev" so an
-    # unconfigured local run lands somewhere harmless.
-    MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'medcap_dev')
+    # Every deployed task definition sets MONGO_DB_NAME (hpmri_prod in
+    # production), so this default only catches an unconfigured local run.
+    MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'hpmri_dev')
 
     # Comma-separated in the environment; a list in the app. Defined on the base
     # class so ProductionConfig cannot silently lack it, which is how the
