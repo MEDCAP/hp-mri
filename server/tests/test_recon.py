@@ -1,9 +1,8 @@
 """
 The reconstruction route: what it refuses, and what one run leaves behind.
 
-The chain itself is mocked. Every ghcr.io/medcap image returns 403 to an
-anonymous pull, so a live tyger run dies in ImagePullBackOff and proves nothing;
-what these tests hold is the sequence around it and the document it writes.
+The chain itself is mocked, so a live tyger run is not covered here; what these
+tests hold is the sequence around it and the document it writes.
 
 Who may reconstruct which file is pinned in test_access_integration.py.
 """
