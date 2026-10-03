@@ -19,6 +19,10 @@ import numpy as np
 import pytest
 from bson import ObjectId
 
+# Set before any test module imports config: DevelopmentConfig picks its URI
+# at import, and with AWS credentials in .env.development it would pick Atlas.
+os.environ["MONGO_URI"] = os.getenv("MONGO_TEST_URI", "mongodb://localhost:27017")
+
 
 @pytest.fixture()
 def app(monkeypatch):
@@ -142,6 +146,10 @@ def db_app(mongo_uri, monkeypatch):
     from app import create_app  # pylint: disable=import-outside-toplevel
 
     application = create_app()
+    # The config class is built once per process, so a URI chosen before this
+    # fixture ran (e.g. Atlas from AWS credentials) would otherwise stick.
+    assert application.config["MONGO_URI"] == mongo_uri, \
+        "the app is not using MONGO_TEST_URI; refusing to run against another server"
     application.config.update(TESTING=True, MONGO_DB_NAME=db_name,
                               S3_BUCKET="test-bucket")
     try:
