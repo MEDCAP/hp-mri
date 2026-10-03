@@ -84,7 +84,6 @@ def reconstruct():
                 result.seek(0)
                 handle.s3.upload_fileobj(result, bucket, output_key)
 
-        metadata.pop("parse_error", None)
         insert_mrdfile_header(
             {**metadata, "ownerId": owner_id, "groupName": None,
              "s3_key": output_key, "parentFileId": str(source["_id"]),

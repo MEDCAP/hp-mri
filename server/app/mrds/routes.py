@@ -357,7 +357,6 @@ def convert_upload(upload_id):
                 converted.seek(0)
                 handle.s3.upload_fileobj(converted, bucket, s3_key)
 
-        metadata.pop("parse_error", None)
         insert_mrdfile_header(
             {**metadata, "ownerId": owner_id, "groupName": group_name, "s3_key": s3_key},
             doc_id=object_id,
