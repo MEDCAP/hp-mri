@@ -123,8 +123,10 @@ Until it exists, dev returns 503 on every request that touches the database.
 `envs/dev` is a throwaway backend: one Fargate Spot task behind an ALB at
 `https://api-dev.medcap.ai`, running against production MongoDB, `medcap-data`
 and the production Cognito pool. Writes are real. There is no CloudFront; the
-ALB accepts HTTPS only from `allowed_cidrs`. It reads the `/hpmri/prod/*` SSM
-secrets in place, so those must exist.
+ALB accepts HTTPS only from `allowed_cidrs`. It injects the same secrets as
+prod: `/hpmri/prod/MONGO_URI`, plus its own `/hpmri/dev/TYGER_CERT_PEM` and
+`/hpmri/dev/TYGER_SERVICE_PRINCIPAL`. Those two live in `global/` so they
+survive `down`. `up` refuses to run while either still holds its placeholder.
 
 ```bash
 scripts/dev-ecs.sh up [--image <sha>]   # apply with your IP, wait until healthy
@@ -133,8 +135,16 @@ scripts/dev-ecs.sh status | logs | report
 scripts/dev-ecs.sh down                 # destroy
 ```
 
-One-time setup: the Atlas user above, and
-`scripts/dev-ecs.sh create-test-user <email>`. Agents follow
+One-time setup: the Atlas user above,
+`scripts/dev-ecs.sh create-test-user <email>`, and the dev Tyger service
+principal:
+
+```bash
+aws ssm put-parameter --overwrite --name /hpmri/dev/TYGER_CERT_PEM \
+  --type SecureString --value file://tyger-sp.pem
+aws ssm put-parameter --overwrite --name /hpmri/dev/TYGER_SERVICE_PRINCIPAL \
+  --type SecureString --value '<servicePrincipal from LOGIN_FILE.yml>'
+``` Agents follow
 `.claude/skills/dev-ecs/SKILL.md`. To use the SPA against it, point the `/api`
 proxy target in `hp-mri-frontend/vite.config.ts` at the dev URL. Browser uploads
 also need the `medcap-data` CORS rule for `http://localhost:5173` (F4/F5).
