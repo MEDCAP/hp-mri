@@ -1,19 +1,15 @@
 #!/bin/sh
 # Logs the tyger CLI in before the API starts, so convert/recon jobs can run.
 #
-#   Local:  mount the login folder and set TYGER_LOGIN_FILE to its yml, e.g.
-#           -v ~/dev/tyger-tep:/tyger:ro -e TYGER_LOGIN_FILE=/tyger/LOGIN_FILE.yml
-#   ECS:    TYGER_CERT_PEM arrives as a secret (SSM SecureString), with
-#           TYGER_SERVER_URL and TYGER_SERVICE_PRINCIPAL as plain environment.
-#           The same login yml is written here, pointing at the PEM.
+# On ECS, TYGER_CERT_PEM arrives as a secret (SSM SecureString), with
+# TYGER_SERVER_URL and TYGER_SERVICE_PRINCIPAL alongside. A login yml pointing
+# at the PEM is written here.
 #
-# With neither, the login is skipped and jobs fail with stage_failed.
+# Without TYGER_CERT_PEM the login is skipped: run `tyger login` yourself
+# first, or jobs fail with stage_failed.
 set -eu
 
-if [ -n "${TYGER_LOGIN_FILE:-}" ]; then
-  # certificatePath may be relative to the yml, as in the local login folder.
-  (cd "$(dirname "$TYGER_LOGIN_FILE")" && tyger login -f "$(basename "$TYGER_LOGIN_FILE")")
-elif [ -n "${TYGER_CERT_PEM:-}" ]; then
+if [ -n "${TYGER_CERT_PEM:-}" ]; then
   : "${TYGER_SERVER_URL:?TYGER_SERVER_URL is required with TYGER_CERT_PEM}"
   : "${TYGER_SERVICE_PRINCIPAL:?TYGER_SERVICE_PRINCIPAL is required with TYGER_CERT_PEM}"
 
