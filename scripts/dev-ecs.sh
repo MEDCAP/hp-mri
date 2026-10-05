@@ -62,6 +62,20 @@ wait_healthy() {
   die "$url did not return 200 within 5 minutes; run: dev-ecs.sh status && dev-ecs.sh logs"
 }
 
+# The entrypoint runs `tyger login` with the injected PEM and exits if it
+# fails, so a missing or placeholder secret is a crash loop, not a degraded
+# stack. global/ creates both at version 1 with a placeholder; a real value
+# written out of band is version 2 or later. Checked without decrypting.
+tyger_preflight() {
+  local name version
+  for name in TYGER_CERT_PEM TYGER_SERVICE_PRINCIPAL; do
+    version="$(aws ssm get-parameter --name "/hpmri/dev/$name" --query Parameter.Version --output text 2>/dev/null)" \
+      || die "/hpmri/dev/$name does not exist; apply terraform/global first"
+    [[ "$version" -ge 2 ]] \
+      || die "/hpmri/dev/$name still holds its placeholder; write it: aws ssm put-parameter --overwrite --name /hpmri/dev/$name --type SecureString --value file://<file>"
+  done
+}
+
 cmd_up() {
   local image=""
   while [[ $# -gt 0 ]]; do
@@ -71,6 +85,7 @@ cmd_up() {
     esac
   done
 
+  tyger_preflight
   tf_init
   allowed_cidrs
   local vars=()

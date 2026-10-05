@@ -16,3 +16,8 @@ output "deploy_role_arns" {
 output "ecr_repository_url" {
   value = aws_ecr_repository.app.repository_url
 }
+
+output "dev_tyger_parameter_arns" {
+  description = "Read by envs/dev's task execution role."
+  value       = { for k, p in aws_ssm_parameter.dev_tyger : k => p.arn }
+}

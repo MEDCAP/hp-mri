@@ -8,7 +8,8 @@
  * in server/app/auth.py), so every write -- upload, share, delete -- is real
  * and the bucket has no versioning to undo it.
  *
- * Nothing here owns production state: the bucket and the SSM secrets are
+ * Nothing here owns production state: the bucket and the SSM secrets (prod's
+ * MONGO_URI, dev's TYGER_* from global/) are
  * referenced by name, so `terraform destroy` removes only what this root
  * created.
  *
@@ -49,17 +50,14 @@ locals {
   name_prefix = "hpmri-dev"
   bucket_name = "medcap-data"
 
-  # Production's parameters, read in place. Building the ARNs as strings keeps
-  # their values out of this state, and destroy leaves them alone.
-  # ECS refuses to start a task whose secret does not exist, so the Tyger pair
-  # is opt-in until /hpmri/prod/TYGER_* are written.
-  secret_names = concat(
-    ["MONGO_URI"],
-    var.tyger_enabled ? ["TYGER_CERT_PEM", "TYGER_SERVICE_PRINCIPAL"] : [],
-  )
-  prod_secret_arns = {
-    for name in local.secret_names :
-    name => "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/hpmri/prod/${name}"
+  # The same three secrets prod injects. MONGO_URI is production's own (same
+  # database); the Tyger pair is dev's, created in global/ so it survives
+  # destroy. ARNs are built as strings, so no value enters this state.
+  ssm_prefix = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter"
+  secret_arns = {
+    MONGO_URI               = "${local.ssm_prefix}/hpmri/prod/MONGO_URI"
+    TYGER_CERT_PEM          = "${local.ssm_prefix}/hpmri/dev/TYGER_CERT_PEM"
+    TYGER_SERVICE_PRINCIPAL = "${local.ssm_prefix}/hpmri/dev/TYGER_SERVICE_PRINCIPAL"
   }
 }
 
@@ -145,8 +143,8 @@ module "backend" {
     TYGER_SERVER_URL = var.tyger_server_url
   }
 
-  secret_environment    = local.prod_secret_arns
-  secret_parameter_arns = values(local.prod_secret_arns)
+  secret_environment    = local.secret_arns
+  secret_parameter_arns = values(local.secret_arns)
 
   log_retention_days = 3
 

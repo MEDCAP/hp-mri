@@ -61,4 +61,8 @@ report file. Use `--issue` only when the user asked for an issue.
   with `readWrite` on `hpmri_prod`.
 - `scripts/dev-ecs.sh create-test-user <email>` creates the Cognito user and
   stores its password in SSM.
+- Write the Tyger service principal to `/hpmri/dev/TYGER_CERT_PEM` and
+  `/hpmri/dev/TYGER_SERVICE_PRINCIPAL` (see `terraform/README.md`). `up` stops
+  with an error until both are written. Don't write them yourself; the
+  certificate comes from a human.
 - AWS credentials: `cd server && ./setup_aws.sh`, or set `AWS_PROFILE`.
