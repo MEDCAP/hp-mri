@@ -60,6 +60,12 @@ variable "allowed_cidrs" {
   type        = list(string)
 }
 
+variable "tyger_enabled" {
+  description = "Inject the /hpmri/prod/TYGER_* secrets. Without them convert and recon jobs fail; everything else works."
+  type        = bool
+  default     = false
+}
+
 variable "tyger_server_url" {
   type    = string
   default = "https://spinhance.tyger.cloud"

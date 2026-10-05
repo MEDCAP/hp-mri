@@ -51,8 +51,14 @@ locals {
 
   # Production's parameters, read in place. Building the ARNs as strings keeps
   # their values out of this state, and destroy leaves them alone.
+  # ECS refuses to start a task whose secret does not exist, so the Tyger pair
+  # is opt-in until /hpmri/prod/TYGER_* are written.
+  secret_names = concat(
+    ["MONGO_URI"],
+    var.tyger_enabled ? ["TYGER_CERT_PEM", "TYGER_SERVICE_PRINCIPAL"] : [],
+  )
   prod_secret_arns = {
-    for name in ["MONGO_URI", "TYGER_CERT_PEM", "TYGER_SERVICE_PRINCIPAL"] :
+    for name in local.secret_names :
     name => "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/hpmri/prod/${name}"
   }
 }
