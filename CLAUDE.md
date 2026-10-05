@@ -36,6 +36,7 @@ cd server && MONGO_TEST_URI=mongodb://localhost:27017 pytest
 pylint server                                         # from repo root; floor is fail-under in .pylintrc
 cd hp-mri-frontend && npm install && npm run dev      # SPA on :5173, /api proxied to :5001
 npm run build && npm run lint
+scripts/dev-ecs.sh up | smoke | status | logs | report | down   # dev ECS on PROD data; see .claude/skills/dev-ecs
 ```
 
 `MONGO_TEST_URI` must point at a local throwaway server, never Atlas.

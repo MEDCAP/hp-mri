@@ -15,7 +15,7 @@ bootstrap/   state bucket + lock table. Run once, by a human, with local state.
 global/      account-wide: GitHub OIDC CI roles, the shared ECR repository.
 modules/     network, data, auth, backend-ecs, frontend-cdn, ci-oidc.
 envs/prod/   imports the live infrastructure.
-envs/dev/    greenfield; does not exist in AWS yet.
+envs/dev/    throwaway backend on production data (scripts/dev-ecs.sh).
 ```
 
 Separate directories rather than workspaces, deliberately. Prod is imported and
@@ -112,12 +112,32 @@ Add-then-switch, in this order, with no downtime:
    step 1 — changing principal and privileges together means a failure tells
    you nothing about which one caused it.
 
-**Dev needs its own user, and it must be scoped.** `readWriteAnyDatabase` is
-cluster-wide, so giving the dev task role the same built-in would let dev write
-to production's collections — which defeats the point of the separate
-environment. Register `arn:aws:iam::862065604168:role/hpmri-dev-task` with
-`readWrite` on `hpmri_dev` only. Until that user exists, dev returns 503 on
-every request that touches the database.
+**Dev needs its own Atlas user.** Dev runs on production data, so register
+`arn:aws:iam::862065604168:role/hpmri-dev-task` with `readWrite` on
+`hpmri_prod`. Use that, not the cluster-wide `readWriteAnyDatabase`. The role
+name is the same on every rebuild, so the user only has to be created once.
+Until it exists, dev returns 503 on every request that touches the database.
+
+## Dev stack
+
+`envs/dev` is a throwaway backend: one Fargate Spot task behind an ALB at
+`https://api-dev.medcap.ai`, running against production MongoDB, `medcap-data`
+and the production Cognito pool. Writes are real. There is no CloudFront; the
+ALB accepts HTTPS only from `allowed_cidrs`. It reads the `/hpmri/prod/*` SSM
+secrets in place, so those must exist.
+
+```bash
+scripts/dev-ecs.sh up [--image <sha>]   # apply with your IP, wait until healthy
+scripts/dev-ecs.sh smoke                # end-to-end check as the test account
+scripts/dev-ecs.sh status | logs | report
+scripts/dev-ecs.sh down                 # destroy
+```
+
+One-time setup: the Atlas user above, and
+`scripts/dev-ecs.sh create-test-user <email>`. Agents follow
+`.claude/skills/dev-ecs/SKILL.md`. To use the SPA against it, point the `/api`
+proxy target in `hp-mri-frontend/vite.config.ts` at the dev URL. Browser uploads
+also need the `medcap-data` CORS rule for `http://localhost:5173` (F4/F5).
 
 **Task definitions are not imported.** Terraform owns one seed revision; CI
 registers the rest. The ECS service carries

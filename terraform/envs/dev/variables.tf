@@ -26,23 +26,6 @@ variable "service_subnet_ids" {
   ]
 }
 
-variable "data_bucket_name" {
-  description = "New bucket. Seed it with two or three small .mrd files rather than copying prod."
-  type        = string
-  default     = "medcap-data-dev"
-}
-
-variable "site_bucket_name" {
-  description = "Named after the domain, matching the prod convention."
-  type        = string
-  default     = "medcap-dev.medcap.ai"
-}
-
-variable "aliases" {
-  type    = list(string)
-  default = ["medcap-dev.medcap.ai"]
-}
-
 variable "certificate_arn" {
   description = "The prod certificate already covers *.medcap.ai, so dev needs no new one."
   type        = string
@@ -60,13 +43,24 @@ variable "ecr_repository_url" {
   default     = "862065604168.dkr.ecr.us-east-1.amazonaws.com/medcap-app"
 }
 
-variable "seed_image_tag" {
-  type    = string
-  default = "7caa165f25e1e8e581839d486d9895934170a03d"
+variable "image_tag" {
+  description = "Seed image. CI (deploy-backend.yml, environment=dev) or dev-ecs.sh up --image supplies later ones."
+  type        = string
+  default     = "7caa165f25e1e8e581839d486d9895934170a03d"
 }
 
-variable "mongo_uri" {
-  description = "Supplied out of band. Same Atlas cluster as prod, different database."
+variable "hostname" {
+  description = "Under the *.medcap.ai certificate, so HTTPS works with no new certificate."
   type        = string
-  sensitive   = true
+  default     = "api-dev.medcap.ai"
+}
+
+variable "allowed_cidrs" {
+  description = "Who may reach the ALB, e.g. [\"203.0.113.7/32\"]. dev-ecs.sh up fills in the caller's IP."
+  type        = list(string)
+}
+
+variable "tyger_server_url" {
+  type    = string
+  default = "https://spinhance.tyger.cloud"
 }
