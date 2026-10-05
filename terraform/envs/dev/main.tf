@@ -119,7 +119,7 @@ module "backend" {
   region      = var.region
 
   vpc_id                    = module.network.vpc_id
-  public_subnet_ids         = var.subnet_ids
+  public_subnet_ids         = var.service_subnet_ids
   service_subnet_ids        = var.service_subnet_ids
   alb_security_group_id     = module.network.alb_security_group_id
   service_security_group_id = module.network.service_security_group_id
