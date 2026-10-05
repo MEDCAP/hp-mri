@@ -170,16 +170,29 @@ ssm_get() {
   aws ssm get-parameter --name "$1" --with-decryption --query Parameter.Value --output text
 }
 
+# aws_json <json> <aws args...>: pass request JSON through a private temp file,
+# so a password never appears in a process listing. (The CLI rejects
+# file:///dev/stdin.)
+aws_json() {
+  local json="$1" tmp rc=0
+  shift
+  tmp="$(mktemp)"
+  chmod 600 "$tmp"
+  printf '%s' "$json" >"$tmp"
+  aws "$@" --cli-input-json "file://$tmp" || rc=$?
+  rm -f "$tmp"
+  return "$rc"
+}
+
 cmd_token() {
-  local email password
+  local email password token
   email="$(ssm_get "$TEST_USER_EMAIL_PARAM")" || die "no test user; run: dev-ecs.sh create-test-user <email>"
   password="$(ssm_get "$TEST_USER_PASSWORD_PARAM")"
-  # Through stdin so the password never appears in a process listing.
-  jq -n --arg c "$CLIENT_ID" --arg u "$email" --arg p "$password" \
-    '{AuthFlow: "USER_AUTH", ClientId: $c, AuthParameters: {USERNAME: $u, PASSWORD: $p, PREFERRED_CHALLENGE: "PASSWORD"}}' \
-    | aws cognito-idp initiate-auth --cli-input-json file:///dev/stdin \
-        --query AuthenticationResult.IdToken --output text \
-    | { read -r t; [[ -n "$t" && "$t" != "None" ]] || die "sign-in returned no token (a challenge?)"; echo "$t"; }
+  token="$(aws_json "$(jq -n --arg c "$CLIENT_ID" --arg u "$email" --arg p "$password" \
+    '{AuthFlow: "USER_AUTH", ClientId: $c, AuthParameters: {USERNAME: $u, PASSWORD: $p, PREFERRED_CHALLENGE: "PASSWORD"}}')" \
+    cognito-idp initiate-auth --query AuthenticationResult.IdToken --output text)"
+  [[ -n "$token" && "$token" != "None" ]] || die "sign-in returned no token (a challenge?)"
+  echo "$token"
 }
 
 python_bin() {
@@ -250,16 +263,20 @@ cmd_down() {
 cmd_create_test_user() {
   local email="${1:?usage: dev-ecs.sh create-test-user <email>}" password
   password="$(openssl rand -base64 24)Aa1!"
-  aws cognito-idp admin-create-user --user-pool-id "$USER_POOL_ID" --username "$email" \
-    --user-attributes Name=email,Value="$email" Name=email_verified,Value=true \
-    --message-action SUPPRESS >/dev/null
-  jq -n --arg pool "$USER_POOL_ID" --arg u "$email" --arg p "$password" \
-    '{UserPoolId: $pool, Username: $u, Password: $p, Permanent: true}' \
-    | aws cognito-idp admin-set-user-password --cli-input-json file:///dev/stdin
+  # Re-runnable: an existing user just gets a fresh password.
+  if ! aws cognito-idp admin-get-user --user-pool-id "$USER_POOL_ID" --username "$email" >/dev/null 2>&1; then
+    aws cognito-idp admin-create-user --user-pool-id "$USER_POOL_ID" --username "$email" \
+      --user-attributes Name=email,Value="$email" Name=email_verified,Value=true \
+      --message-action SUPPRESS >/dev/null
+  fi
+  aws_json "$(jq -n --arg pool "$USER_POOL_ID" --arg u "$email" --arg p "$password" \
+    '{UserPoolId: $pool, Username: $u, Password: $p, Permanent: true}')" \
+    cognito-idp admin-set-user-password
   aws ssm put-parameter --overwrite --name "$TEST_USER_EMAIL_PARAM" --type String --value "$email" >/dev/null
-  jq -n --arg n "$TEST_USER_PASSWORD_PARAM" --arg v "$password" '{Name: $n, Value: $v, Type: "SecureString", Overwrite: true}' \
-    | aws ssm put-parameter --cli-input-json file:///dev/stdin >/dev/null
-  jq -n --arg email "$email" '{created: $email}'
+  aws_json "$(jq -n --arg n "$TEST_USER_PASSWORD_PARAM" --arg v "$password" \
+    '{Name: $n, Value: $v, Type: "SecureString", Overwrite: true}')" \
+    ssm put-parameter >/dev/null
+  jq -n --arg email "$email" '{test_user: $email}'
 }
 
 main() {

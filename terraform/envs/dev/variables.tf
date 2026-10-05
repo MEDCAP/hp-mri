@@ -19,10 +19,15 @@ variable "subnet_ids" {
 }
 
 variable "service_subnet_ids" {
-  type = list(string)
+  description = <<-EOT
+    The ALB and the task share these: one per AZ (an ALB takes no more), and the
+    only two routed to the internet gateway. The VPC has no NAT, so a task in
+    08d0/05ea could not reach ECR or Atlas.
+  EOT
+  type        = list(string)
   default = [
-    "subnet-08d0a5035dd99648e",
-    "subnet-05ea932d2eafe0a1b",
+    "subnet-0d5062cc077c10efe", # us-east-1a
+    "subnet-0a92b66b82a1bba41", # us-east-1b
   ]
 }
 
