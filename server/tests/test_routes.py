@@ -152,6 +152,53 @@ def test_an_unparseable_upload_stores_and_returns_no_exception_text(client, user
     assert SECRET in caplog.text, "the exception must still reach the log"
 
 
+def _mrd_stream(header, items=()):
+    import app.external.python.mrd as mrd  # pylint: disable=import-outside-toplevel
+
+    buffer = io.BytesIO()
+    with mrd.BinaryMrdWriter(buffer) as writer:
+        writer.write_header(header)
+        writer.write_data(list(items))
+    buffer.seek(0)
+    return buffer
+
+
+def test_a_stream_of_images_parses_as_reconstructed():
+    from conftest import build_mrd_bytes  # pylint: disable=import-outside-toplevel
+    from data import read_mrdfile_header  # pylint: disable=import-outside-toplevel
+
+    metadata = read_mrdfile_header(io.BytesIO(build_mrd_bytes()),
+                                   original_filename="recon.mrd2", file_size=1)
+
+    assert "parse_error" not in metadata
+    assert metadata["isReconstructed"] is True
+    assert metadata["fileName"] == "recon.mrd2"
+    assert metadata["studyDate"] == "unknown"
+
+
+def test_a_missing_header_section_leaves_only_its_fields_unknown():
+    import app.external.python.mrd as mrd  # pylint: disable=import-outside-toplevel
+    from data import read_mrdfile_header  # pylint: disable=import-outside-toplevel
+
+    header = mrd.Header(
+        measurement_information=mrd.MeasurementInformationType(
+            measurement_id="42", protocol_name="epsi"),
+        acquisition_system_information=mrd.AcquisitionSystemInformationType(
+            station_name="HUPC"),
+    )
+    metadata = read_mrdfile_header(_mrd_stream(header), original_filename="scan.tar",
+                                   file_size=1)
+
+    assert "parse_error" not in metadata
+    assert metadata["fileName"] == "MID42-epsi"
+    assert metadata["measurementId"] == "42"
+    assert metadata["protocolName"] == "epsi"
+    assert metadata["stationName"] == "HUPC"
+    assert metadata["studyDate"] == "unknown"
+    assert metadata["subjectType"] == "unknown"
+    assert metadata["isReconstructed"] is False
+
+
 def test_file_details_hide_exception_text_stored_before_the_fix(client, user):
     legacy = {"_id": OID, "fileName": "scan.mrd", "parse_error": SECRET}
     with mock.patch("app.mrds.routes.get_mrdfile_by_id_with_auth", return_value=legacy):

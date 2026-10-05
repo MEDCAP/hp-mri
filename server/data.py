@@ -262,8 +262,10 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
         file_size = os.path.getsize(source)
 
     try:
-        with mrd.BinaryMrdReader(source) as r:
-            h = r.read_header()
+        # skip_completed_check: we stop at the first image, and the reader
+        # would otherwise raise on close because the stream wasn't consumed.
+        with mrd.BinaryMrdReader(source, skip_completed_check=True) as r:
+            h = r.read_header() or mrd.Header()
             image_exist = False
             for item in r.read_data():
                 if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
@@ -271,27 +273,6 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
                     # rest of the stream.
                     image_exist = True
                     break
-
-            # Use provided owner_name or fallback to patient_name from MRD header
-            effective_owner_name = owner_name if owner_name else h.subject_information.patient_name
-
-            header_for_db = {
-                "fileName": 'MID' + h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
-                "studyDate": str(h.study_information.study_date) if h.study_information.study_date else "unknown",
-                "studyTime": str(h.study_information.study_time) if h.study_information.study_time else "unknown",
-                "ownerName": effective_owner_name,
-                "subjectType": h.subject_information.patient_name,
-                "groupName": None,  # Set by the upload route
-                "ownerId": None,    # Set by the upload route
-                "isReconstructed": image_exist,
-                "protocolName": h.measurement_information.protocol_name,
-                "measurementId": h.measurement_information.measurement_id,
-                "stationName": h.acquisition_system_information.station_name,
-                "original_filename": original_filename,
-                "upload_timestamp": datetime.utcnow(),
-                "file_size": file_size
-            }
-        return header_for_db
     except Exception:  # pylint: disable=broad-except
         # Not a failure path: an unparseable file is still stored, with basic
         # metadata and a fixed parse_error. The traceback goes to the log only.
@@ -318,6 +299,43 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
             "parse_error": PARSE_ERROR_MESSAGE
         }
         return basic_metadata
+
+    # Every header section is optional; a missing one leaves only its own
+    # fields unknown.
+    subject = h.subject_information
+    study = h.study_information
+    measurement = h.measurement_information
+    system = h.acquisition_system_information
+
+    def known(value):
+        return str(value) if value else "unknown"
+
+    patient_name = subject.patient_name if subject else None
+    measurement_id = measurement.measurement_id if measurement else None
+    protocol_name = measurement.protocol_name if measurement else None
+
+    if measurement_id and protocol_name:
+        file_name = f"MID{measurement_id}-{protocol_name}"
+    else:
+        file_name = original_filename
+
+    return {
+        "fileName": file_name,
+        "studyDate": known(study.study_date if study else None),
+        "studyTime": known(study.study_time if study else None),
+        # Use provided owner_name or fallback to patient_name from MRD header
+        "ownerName": owner_name or patient_name or "unknown",
+        "subjectType": known(patient_name),
+        "groupName": None,  # Set by the upload route
+        "ownerId": None,    # Set by the upload route
+        "isReconstructed": image_exist,
+        "protocolName": known(protocol_name),
+        "measurementId": measurement_id or os.path.splitext(original_filename)[0],
+        "stationName": known(system.station_name if system else None),
+        "original_filename": original_filename,
+        "upload_timestamp": datetime.utcnow(),
+        "file_size": file_size
+    }
 
 def insert_mrdfile_header(header_data: dict, doc_id: ObjectId = None) -> ObjectId:
     """

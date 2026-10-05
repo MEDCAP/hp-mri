@@ -60,12 +60,15 @@ class DevelopmentConfig(Config):
         'http://localhost:3000',    # compiled vite dist folder
     ]
 
-    # Build MongoDB URI using AWS credentials for authentication
-    if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN:
-        MONGO_URI = f'mongodb+srv://{quote_plus(AWS_ACCESS_KEY_ID)}:{quote_plus(AWS_SECRET_ACCESS_KEY)}@mrd-files.gzajigq.mongodb.net/?authSource=%24external&authMechanism=MONGODB-AWS&retryWrites=true&w=majority&authMechanismProperties=AWS_SESSION_TOKEN:{quote_plus(AWS_SESSION_TOKEN)}&appName=mrd-files'
-    # use MONGO_URI variable saved in env file
-    else:
+    # An explicit MONGO_URI wins. Otherwise the AWS credentials from
+    # .env.development pick Atlas, which tests aimed at a local server must
+    # never reach.
+    if os.getenv('MONGO_URI'):
         MONGO_URI = os.getenv('MONGO_URI')
+    elif AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN:
+        MONGO_URI = f'mongodb+srv://{quote_plus(AWS_ACCESS_KEY_ID)}:{quote_plus(AWS_SECRET_ACCESS_KEY)}@mrd-files.gzajigq.mongodb.net/?authSource=%24external&authMechanism=MONGODB-AWS&retryWrites=true&w=majority&authMechanismProperties=AWS_SESSION_TOKEN:{quote_plus(AWS_SESSION_TOKEN)}&appName=mrd-files'
+    else:
+        MONGO_URI = None
 
 class ProductionConfig(Config):
     DEBUG=False

@@ -187,3 +187,31 @@ def test_convert_stores_the_result_as_the_callers_file(
     assert document["file_size"] == len(b"mrd2 bytes")
     assert fake_s3.uploaded[f"mrd_files/{OID}"] == b"mrd2 bytes"
     assert staging_key in fake_s3.deleted
+
+
+def test_a_converted_file_that_cannot_be_parsed_keeps_its_parse_error(
+    db_app, db_client, user, monkeypatch, fake_s3, await_job
+):
+    from data import PARSE_ERROR_MESSAGE  # pylint: disable=import-outside-toplevel
+
+    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+        with stage_context("convert"):
+            pass
+        return io.BytesIO(b"not an mrd stream")
+
+    monkeypatch.setattr("app.mrds.routes.run_chain", fake_chain)
+    fake_s3.staged[f"uploads/staging/sub-9/{OID}"] = b"tar bytes"
+
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=staged()):
+        response = db_client.post(
+            f"/api/uploads/{OID}/convert", headers=user("sub-9"),
+            json={"filename": "scan.tar", "converter": "convert", "groupName": None},
+        )
+    job = await_job(response.get_json()["jobId"])
+    assert job["status"] == "succeeded", job.get("error")
+
+    with db_app.app_context():
+        from data import get_db  # pylint: disable=import-outside-toplevel
+
+        document = get_db().mrdfiles.find_one({"_id": ObjectId(OID)})
+    assert document["parse_error"] == PARSE_ERROR_MESSAGE
