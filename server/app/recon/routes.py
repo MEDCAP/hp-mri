@@ -22,16 +22,37 @@ from app.auth import requires_auth
 from app.errors import BadRequest, NotFound
 from app.jobs.service import start_job
 from app.tyger.runner import run_chain
+from app.tyger.stages import get_stage
 
 from app.recon import recon_bp
 
 from data import get_mrdfile_by_id_with_auth, insert_mrdfile_header, read_mrdfile_header
 
 
+RECON_SUFFIX = "_recon"
+
+
 def _output_filename(source_filename):
     """What the reconstruction of a file is called."""
     stem = os.path.splitext(source_filename or "reconstruction")[0]
-    return f"{stem}-recon.mrd2"
+    return f"{stem}{RECON_SUFFIX}.mrd2"
+
+
+def _stage_provenance(stages):
+    """
+    What each stage ran: the container image and the exact arguments, beside
+    the parameters as requested. Called after start_job has validated the chain.
+    """
+    recorded = []
+    for spec in stages:
+        stage = get_stage(spec["id"])
+        recorded.append({
+            "id": stage.id,
+            "params": spec.get("params"),
+            "image": stage.image,
+            "args": stage.build_args(spec.get("params")),
+        })
+    return recorded
 
 
 @recon_bp.route("/recon", methods=["POST"])
@@ -61,6 +82,9 @@ def reconstruct():
     # Read here rather than in the thread, which has no request context.
     owner_id, owner_name = g.user_sub, g.user_name
     filename = _output_filename(source.get("original_filename"))
+    # The list shows fileName, which the output's header would make identical
+    # to the source's; the suffix tells the two apart.
+    display_name = f"{source.get('fileName') or 'reconstruction'}{RECON_SUFFIX}"
 
     output_id = ObjectId()
     output_key = f"mrd_files/{str(output_id)}"
@@ -86,9 +110,10 @@ def reconstruct():
 
         metadata.pop("parse_error", None)
         insert_mrdfile_header(
-            {**metadata, "ownerId": owner_id, "groupName": None,
-             "s3_key": output_key, "parentFileId": str(source["_id"]),
-             "reconStages": stages},
+            {**metadata, "fileName": display_name, "ownerId": owner_id,
+             "groupName": None, "s3_key": output_key,
+             "parentFileId": str(source["_id"]),
+             "reconStages": _stage_provenance(stages)},
             doc_id=output_id,
         )
         return str(output_id)

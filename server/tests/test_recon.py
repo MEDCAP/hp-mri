@@ -138,13 +138,21 @@ def test_recon_stores_its_output_as_a_private_file_traceable_to_the_source(
 
     assert document["parentFileId"] == stored_file
     assert [s["id"] for s in document["reconStages"]] == ["shift", "recon"]
+    # Enough to rerun it: every stage's image and argv, beside its params.
+    shift, recon = document["reconStages"]
+    assert shift["image"] == "ghcr.io/medcap/mrs_to_mrd/mrs-shift:latest"
+    assert recon["image"] == "ghcr.io/medcap/mrs_to_mrd/mrs-recon:latest"
+    assert recon["params"] == STAGES[1]["params"]
+    assert shift["args"] and recon["args"]
     assert document["s3_key"] == f"mrd_files/{output_id}"
     # Owned by the caller and private, whatever the body says.
     assert document["ownerId"] == OWNER
     assert document["ownerName"] == f"{OWNER}@upenn.edu"
     assert document["groupName"] is None
     # Named after the scan it came from, so the two sit together in the list.
-    assert document["original_filename"] == "ischemia_121_1-recon.mrd2"
+    assert document["original_filename"] == "ischemia_121_1_recon.mrd2"
+    # The list shows fileName; the header alone would repeat the source's.
+    assert document["fileName"] == "MID26575-epsigre_recon"
     assert fake_s3.uploaded[f"mrd_files/{output_id}"] == b"reconstructed"
 
 
