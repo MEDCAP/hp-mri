@@ -6,15 +6,9 @@ import {
   Button,
   Typography,
   IconButton,
-  Paper,
-  Radio,
+  Box,
+  Chip,
   Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   useTheme,
   Alert
 } from '@mui/material';
@@ -24,12 +18,11 @@ import {
 } from '@mui/icons-material';
 import { Transition, StyledDialog, SectionBox } from '../../components/dialogs/AppDialog';
 import { getApiErrorMessage } from '../../api/client';
-import { listMrdFiles } from '../../api/mrdFiles';
 import { startRecon } from '../../api/recon';
 import { pollJob } from '../../api/jobs';
-import { Job, MRDFile } from '../../api/types';
+import { MRDFile } from '../../api/types';
 import PipelineBuilder from './PipelineBuilder';
-import ReconProgressModal from './ReconProgressModal';
+import ReconProgressModal, { ReconRun } from './ReconProgressModal';
 import {
   Parameter,
   StageForm,
@@ -43,54 +36,29 @@ import {
   validatePipeline
 } from './pipeline';
 import { formatValueOnBlur, isValidValueInput } from './reconstructValidation';
-import { formatStudyTime } from '../../utils/format';
 
 interface ReconstructModalProps {
   open: boolean;
   onClose: () => void;
-  /** The file to preselect, e.g. the one selected in the file list. */
-  initialFileId?: string | null;
-  /** Called once a run succeeds, when its output is in the caller's file list. */
+  /** The files checked in the file list; each gets its own recon job. */
+  files: MRDFile[];
+  /** Called each time a run succeeds, so its output joins the caller's file list. */
   onReconstructSucceeded?: () => void;
 }
 
 const ReconstructModal: React.FC<ReconstructModalProps> = ({
   open,
   onClose,
-  initialFileId = null,
+  files,
   onReconstructSucceeded,
 }) => {
   const theme = useTheme();
   const [stages, setStages] = useState<StageForm[]>(defaultPipeline);
-  const [files, setFiles] = useState<MRDFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(false);
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
-  const [job, setJob] = useState<Job | null>(null);
-  const [jobError, setJobError] = useState<string | null>(null);
+  const [runs, setRuns] = useState<ReconRun[]>([]);
   const pollAbort = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setSelectedFileId(initialFileId);
-    setFilesLoading(true);
-    listMrdFiles()
-      .then((loaded) => {
-        if (!cancelled) setFiles(loaded);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(getApiErrorMessage(err));
-      })
-      .finally(() => {
-        if (!cancelled) setFilesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, initialFileId]);
 
   useEffect(() => () => pollAbort.current?.abort(), []);
 
@@ -163,7 +131,6 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
 
   const resetForm = () => {
     setStages(defaultPipeline());
-    setSelectedFileId(null);
     setError(null);
   };
 
@@ -176,13 +143,15 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
     pollAbort.current?.abort();
     pollAbort.current = null;
     setProgressOpen(false);
-    setJob(null);
-    setJobError(null);
+    setRuns([]);
   };
 
+  const updateRun = (fileId: string, patch: Partial<ReconRun>) =>
+    setRuns((prev) => prev.map((run) => (run.file._id === fileId ? { ...run, ...patch } : run)));
+
   const handleReconstruct = async () => {
-    if (!selectedFileId) {
-      setError('Select the MRD file to reconstruct');
+    if (files.length === 0) {
+      setError('Select the MRD files to reconstruct in the file list');
       return;
     }
     const invalid = validatePipeline(stages);
@@ -193,33 +162,50 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
 
     setError(null);
     setSubmitting(true);
-    setJob(null);
-    setJobError(null);
+    const pipeline = buildPipelineStages(stages);
+    // Snapshot the selection: it may change while the runs are in flight.
+    const targets = [...files];
 
-    let jobId: string;
-    try {
-      ({ jobId } = await startRecon(selectedFileId, buildPipelineStages(stages)));
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-      setSubmitting(false);
-      return;
-    }
+    // One job per file; the backend runs each as its own Tyger chain.
+    const started = await Promise.allSettled(
+      targets.map((file) => startRecon(file._id, pipeline))
+    );
 
     setSubmitting(false);
+    setRuns(
+      targets.map((file, index) => {
+        const result = started[index];
+        return result.status === 'fulfilled'
+          ? { file, job: null, error: null }
+          : { file, job: null, error: getApiErrorMessage(result.reason) };
+      })
+    );
     setProgressOpen(true);
     resetForm();
     onClose();
 
+    pollAbort.current?.abort();
     const controller = new AbortController();
     pollAbort.current = controller;
-    try {
-      const finished = await pollJob(jobId, setJob, controller.signal);
-      if (finished.status === 'succeeded') onReconstructSucceeded?.();
-    } catch (err) {
-      if (!(err instanceof DOMException && err.name === 'AbortError')) {
-        setJobError(getApiErrorMessage(err));
-      }
-    }
+
+    await Promise.all(
+      targets.map(async (file, index) => {
+        const result = started[index];
+        if (result.status !== 'fulfilled') return;
+        try {
+          const finished = await pollJob(
+            result.value.jobId,
+            (job) => updateRun(file._id, { job }),
+            controller.signal
+          );
+          if (finished.status === 'succeeded') onReconstructSucceeded?.();
+        } catch (err) {
+          if (!(err instanceof DOMException && err.name === 'AbortError')) {
+            updateRun(file._id, { error: getApiErrorMessage(err) });
+          }
+        }
+      })
+    );
   };
 
   return (
@@ -257,55 +243,19 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
           )}
 
           <SectionBox>
-            <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>
-              Source MRD File
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
+              {files.length === 1 ? '1 file selected' : `${files.length} files selected`}
             </Typography>
-
-            {filesLoading ? (
-              <Typography variant="body2" color="textSecondary">
-                Loading files...
-              </Typography>
-            ) : files.length === 0 ? (
+            {files.length === 0 ? (
               <Alert severity="info" variant="outlined">
-                No MRD files available. Upload and convert a scan first.
+                Check the files to reconstruct in the file list first.
               </Alert>
             ) : (
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 280 }}>
-                <Table stickyHeader size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell padding="checkbox" />
-                      <TableCell>File Name</TableCell>
-                      <TableCell>Study Date</TableCell>
-                      <TableCell>Owner</TableCell>
-                      <TableCell>Size</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {files.map((file) => (
-                      <TableRow
-                        key={file._id}
-                        hover
-                        selected={file._id === selectedFileId}
-                        onClick={() => setSelectedFileId(file._id)}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        <TableCell padding="checkbox">
-                          <Radio size="small" checked={file._id === selectedFileId} />
-                        </TableCell>
-                        <TableCell>{file.fileName}</TableCell>
-                        <TableCell>{`${file.studyDate} ${formatStudyTime(file.studyTime)}`}</TableCell>
-                        <TableCell>{file.ownerName}</TableCell>
-                        <TableCell>
-                          {file.file_size
-                            ? `${(Number(file.file_size) / (1024 * 1024)).toFixed(2)} MB`
-                            : 'Unknown'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {files.map((file) => (
+                  <Chip key={file._id} label={file.fileName} size="small" variant="outlined" />
+                ))}
+              </Box>
             )}
           </SectionBox>
 
@@ -337,7 +287,7 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
             variant="contained"
             onClick={handleReconstruct}
             startIcon={<ReconstructIcon />}
-            disabled={!selectedFileId || stages.length === 0 || submitting}
+            disabled={files.length === 0 || stages.length === 0 || submitting}
             sx={{
               minWidth: 140,
               background: theme.palette.primary.main,
@@ -346,7 +296,7 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
               },
             }}
           >
-            Start Reconstruction
+            {files.length > 1 ? `Reconstruct ${files.length} files` : 'Start Reconstruction'}
           </Button>
         </DialogActions>
       </StyledDialog>
@@ -354,8 +304,7 @@ const ReconstructModal: React.FC<ReconstructModalProps> = ({
       <ReconProgressModal
         open={progressOpen}
         onClose={handleProgressClose}
-        job={job}
-        error={jobError}
+        runs={runs}
       />
     </>
   );

@@ -304,7 +304,7 @@ const RetrievePage: React.FC = () => {
         <ReconstructModal
           open={reconstructModalOpen}
           onClose={() => setReconstructModalOpen(false)}
-          initialFileId={selectedFiles.length === 1 ? selectedFiles[0]._id : null}
+          files={selectedFiles}
           onReconstructSucceeded={fetchFiles}
         />
       )}
