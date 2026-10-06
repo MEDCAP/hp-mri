@@ -23,24 +23,45 @@ import {
   Insights
 } from '@mui/icons-material';
 import { Transition, StyledDialog } from '../../components/dialogs/AppDialog';
-import { Job, JobStatus } from '../../api/types';
+import { Job, JobStatus, MRDFile } from '../../api/types';
 import { isTerminalJobStatus } from '../../api/jobs';
 import { stageLabel } from './pipeline';
 
+/**
+ * One file's reconstruction: its job once POST /recon answered, or the error
+ * that kept it from starting (or from being polled).
+ */
+export interface ReconRun {
+  file: MRDFile;
+  job: Job | null;
+  error: string | null;
+}
+
+/** The run's status as one value, with a failure to start counted as failed. */
+const runStatus = (run: ReconRun): JobStatus =>
+  run.error ? 'failed' : run.job?.status ?? 'queued';
+
+/** Fraction of the run that is finished, 0..1. */
+const runProgress = (run: ReconRun): number => {
+  if (isTerminalJobStatus(runStatus(run))) return 1;
+  const stages = run.job?.stages ?? [];
+  if (stages.length === 0) return 0;
+  return stages.filter((stage) => isTerminalJobStatus(stage.status)).length / stages.length;
+};
+
 const StageProgressItem = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
+  padding: theme.spacing(1.5, 2),
   margin: theme.spacing(1, 0),
   borderRadius: 8,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  transition: theme.transitions.create(['transform', 'box-shadow'], {
-    duration: theme.transitions.duration.short,
-  }),
-  '&:hover': {
-    transform: 'translateY(-1px)',
-    boxShadow: theme.shadows[4],
-  },
+}));
+
+const FileSection = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+  borderRadius: 12,
 }));
 
 const OverallProgressContainer = styled(Box)(({ theme }) => ({
@@ -55,9 +76,7 @@ const OverallProgressContainer = styled(Box)(({ theme }) => ({
 interface ReconProgressModalProps {
   open: boolean;
   onClose: () => void;
-  job: Job | null;
-  /** A failure outside the job itself, e.g. the request that started it. */
-  error: string | null;
+  runs: ReconRun[];
 }
 
 const getStatusIcon = (status: JobStatus) => {
@@ -86,33 +105,23 @@ const getStatusColor = (status: JobStatus) => {
   }
 };
 
-const ReconProgressModal: React.FC<ReconProgressModalProps> = ({
-  open,
-  onClose,
-  job,
-  error,
-}) => {
+const ReconProgressModal: React.FC<ReconProgressModalProps> = ({ open, onClose, runs }) => {
   const theme = useTheme();
-  const stages = job?.stages ?? [];
-  const totalStages = stages.length;
-  const doneStages = stages.filter((stage) => isTerminalJobStatus(stage.status)).length;
-  const overallProgress = totalStages === 0 ? 0 : (doneStages / totalStages) * 100;
-  const running = job !== null && !isTerminalJobStatus(job.status);
-  const runningStage = stages.find((stage) => stage.status === 'running');
+  const total = runs.length;
+  const statuses = runs.map(runStatus);
+  const finished = statuses.filter(isTerminalJobStatus).length;
+  const failed = statuses.filter((status) => status === 'failed').length;
+  const succeeded = statuses.filter((status) => status === 'succeeded').length;
+  const overallProgress =
+    total === 0 ? 0 : (runs.reduce((sum, run) => sum + runProgress(run), 0) / total) * 100;
+  const noun = total === 1 ? 'file' : 'files';
 
   const getStatusText = () => {
-    if (error) return 'Reconstruction could not start';
-    if (!job) return 'Starting reconstruction...';
-    switch (job.status) {
-      case 'succeeded':
-        return 'Reconstruction completed successfully';
-      case 'failed':
-        return 'Reconstruction failed';
-      case 'running':
-        return 'Reconstruction running...';
-      default:
-        return 'Reconstruction queued';
-    }
+    if (total === 0) return 'Starting reconstruction...';
+    if (finished < total) return `Reconstructing ${total} ${noun}...`;
+    if (failed === 0) return `Reconstruction completed for ${total} ${noun}`;
+    if (succeeded === 0) return total === 1 ? 'Reconstruction failed' : 'All reconstructions failed';
+    return `${failed} of ${total} reconstructions failed`;
   };
 
   return (
@@ -122,13 +131,7 @@ const ReconProgressModal: React.FC<ReconProgressModalProps> = ({
       TransitionComponent={Transition}
       maxWidth="sm"
       fullWidth
-      sx={{
-        '@keyframes pulse': {
-          '0%': { opacity: 1, transform: 'scale(1)' },
-          '50%': { opacity: 0.5, transform: 'scale(1.1)' },
-          '100%': { opacity: 1, transform: 'scale(1)' },
-        },
-      }}
+      paperMaxHeight="90vh"
     >
       <DialogTitle sx={{
         display: 'flex',
@@ -159,7 +162,7 @@ const ReconProgressModal: React.FC<ReconProgressModalProps> = ({
                   {getStatusText()}
                 </Typography>
                 <Chip
-                  label={`${doneStages}/${totalStages}`}
+                  label={`${finished}/${total} ${noun}`}
                   color="primary"
                   variant="filled"
                   sx={{ color: theme.palette.primary.contrastText }}
@@ -180,117 +183,84 @@ const ReconProgressModal: React.FC<ReconProgressModalProps> = ({
                 }}
               />
 
-              <Typography variant="body2" sx={{
-                mt: 1.5,
-                opacity: 0.95,
-                fontWeight: 500,
-                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
-              }}>
+              <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.95, fontWeight: 500 }}>
                 {Math.round(overallProgress)}% complete
               </Typography>
-
-              {running && (
-                <Box sx={{
-                  mt: 2,
-                  p: 2,
-                  background: `linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)`,
-                  borderRadius: 2,
-                  border: `1px solid rgba(255,255,255,0.2)`,
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Box sx={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${theme.palette.success.light} 0%, ${theme.palette.success.main} 100%)`,
-                      mr: 1.5,
-                      animation: 'pulse 1.5s ease-in-out infinite',
-                      boxShadow: `0 0 10px ${theme.palette.success.main}40`
-                    }} />
-                    <Typography variant="body2" fontWeight="bold" sx={{ color: theme.palette.primary.contrastText }}>
-                      Current Stage:
-                    </Typography>
-                  </Box>
-                  <Typography variant="body1" sx={{
-                    opacity: 0.95,
-                    pl: 3.5,
-                    color: theme.palette.primary.contrastText,
-                    fontWeight: 500
-                  }}>
-                    {runningStage ? stageLabel(runningStage.id) : 'Waiting for a worker...'}
-                  </Typography>
-                </Box>
-              )}
             </Box>
           </Fade>
         </OverallProgressContainer>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+        <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+          Stage Details
+        </Typography>
 
-        {job?.status === 'failed' && job.error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {job.error}
-          </Alert>
-        )}
-
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom fontWeight="medium">
-            Stage Details
-          </Typography>
-
-          {stages.map((stage, index) => (
-            <Grow in={true} timeout={300 + index * 100} key={stage.id}>
-              <StageProgressItem>
-                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                  {getStatusIcon(stage.status)}
-                  <Box sx={{ ml: 2, flex: 1 }}>
-                    <Typography variant="body2" fontWeight="medium">
-                      {stageLabel(stage.id)}
+        {runs.map((run, runIndex) => {
+          const status = runStatus(run);
+          const stages = run.job?.stages ?? [];
+          const runningStage = stages.find((stage) => stage.status === 'running');
+          return (
+            <Grow in={true} timeout={300 + runIndex * 100} key={run.file._id}>
+              <FileSection variant="outlined">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {getStatusIcon(status)}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body1" fontWeight="bold" noWrap title={run.file.fileName}>
+                      {run.file.fileName}
                     </Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Stage {index + 1} of {totalStages}
+                      {status === 'running' && runningStage
+                        ? `Running: ${stageLabel(runningStage.id)}`
+                        : status === 'queued'
+                          ? 'Waiting for a worker...'
+                          : run.job?.output_file_id
+                            ? 'The reconstructed file is now listed with your MRD files.'
+                            : `${stages.filter((s) => isTerminalJobStatus(s.status)).length} of ${stages.length} stages finished`}
                     </Typography>
-                    {stage.error && (
-                      <Box sx={{
-                        mt: 1,
-                        p: 1.5,
-                        background: `linear-gradient(135deg, ${theme.palette.error.light}20 0%, ${theme.palette.error.main}20 100%)`,
-                        borderRadius: 1,
-                        border: `1px solid ${theme.palette.error.main}30`
-                      }}>
-                        <Typography variant="caption" color="error.main" fontWeight="bold">
-                          {stage.error}
-                        </Typography>
-                      </Box>
-                    )}
                   </Box>
+                  <Chip label={status} size="small" color={getStatusColor(status)} />
                 </Box>
 
-                <Chip
-                  label={stage.status}
-                  size="small"
-                  color={getStatusColor(stage.status)}
-                  variant="outlined"
-                />
-              </StageProgressItem>
-            </Grow>
-          ))}
-        </Box>
+                {run.error && (
+                  <Alert severity="error" sx={{ mt: 1.5 }}>
+                    {run.error}
+                  </Alert>
+                )}
+                {!run.error && run.job?.status === 'failed' && run.job.error && (
+                  <Alert severity="error" sx={{ mt: 1.5 }}>
+                    {run.job.error}
+                  </Alert>
+                )}
 
-        <Fade in={true} timeout={800}>
-          <Box sx={{ mt: 3, p: 2, backgroundColor: theme.palette.grey[50], borderRadius: 2 }}>
-            <Typography variant="body2" color="textSecondary">
-              {job?.output_file_id
-                ? 'The reconstructed file is now listed with your MRD files.'
-                : `${doneStages} of ${totalStages} stages finished`}
-            </Typography>
-          </Box>
-        </Fade>
+                {stages.map((stage, index) => (
+                  <StageProgressItem key={stage.id} variant="outlined">
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                      {getStatusIcon(stage.status)}
+                      <Box sx={{ ml: 2, flex: 1 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                          {stageLabel(stage.id)}
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          Stage {index + 1} of {stages.length}
+                        </Typography>
+                        {stage.error && (
+                          <Typography variant="caption" color="error.main" fontWeight="bold" component="div" sx={{ mt: 0.5 }}>
+                            {stage.error}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                    <Chip
+                      label={stage.status}
+                      size="small"
+                      color={getStatusColor(stage.status)}
+                      variant="outlined"
+                    />
+                  </StageProgressItem>
+                ))}
+              </FileSection>
+            </Grow>
+          );
+        })}
       </DialogContent>
     </StyledDialog>
   );

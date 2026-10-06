@@ -194,10 +194,10 @@ A job is visible only to the user who started it (`ownerId` = the caller's sub).
   - upload of scan folders (drag-and-drop or browse): each folder is tarred in the
     browser, staged as `raw-tar`, converted with `POST /uploads/<id>/convert`, and
     its job polled until the converted file exists; the visibility picker applies
-  - Reconstruct (signed-in only): pick a visible file (the selected one is
-    preselected), build a `shift`/`recon` pipeline with peaks and tunables, start
-    `POST /recon` and follow the job's stages; the list is re-fetched when it
-    succeeds
+  - Reconstruct (signed-in only): runs over the files checked in the table
+    (disabled until one is). Build a `shift`/`recon` pipeline with peaks and
+    tunables. One `POST /recon` starts per file, and the progress pane shows each
+    file's job and stages. The list is re-fetched as each run succeeds
   - batch delete
 - **Groups** (`/groups`, `/groups/:groupName`), signed-in only: create, join by
   code, search and request to join, members, admins, invite codes, join requests,
