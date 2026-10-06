@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   DialogTitle,
   DialogContent,
@@ -21,7 +21,16 @@ import {
   Minimize
 } from '@mui/icons-material';
 import { Transition, StyledDialog } from '../../../components/dialogs/AppDialog';
-import { UploadFile as UploadFileType, useUpload } from '../hooks/useUpload';
+import {
+  ReplaceTargets,
+  UploadFile as UploadFileType,
+  uploadNameOfFile,
+  uploadNameOfFolder,
+  useUpload
+} from '../hooks/useUpload';
+import { MRDFile } from '../../../types/mrd';
+import { getCurrentUserSub } from '../../../auth/cognito';
+import ReplaceDuplicatesDialog from './ReplaceDuplicatesDialog';
 import UploadDropzone from './UploadDropzone';
 import UploadFileList from './UploadFileList';
 import GroupSelect from './GroupSelect';
@@ -48,6 +57,8 @@ const JigglingDialog = styled(StyledDialog)<{ isJiggling: boolean }>(({ theme, i
 interface UploadModalProps {
   open: boolean;
   onClose: () => void;
+  /** The file list, to spot uploads named like a file the caller already owns. */
+  existingFiles?: MRDFile[];
   onUploadComplete?: (files: UploadFileType[]) => void;
   onMinimize?: () => void;
   isUploading?: boolean;
@@ -55,7 +66,7 @@ interface UploadModalProps {
   onProgressUpdate?: (fileId: string, progress: number) => void;
 }
 
-const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComplete, onMinimize, isUploading: externalIsUploading, onUploadStart, onProgressUpdate }) => {
+const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, existingFiles = [], onUploadComplete, onMinimize, isUploading: externalIsUploading, onUploadStart, onProgressUpdate }) => {
   const theme = useTheme();
   const [isJiggling, setIsJiggling] = useState(false);
   // Private by default; the uploader opts in to sharing.
@@ -81,6 +92,34 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
   } = useUpload({ onUploadStart, onUploadComplete, onClose, onProgressUpdate, groupName });
 
   const itemCount = files.length + folders.length;
+
+  // Queued names that match original_filename on files the caller owns. Only
+  // the caller's own: replacing deletes, and that is not theirs to do to a
+  // group member's file.
+  const duplicates: ReplaceTargets = useMemo(() => {
+    const me = getCurrentUserSub();
+    const owned = new Map<string, string[]>();
+    existingFiles.forEach((existing) => {
+      if (!me || existing.ownerId !== me || !existing.original_filename) return;
+      owned.set(existing.original_filename, [...(owned.get(existing.original_filename) ?? []), existing._id]);
+    });
+    const queued = [...files.map(uploadNameOfFile), ...folders.map(uploadNameOfFolder)];
+    return new Map(queued.filter((name) => owned.has(name)).map((name) => [name, owned.get(name)!]));
+  }, [existingFiles, files, folders]);
+  const [askReplace, setAskReplace] = useState(false);
+
+  const startUpload = () => {
+    if (duplicates.size > 0) {
+      setAskReplace(true);
+      return;
+    }
+    void handleUpload();
+  };
+
+  const resolveReplace = (replace: boolean) => {
+    setAskReplace(false);
+    void handleUpload(replace ? duplicates : undefined);
+  };
 
   // Use external upload state if provided, otherwise use internal state
   const isUploadingState = externalIsUploading !== undefined ? externalIsUploading : isUploading;
@@ -233,7 +272,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
         </Button>
         <Button
           variant="contained"
-          onClick={handleUpload}
+          onClick={startUpload}
           disabled={itemCount === 0 || isUploading}
           startIcon={<UploadFile />}
           sx={{
@@ -247,6 +286,13 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadComple
           {isUploading ? 'Uploading...' : 'Upload'}
         </Button>
       </DialogActions>
+      <ReplaceDuplicatesDialog
+        open={askReplace}
+        names={[...duplicates.keys()]}
+        onReplace={() => resolveReplace(true)}
+        onKeepBoth={() => resolveReplace(false)}
+        onCancel={() => setAskReplace(false)}
+      />
     </JigglingDialog>
   );
 };

@@ -65,8 +65,10 @@ scripts/dev-ecs.sh up | smoke | status | logs | report | down   # dev ECS on PRO
 `upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A file that could
 not be parsed as MRD also has `parse_error`, always the fixed message
 `"The file could not be read as an MRD stream."`. A reconstruction's
-output also has `parentFileId` (the source file's id) and `reconStages` (the stages
-it ran).
+output is named `<source fileName>_recon` (`original_filename`
+`<source stem>_recon.mrd2`). It also has `parentFileId` (the source file's id) and
+`reconStages`: one `{id, params, image, args}` per stage it ran, where `image` is
+the container image and `args` the exact arguments.
 
 ## Job document (`jobs` collection)
 
@@ -88,7 +90,7 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 
 | Route | Auth | Input | Output |
 |---|---|---|---|
-| `GET /mrd-files` | optional | `?limit` (≤200, default 50), `?skip` (≥0) | List of visible file documents, newest `studyDate`/`studyTime` first. Guests get no `ownerId`, `measurementId`, `stationName`, `original_filename` or `s3_key` |
+| `GET /mrd-files` | optional | `?limit` (≤200, default 50), `?skip` (≥0) | List of visible file documents, newest `studyDate`/`studyTime` first. Guests get no `ownerId`, `measurementId`, `stationName`, `original_filename`, `s3_key`, `parentFileId` or `reconStages` |
 | `GET /mrd-files/<id>` | required | — | Full document; 404 if not visible |
 | `POST /uploads/init` | required | `{filename, fileSize, groupName, kind}` — `kind` `"mrd"` (default; `.bin`/`.mrd`/`.mrd2`) or `"raw-tar"` (`.tar`), `fileSize` a positive int ≤ `MAX_UPLOAD_BYTES` (2 GiB), `groupName` null or a group the caller belongs to (else 403) | `{uploadId, uploadUrl, expiresIn}`; no database write |
 | (browser) `PUT <uploadUrl>` | presigned | File bytes, `Content-Type: application/octet-stream`, no `Authorization` header | S3 stores it at `uploads/staging/<sub>/<uploadId>` |
@@ -188,7 +190,12 @@ A job is visible only to the user who started it (`ownerId` = the caller's sub).
 - **Files** (`/mrd-files`), open to guests:
   - table with search, sort and selection (single-click selects, double-click
     opens); each row shows its visibility (Private / group / Public)
-  - details pane; the owner can change visibility (Private / a group / Public)
+  - details pane; the owner can change visibility (Private / a group / Public); a
+    reconstruction shows its source file id and, per stage, the container image
+    (linked to its registry page), parameters and arguments
+  - before uploading, names matching the `original_filename` of the caller's own
+    files (`<folder>.tar` for folders) prompt Replace / Keep both / Cancel.
+    Replace deletes the old copy only after the new upload succeeds
   - upload: drag-and-drop of `.bin`/`.mrd`/`.mrd2` up to 2 GiB each, 3 in parallel,
     with a visibility picker, per-file progress and cancel
   - upload of scan folders (drag-and-drop or browse): each folder is tarred in the

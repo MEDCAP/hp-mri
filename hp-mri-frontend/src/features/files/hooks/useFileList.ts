@@ -95,6 +95,7 @@ export function useFileList() {
 
   return {
     isSignedIn,
+    files,
     search, setSearch,
     sortConfig, sortedFiles, selectedFiles,
     fetchFiles, handleSort,
