@@ -242,6 +242,13 @@ def delete_mrdfiles_by_ids(file_ids):
 # GET /mrd-files/<id> returns the document as stored.
 PARSE_ERROR_MESSAGE = "The file could not be read as an MRD stream."
 
+# Stream item types only a reconstruction produces: every image and n-d array
+# variant (maps, spectra). A raw scan holds acquisitions and waveforms.
+_RECONSTRUCTED_ITEMS = tuple(
+    getattr(mrd.StreamItem, name) for name in dir(mrd.StreamItem)
+    if name.startswith(("Image", "NdArray"))
+)
+
 
 def read_mrdfile_header(source, owner_name=None, original_filename=None, file_size=None):
     """
@@ -265,28 +272,39 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
         with mrd.BinaryMrdReader(source) as r:
             h = r.read_header()
             image_exist = False
+            # The whole stream must be read: the reader raises on close if
+            # read_data was left partly consumed.
             for item in r.read_data():
-                if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
-                    # One image is enough to answer the question; don't walk the
-                    # rest of the stream.
+                if isinstance(item, _RECONSTRUCTED_ITEMS):
                     image_exist = True
-                    break
 
-            # Use provided owner_name or fallback to patient_name from MRD header
-            effective_owner_name = owner_name if owner_name else h.subject_information.patient_name
+            # Every header section is optional in the schema; converted scans
+            # carry measurement information alone.
+            study = h.study_information
+            subject = h.subject_information
+            measurement = h.measurement_information
+            system = h.acquisition_system_information
+
+            def field(section, name):
+                value = getattr(section, name, None) if section else None
+                return str(value) if value is not None else "unknown"
+
+            patient_name = field(subject, "patient_name")
+            measurement_id = field(measurement, "measurement_id")
+            protocol_name = field(measurement, "protocol_name")
 
             header_for_db = {
-                "fileName": 'MID' + h.measurement_information.measurement_id + '-' + h.measurement_information.protocol_name,
-                "studyDate": str(h.study_information.study_date) if h.study_information.study_date else "unknown",
-                "studyTime": str(h.study_information.study_time) if h.study_information.study_time else "unknown",
-                "ownerName": effective_owner_name,
-                "subjectType": h.subject_information.patient_name,
+                "fileName": f"MID{measurement_id}-{protocol_name}",
+                "studyDate": field(study, "study_date"),
+                "studyTime": field(study, "study_time"),
+                "ownerName": owner_name or patient_name,
+                "subjectType": patient_name,
                 "groupName": None,  # Set by the upload route
                 "ownerId": None,    # Set by the upload route
                 "isReconstructed": image_exist,
-                "protocolName": h.measurement_information.protocol_name,
-                "measurementId": h.measurement_information.measurement_id,
-                "stationName": h.acquisition_system_information.station_name,
+                "protocolName": protocol_name,
+                "measurementId": measurement_id,
+                "stationName": field(system, "station_name"),
                 "original_filename": original_filename,
                 "upload_timestamp": datetime.utcnow(),
                 "file_size": file_size
