@@ -38,6 +38,14 @@ def test_guest_listing_is_the_public_scope_with_narrow_fields(client):
     projection = listed.call_args.kwargs["projection"]
     # The guest listing must not expose ownership or storage internals.
     assert "s3_key" not in projection and "ownerId" not in projection
+    assert "reconStages" not in projection
+
+
+def test_signed_in_listing_carries_recon_provenance(client, user):
+    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", return_value=[]) as listed:
+        client.get("/api/mrd-files", headers=user())
+    projection = listed.call_args.kwargs["projection"]
+    assert projection["reconStages"] == 1 and projection["parentFileId"] == 1
 
 
 def test_file_details_for_an_inaccessible_file_is_404(client, user):

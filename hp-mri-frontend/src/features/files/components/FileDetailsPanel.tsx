@@ -30,6 +30,7 @@ import { MRDFile, fileVisibility } from '../../../types/mrd';
 import { formatUploadTimestamp } from '../../../utils/format';
 import { getCurrentUserSub } from '../../../auth/cognito';
 import VisibilitySelect from './VisibilitySelect';
+import ReconProvenance from './ReconProvenance';
 
 const drawerWidth = 400;
 
@@ -298,6 +299,13 @@ const FileDetailsPanel: React.FC<FileDetailsPanelProps> = ({ selection, onClose,
             )}
 
             <Divider sx={{ my: 1.5 }} />
+
+            {file.reconStages && file.reconStages.length > 0 && (
+              <>
+                <ReconProvenance stages={file.reconStages} parentFileId={file.parentFileId} />
+                <Divider sx={{ my: 1.5 }} />
+              </>
+            )}
 
             {/* File ID */}
             <DetailItem>

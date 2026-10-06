@@ -6,6 +6,7 @@ import {
   convertUpload,
   abortUpload,
 } from '../../../api/uploads';
+import { deleteMrdFiles } from '../../../api/mrdFiles';
 import { pollJob, isTerminalJobStatus } from '../../../api/jobs';
 import type { Job } from '../../../api/types';
 import { getApiErrorMessage } from '../../../api/client';
@@ -130,6 +131,16 @@ function validateFile(file: File): string | null {
 const isValidFileType = (file: File): boolean => validateFile(file) === null;
 
 const newItemId = (): string => `${Date.now()}-${Math.random()}`;
+
+/**
+ * The name an item is stored under as `original_filename`: a file's own name,
+ * or the tar a folder is packed into. Same-name detection compares on it.
+ */
+export const uploadNameOfFile = (file: UploadFile): string => file.file.name;
+export const uploadNameOfFolder = (folder: UploadFolder): string => `${folder.name}.tar`;
+
+/** Upload name -> ids of the caller's existing files to delete once it lands. */
+export type ReplaceTargets = Map<string, string[]>;
 
 export function useUpload(opts: {
   onUploadStart?: (files: UploadFile[]) => void;
@@ -325,7 +336,7 @@ export function useUpload(opts: {
    * parse and record it. On failure the staged object is discarded so it does not
    * linger until the bucket lifecycle rule catches it.
    */
-  const uploadFile = async (file: UploadFile): Promise<void> => {
+  const uploadFile = async (file: UploadFile, replace?: ReplaceTargets): Promise<void> => {
     const controller = new AbortController();
     abortControllers.current.set(file.id, controller);
 
@@ -359,6 +370,7 @@ export function useUpload(opts: {
 
       setFileState(file.id, { status: 'completed', progress: 100, currentStep: 'Completed!' });
       onProgressUpdate?.(file.id, 100);
+      await replaceOldCopies(uploadNameOfFile(file), replace);
     } catch (error) {
       // The bytes may already be staged in S3; drop them rather than wait for the
       // lifecycle rule.
@@ -383,7 +395,7 @@ export function useUpload(opts: {
    * step, because the file the user ends up with is the converter's output rather
    * than the thing that was uploaded.
    */
-  const uploadFolder = async (folder: UploadFolder): Promise<void> => {
+  const uploadFolder = async (folder: UploadFolder, replace?: ReplaceTargets): Promise<void> => {
     const controller = new AbortController();
     abortControllers.current.set(folder.id, controller);
 
@@ -439,6 +451,7 @@ export function useUpload(opts: {
         progress: 100,
         fileId: job.output_file_id ?? undefined,
       });
+      await replaceOldCopies(uploadNameOfFolder(folder), replace);
     } catch (error) {
       if (uploadId) {
         await abortUpload(uploadId);
@@ -450,18 +463,38 @@ export function useUpload(opts: {
     }
   };
 
+  // Old copies that could not be removed after a replacing upload landed.
+  const replaceFailures = useRef<string[]>([]);
+
+  const replaceOldCopies = async (name: string, replace?: ReplaceTargets) => {
+    const ids = replace?.get(name);
+    if (!ids || ids.length === 0) return;
+    try {
+      await deleteMrdFiles(ids);
+    } catch (error) {
+      replaceFailures.current.push(
+        `${name} uploaded, but the old copy could not be removed: ${getApiErrorMessage(error)}`
+      );
+    }
+  };
+
   // Calculate overall progress
   const itemCount = files.length + folders.length;
   const overallProgress = itemCount > 0
     ? [...files, ...folders].reduce((sum, item) => sum + item.progress, 0) / itemCount
     : 0;
 
-  // Handle upload
-  const handleUpload = async () => {
+  /**
+   * Handle upload. With `replace`, an item whose name matches files the caller
+   * already owns deletes those once the new copy has landed -- never before, so
+   * a failed upload loses nothing.
+   */
+  const handleUpload = async (replace?: ReplaceTargets) => {
     if (itemCount === 0) return;
 
     setIsUploading(true);
     setUploadError(null);
+    replaceFailures.current = [];
 
     // Notify parent component about upload start
     onUploadStart?.(files);
@@ -470,8 +503,8 @@ export function useUpload(opts: {
     // can transfer at once without competing for backend workers. Files and folders
     // share the queue so the bound holds across both.
     const queue: (() => Promise<void>)[] = [
-      ...files.map(file => () => uploadFile(file)),
-      ...folders.map(folder => () => uploadFolder(folder)),
+      ...files.map(file => () => uploadFile(file, replace)),
+      ...folders.map(folder => () => uploadFolder(folder, replace)),
     ];
     const workerCount = Math.min(uploadConfig.concurrency, queue.length);
     let failures = 0;
@@ -491,11 +524,13 @@ export function useUpload(opts: {
 
     await Promise.all(Array.from({ length: workerCount }, worker));
 
-    if (failures > 0) {
-      setUploadError(
-        `${failures} of ${itemCount} item${itemCount === 1 ? '' : 's'} failed to upload.`
-      );
+    if (failures > 0 || replaceFailures.current.length > 0) {
+      const messages = failures > 0
+        ? [`${failures} of ${itemCount} item${itemCount === 1 ? '' : 's'} failed to upload.`]
+        : [];
+      setUploadError([...messages, ...replaceFailures.current].join(' '));
       setIsUploading(false);
+      if (failures === 0) onUploadComplete?.(files);
       return;
     }
 
