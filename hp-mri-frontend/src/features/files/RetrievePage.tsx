@@ -29,6 +29,7 @@ const RetrievePage: React.FC = () => {
   const navigate = useNavigate();
   const {
     isSignedIn,
+    files,
     search, setSearch,
     sortConfig, sortedFiles, selectedFiles,
     fetchFiles, handleSort,
@@ -224,6 +225,7 @@ const RetrievePage: React.FC = () => {
       <UploadModal
         open={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
+        existingFiles={files}
         onUploadComplete={handleUploadComplete}
         onUploadStart={handleUploadStart}
         onMinimize={handleMinimize}
