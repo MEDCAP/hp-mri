@@ -51,5 +51,5 @@ six==1.16.0
 tqdm==4.67.1
 urllib3==2.2.3
 Werkzeug==3.0.4
-PyJWT[crypto]==2.8.0
+PyJWT[crypto]==2.15.1
 cryptography>=42.0.0
