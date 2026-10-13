@@ -51,10 +51,18 @@ const FilesToolbar: React.FC<FilesToolbarProps> = ({
               Upload
             </Button>
           </Tooltip>
-          <Tooltip title="Run a reconstruction pipeline over a file">
-            <Button variant="outlined" startIcon={<PlayArrow />} onClick={onReconstructClick} sx={{ flex: 1 }}>
-              Reconstruct
-            </Button>
+          <Tooltip title="Run a reconstruction pipeline over the selected files">
+            <span style={{ flex: 1, display: 'flex' }}>
+              <Button
+                variant="contained"
+                startIcon={<PlayArrow />}
+                disabled={!isAnyFileSelected}
+                onClick={onReconstructClick}
+                sx={{ flex: 1 }}
+              >
+                Reconstruct
+              </Button>
+            </span>
           </Tooltip>
           <Tooltip title="Refresh MRD files">
             <Button variant="outlined" startIcon={<Refresh />} onClick={onRefresh} sx={{ flex: 1 }}>
