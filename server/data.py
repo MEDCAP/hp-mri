@@ -242,6 +242,14 @@ def delete_mrdfiles_by_ids(file_ids):
 # GET /mrd-files/<id> returns the document as stored.
 PARSE_ERROR_MESSAGE = "The file could not be read as an MRD stream."
 
+# Stream item types only a reconstruction produces: every image and n-d array
+# variant (recon writes its maps and spectra as n-d arrays). A raw scan holds
+# acquisitions and waveforms.
+_RECONSTRUCTED_ITEMS = tuple(
+    getattr(mrd.StreamItem, name) for name in dir(mrd.StreamItem)
+    if name.startswith(("Image", "NdArray"))
+)
+
 
 def read_mrdfile_header(source, owner_name=None, original_filename=None, file_size=None):
     """
@@ -268,7 +276,7 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
             h = r.read_header() or mrd.Header()
             image_exist = False
             for item in r.read_data():
-                if isinstance(item, (mrd.StreamItem.ImageFloat, mrd.StreamItem.ImageDouble)):
+                if isinstance(item, _RECONSTRUCTED_ITEMS):
                     # One image is enough to answer the question; don't walk the
                     # rest of the stream.
                     image_exist = True

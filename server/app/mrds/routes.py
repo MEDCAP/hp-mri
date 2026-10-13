@@ -75,6 +75,10 @@ USER_PROJECTION = {
     "stationName": 1,
     "original_filename": 1,
     "s3_key": 1,
+    # A reconstruction's provenance: the scan it came from, and each stage's
+    # image, args and params, for the details pane.
+    "parentFileId": 1,
+    "reconStages": 1,
 }
 
 # Route to list MRD files

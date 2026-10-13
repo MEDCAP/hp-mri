@@ -38,6 +38,14 @@ def test_guest_listing_is_the_public_scope_with_narrow_fields(client):
     projection = listed.call_args.kwargs["projection"]
     # The guest listing must not expose ownership or storage internals.
     assert "s3_key" not in projection and "ownerId" not in projection
+    assert "reconStages" not in projection
+
+
+def test_signed_in_listing_carries_recon_provenance(client, user):
+    with mock.patch("app.mrds.routes.list_mrdfiles_for_user", return_value=[]) as listed:
+        client.get("/api/mrd-files", headers=user())
+    projection = listed.call_args.kwargs["projection"]
+    assert projection["reconStages"] == 1 and projection["parentFileId"] == 1
 
 
 def test_file_details_for_an_inaccessible_file_is_404(client, user):
@@ -174,6 +182,20 @@ def test_a_stream_of_images_parses_as_reconstructed():
     assert metadata["isReconstructed"] is True
     assert metadata["fileName"] == "recon.mrd2"
     assert metadata["studyDate"] == "unknown"
+
+
+def test_a_stream_of_nd_arrays_parses_as_reconstructed():
+    # The recon stage writes its maps and spectra as n-d arrays, not images.
+    import numpy as np  # pylint: disable=import-outside-toplevel
+    import app.external.python.mrd as mrd  # pylint: disable=import-outside-toplevel
+    from data import read_mrdfile_header  # pylint: disable=import-outside-toplevel
+
+    spectrum = mrd.StreamItem.NdArrayDouble(mrd.NdArrayDouble(data=np.zeros((2, 3))))
+    metadata = read_mrdfile_header(_mrd_stream(mrd.Header(), [spectrum]),
+                                   original_filename="r.mrd2", file_size=1)
+
+    assert "parse_error" not in metadata
+    assert metadata["isReconstructed"] is True
 
 
 def test_a_missing_header_section_leaves_only_its_fields_unknown():

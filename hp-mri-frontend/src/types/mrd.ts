@@ -22,7 +22,29 @@ export interface MRDFile {
   upload_timestamp?: MongoTimestamp;
   file_size?: string;
   s3_key?: string;
+  /** A reconstruction's source file. */
+  parentFileId?: string;
+  /** A reconstruction's stages, in the order they ran. */
+  reconStages?: ReconStageRecord[];
   isSelected?: boolean;
+}
+
+/** One stage of a reconstruction, as recorded on its output file. */
+export interface ReconStageRecord {
+  id: string;
+  params?: Record<string, unknown> | null;
+  /** Container image the stage ran, e.g. ghcr.io/medcap/mrs_to_mrd/mrs-recon:latest. */
+  image?: string;
+  /** The exact arguments the container ran with. */
+  args?: string[];
+}
+
+/** The registry page for a container image, when there is one. */
+export function containerImageUrl(image: string): string | null {
+  const match = /^ghcr\.io\/([^/]+)\/([^:@]+)/.exec(image);
+  if (!match) return null;
+  const [, owner, path] = match;
+  return `https://github.com/orgs/${owner}/packages/container/package/${encodeURIComponent(path)}`;
 }
 
 export type FileVisibility =
