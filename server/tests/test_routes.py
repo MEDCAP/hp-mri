@@ -184,6 +184,20 @@ def test_a_stream_of_images_parses_as_reconstructed():
     assert metadata["studyDate"] == "unknown"
 
 
+def test_a_stream_of_nd_arrays_parses_as_reconstructed():
+    # The recon stage writes its maps and spectra as n-d arrays, not images.
+    import numpy as np  # pylint: disable=import-outside-toplevel
+    import app.external.python.mrd as mrd  # pylint: disable=import-outside-toplevel
+    from data import read_mrdfile_header  # pylint: disable=import-outside-toplevel
+
+    spectrum = mrd.StreamItem.NdArrayDouble(mrd.NdArrayDouble(data=np.zeros((2, 3))))
+    metadata = read_mrdfile_header(_mrd_stream(mrd.Header(), [spectrum]),
+                                   original_filename="r.mrd2", file_size=1)
+
+    assert "parse_error" not in metadata
+    assert metadata["isReconstructed"] is True
+
+
 def test_a_missing_header_section_leaves_only_its_fields_unknown():
     import app.external.python.mrd as mrd  # pylint: disable=import-outside-toplevel
     from data import read_mrdfile_header  # pylint: disable=import-outside-toplevel
