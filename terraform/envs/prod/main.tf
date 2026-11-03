@@ -173,7 +173,7 @@ module "frontend" {
   aliases         = ["medcap.ai"]
   certificate_arn = var.certificate_arn
   route53_zone_id = var.route53_zone_id
-  web_acl_arn     = var.web_acl_arn
+  web_acl_arn     = aws_wafv2_web_acl.this.arn
 
   # Present so the import plans clean. It is a Referer check, not access
   # control -- see finding F1.
