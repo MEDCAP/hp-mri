@@ -116,6 +116,51 @@ resource "aws_cloudfront_function" "spa_fallback" {
   EOT
 }
 
+# Applied to both behaviours. The CSP is report-only until browsers stop
+# logging violations for it; connect-src covers Cognito and the presigned S3
+# uploads, the only hosts the SPA talks to besides its own origin.
+resource "aws_cloudfront_response_headers_policy" "security" {
+  name = "${replace(var.site_bucket_name, ".", "-")}-security-headers"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 63072000
+      include_subdomains         = true
+      override                   = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+
+  custom_headers_config {
+    items {
+      header   = "Content-Security-Policy-Report-Only"
+      override = true
+      value = join("; ", [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob:",
+        "worker-src 'self' blob:",
+        "connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.s3.amazonaws.com https://*.s3.us-east-1.amazonaws.com",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+      ])
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   aliases             = var.aliases
@@ -152,13 +197,14 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   default_cache_behavior {
-    target_origin_id         = local.s3_origin_id
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = local.site_cache_policy_id
-    origin_request_policy_id = var.site_origin_request_policy_id
-    compress                 = true
+    target_origin_id           = local.s3_origin_id
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = local.site_cache_policy_id
+    origin_request_policy_id   = var.site_origin_request_policy_id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    compress                   = true
 
     function_association {
       event_type   = "viewer-request"
@@ -173,9 +219,10 @@ resource "aws_cloudfront_distribution" "this" {
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
     # Never cache the API.
-    cache_policy_id          = local.cache_disabled
-    origin_request_policy_id = local.origin_request_all
-    compress                 = true
+    cache_policy_id            = local.cache_disabled
+    origin_request_policy_id   = local.origin_request_all
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    compress                   = true
 
     # Declared so the imported distribution plans clean -- the live behaviour
     # has secureApiForwarding attached here. Modelling it is not an endorsement:
