@@ -195,3 +195,12 @@ variable "enable_deletion_protection" {
   type    = bool
   default = true
 }
+
+variable "origin_verify_header" {
+  description = "The header modules/frontend-cdn adds to /api/* origin requests. The HTTPS listener answers 403 to anything without it."
+  type = object({
+    name  = string
+    value = string
+  })
+  sensitive = true
+}

@@ -11,16 +11,10 @@
  * wasteful -- Vite emits content-hashed filenames, so they could be cached
  * immutably at the edge. Changing it is a separate, measurable PR.
  *
- * The live distribution runs a CloudFront Function, secureApiForwarding, on
- * /api/* that rejects requests whose Referer does not contain medcap.ai. It is
- * referenced by ARN (var.api_function_arn) so the imported distribution plans
- * clean, and the function body itself is left unmanaged.
- *
- * Referencing it is not an endorsement. Referer is set by the client, so a
- * single curl flag defeats the check, and the substring test passes for any
- * hostname containing medcap.ai. The real control is the Cognito token check in
- * the backend; this adds nothing to it. See finding F1 in docs/INVENTORY.md. New
- * environments should leave api_function_arn empty.
+ * The ALB origin gets a secret header (var.origin_verify_header) that the ALB
+ * listener requires, so the API is reachable only through this distribution
+ * and its WAF. The ALB security group alone admits every CloudFront
+ * distribution, not just this one.
  */
 terraform {
   required_version = "~> 1.9"
@@ -149,6 +143,12 @@ resource "aws_cloudfront_distribution" "this" {
       https_port             = 443
       origin_ssl_protocols   = ["TLSv1.2"]
     }
+
+    # Overwrites any viewer-sent header of the same name.
+    custom_header {
+      name  = var.origin_verify_header.name
+      value = var.origin_verify_header.value
+    }
   }
 
   default_cache_behavior {
@@ -176,18 +176,6 @@ resource "aws_cloudfront_distribution" "this" {
     cache_policy_id          = local.cache_disabled
     origin_request_policy_id = local.origin_request_all
     compress                 = true
-
-    # Declared so the imported distribution plans clean -- the live behaviour
-    # has secureApiForwarding attached here. Modelling it is not an endorsement:
-    # see the header and finding F1. Leave api_function_arn empty in any new
-    # environment.
-    dynamic "function_association" {
-      for_each = var.api_function_arn != "" ? [1] : []
-      content {
-        event_type   = "viewer-request"
-        function_arn = var.api_function_arn
-      }
-    }
   }
 
   restrictions {

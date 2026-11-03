@@ -28,6 +28,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.70"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -46,6 +50,21 @@ provider "aws" {
 locals {
   name_prefix = "hpmri-prod"
   web_origin  = "https://medcap.ai"
+}
+
+# Shared between CloudFront and the ALB listener; see modules/backend-ecs.
+# Rotating it (taint and apply) briefly 403s /api/* until the distribution
+# finishes deploying.
+resource "random_password" "origin_verify" {
+  length  = 48
+  special = false
+}
+
+locals {
+  origin_verify_header = {
+    name  = "X-Origin-Verify"
+    value = random_password.origin_verify.result
+  }
 }
 
 module "network" {
@@ -131,7 +150,8 @@ module "backend" {
   memory             = 2048
   capacity_providers = [{ name = "FARGATE", weight = 1, base = 1 }]
 
-  certificate_arn = var.certificate_arn
+  certificate_arn      = var.certificate_arn
+  origin_verify_header = local.origin_verify_header
 
   s3_bucket_name        = module.data.bucket_name
   s3_access_policy_json = module.data.access_policy_json
@@ -175,9 +195,7 @@ module "frontend" {
   route53_zone_id = var.route53_zone_id
   web_acl_arn     = var.web_acl_arn
 
-  # Present so the import plans clean. It is a Referer check, not access
-  # control -- see finding F1.
-  api_function_arn = var.api_function_arn
+  origin_verify_header = local.origin_verify_header
 
   # The live distribution's console-created values, so the import plans clean.
   comment     = "Cloudfront to host S3 static site of medcap.ai"
