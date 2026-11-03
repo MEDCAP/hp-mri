@@ -127,8 +127,5 @@ jobs:
           BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
         run: |
           set -euo pipefail
-          # The edge function rejects requests without a matching Referer, so
-          # the smoke test has to send one. That it works at all is finding F1.
           curl -fsS --retry 5 --retry-delay 10 \
-            -H "Referer: ${BASE_URL}/" \
             "${BASE_URL}/api/health" | tee /dev/stderr | grep -q '"status"'

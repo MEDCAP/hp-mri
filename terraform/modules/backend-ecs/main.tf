@@ -163,7 +163,29 @@ resource "aws_lb_listener" "https" {
   ssl_policy        = var.ssl_policy
   certificate_arn   = var.certificate_arn
 
+  # The security group admits every CloudFront distribution, anyone's. Only
+  # requests carrying our distribution's secret header reach the service.
   default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      status_code  = "403"
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "from_cloudfront" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  condition {
+    http_header {
+      http_header_name = var.origin_verify_header.name
+      values           = [var.origin_verify_header.value]
+    }
+  }
+
+  action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.api.arn
   }
@@ -283,7 +305,7 @@ resource "aws_ecs_service" "api" {
     rollback = true
   }
 
-  depends_on = [aws_lb_listener.https]
+  depends_on = [aws_lb_listener_rule.from_cloudfront]
 
   lifecycle {
     # The most important line in this configuration. CI registers new task
