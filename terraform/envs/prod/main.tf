@@ -186,7 +186,6 @@ module "frontend" {
     site = "medcap.ai.s3-website-us-east-1.amazonaws.com"
     api  = "medcap-app-alb-v1-677209935.us-east-1.elb.amazonaws.com"
   }
-  site_origin_ssl_protocols     = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
   site_origin_request_policy_id = "59781a5b-3903-41f3-afcb-af62929ccde1"
 }
 
