@@ -80,11 +80,6 @@ variable "origin_ids" {
   }
 }
 
-variable "site_origin_ssl_protocols" {
-  type    = list(string)
-  default = ["TLSv1.2"]
-}
-
 variable "site_origin_request_policy_id" {
   description = "Origin request policy on the default (site) behaviour; null for none."
   type        = string

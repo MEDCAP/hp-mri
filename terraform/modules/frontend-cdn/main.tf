@@ -48,51 +48,45 @@ resource "aws_s3_bucket" "site" {
   bucket = var.site_bucket_name
 }
 
-/**
- * The site bucket is a *website* endpoint with a public-read policy, which is
- * why all four public-access blocks are off. That is reproduced here because it
- * is what exists; the better shape is a REST endpoint behind an origin access
- * control, which would let all four be re-enabled. Worth doing, but it is a
- * change, so it belongs in its own PR rather than smuggled into an import.
- */
-resource "aws_s3_bucket_website_configuration" "site" {
-  bucket = aws_s3_bucket.site.id
-
-  index_document {
-    suffix = "index.html"
-  }
-
-  # A SPA serves its own router from the error document.
-  error_document {
-    key = "index.html"
-  }
-}
-
+# Private bucket, read only by this distribution through an origin access
+# control. Neither the bucket nor its objects are reachable directly.
 resource "aws_s3_bucket_public_access_block" "site" {
   bucket                  = aws_s3_bucket.site.id
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
-data "aws_iam_policy_document" "site_public_read" {
+resource "aws_cloudfront_origin_access_control" "site" {
+  name                              = var.site_bucket_name
+  description                       = "CloudFront read access to s3://${var.site_bucket_name}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+data "aws_iam_policy_document" "site_cloudfront_read" {
   statement {
-    sid     = "PublicReadGetObject"
-    effect  = "Allow"
-    actions = ["s3:GetObject"]
+    sid       = "CloudFrontReadGetObject"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.site.arn}/*"]
     principals {
-      type        = "*"
-      identifiers = ["*"]
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
     }
-    # Built from the name, not the resource, so the policy is known at plan time.
-    resources = ["arn:aws:s3:::${var.site_bucket_name}/*"]
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.this.arn]
+    }
   }
 }
 
 resource "aws_s3_bucket_policy" "site" {
   bucket     = aws_s3_bucket.site.id
-  policy     = data.aws_iam_policy_document.site_public_read.json
+  policy     = data.aws_iam_policy_document.site_cloudfront_read.json
   depends_on = [aws_s3_bucket_public_access_block.site]
 }
 
@@ -171,17 +165,9 @@ resource "aws_cloudfront_distribution" "this" {
   is_ipv6_enabled     = true
 
   origin {
-    origin_id   = local.s3_origin_id
-    domain_name = aws_s3_bucket_website_configuration.site.website_endpoint
-
-    # A website endpoint only speaks HTTP, so this must be http-only.
-    custom_origin_config {
-      origin_protocol_policy = "http-only"
-      http_port              = 80
-      https_port             = 443
-      # Unused over http-only; kept equal to the live value.
-      origin_ssl_protocols = var.site_origin_ssl_protocols
-    }
+    origin_id                = local.s3_origin_id
+    domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.site.id
   }
 
   origin {
