@@ -189,14 +189,6 @@ module "frontend" {
   site_origin_request_policy_id = "59781a5b-3903-41f3-afcb-af62929ccde1"
 }
 
-/**
- * The Mongo connection string. ProductionConfig reads MONGO_URI and falls back
- * to the hardcoded Atlas cluster URI when it is unset.
- *
- * The value is supplied out of band (terraform apply -var, or written once by
- * hand) and then ignored, so that rotating it in the console is not reverted by
- * the next apply and so it never lands in a committed tfvars file.
- */
 /*
  * The Tyger service principal the container logs in as (docker-entrypoint.sh).
  * Created with a placeholder and written once out of band, so the PEM never
@@ -216,10 +208,18 @@ resource "aws_ssm_parameter" "tyger" {
   }
 }
 
+/*
+ * The Mongo connection string lives in SSM, not in Terraform. The task
+ * definition references this parameter by ARN and ECS reads the value when a
+ * task starts; plan and apply never take the URI as input. Terraform only
+ * creates the parameter, with a placeholder. Write or rotate the value there:
+ *   aws ssm put-parameter --overwrite --name /hpmri/prod/MONGO_URI \
+ *     --type SecureString --value '<uri>'
+ */
 resource "aws_ssm_parameter" "mongo_uri" {
   name  = "/hpmri/prod/MONGO_URI"
   type  = "SecureString"
-  value = var.mongo_uri
+  value = "set-out-of-band"
 
   lifecycle {
     ignore_changes = [value]
