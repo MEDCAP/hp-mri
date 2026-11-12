@@ -66,18 +66,6 @@ variable "api_function_arn" {
   default     = "arn:aws:cloudfront::862065604168:function/secureApiForwarding"
 }
 
-variable "mongo_uri" {
-  description = <<-EOT
-    Supplied out of band -- never in a committed tfvars file. The parameter
-    ignores changes to its value after creation, so rotating it in the console
-    is safe. The default is only a placeholder for the first create; CI plans
-    and applies without the real value.
-  EOT
-  type        = string
-  sensitive   = true
-  default     = "set-out-of-band"
-}
-
 variable "tyger_server_url" {
   description = "The Tyger server the convert/recon stages run on."
   type        = string
