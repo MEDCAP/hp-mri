@@ -94,7 +94,9 @@ module "data" {
   bucket_name = "medcap-data"
 
   # One-way: once Enabled the bucket can only be Suspended, never Disabled.
-  versioning_enabled = true
+  # A deleted object stays recoverable as a noncurrent version for 30 days.
+  versioning_enabled             = true
+  noncurrent_version_expiry_days = 30
 
   # FOLLOW-UP (findings F4/F5): neither of these exists on the live bucket. The
   # CORS rule is required before the presigned upload flow can work at all, and
