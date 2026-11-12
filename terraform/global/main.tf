@@ -316,3 +316,24 @@ module "deploy" {
   subject_claims    = ["${local.repo}:environment:${each.key}"]
   policy_json       = data.aws_iam_policy_document.deploy[each.key].json
 }
+
+/*
+ * The dev stack's Tyger service principal, the counterpart of
+ * /hpmri/prod/TYGER_* in envs/prod. It lives here rather than in envs/dev
+ * because envs/dev is destroyed after every test run and would take the
+ * certificate with it. Created with a placeholder and written once out of band,
+ * so the PEM never passes through Terraform state:
+ *   aws ssm put-parameter --overwrite --name /hpmri/dev/TYGER_CERT_PEM \
+ *     --type SecureString --value file://tyger-sp.pem
+ */
+resource "aws_ssm_parameter" "dev_tyger" {
+  for_each = toset(["TYGER_CERT_PEM", "TYGER_SERVICE_PRINCIPAL"])
+
+  name  = "/hpmri/dev/${each.key}"
+  type  = "SecureString"
+  value = "set-out-of-band"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}

@@ -50,3 +50,6 @@ crash.log
 # Never commit variable files -- they are where a Mongo URI would end up.
 *.auto.tfvars
 terraform.tfvars
+
+# scripts/dev-ecs.sh smoke results and reports
+.dev-ecs/
