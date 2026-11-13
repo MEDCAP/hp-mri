@@ -297,13 +297,15 @@ def jobs_in(db_app):
 
 @pytest.fixture()
 def instant_chain(monkeypatch):
-    """Every stage succeeds at once and returns a fixed stream."""
+    """Every stage succeeds at once and returns a fixed MRD stream."""
+
+    from conftest import build_mrd_bytes  # pylint: disable=import-outside-toplevel
 
     def chain(stage_specs, _source, stage_context=None):
         for spec in stage_specs:
             with stage_context(spec["id"]):
                 pass
-        return io.BytesIO(b"reconstructed")
+        return io.BytesIO(build_mrd_bytes())
 
     monkeypatch.setattr("app.recon.routes.run_chain", chain)
     monkeypatch.setattr("app.mrds.routes.run_chain", chain)
@@ -390,9 +392,11 @@ def _staged_head(fake_s3):
 @pytest.mark.usefixtures("instant_chain")
 def test_a_converted_file_lands_in_the_group_the_uploader_chose(
         db_app, db_client, user, fake_s3, await_job, monkeypatch):
+    from conftest import tar_bytes  # pylint: disable=import-outside-toplevel
+
     seed(db_app)
     upload_id = str(ObjectId())
-    fake_s3.staged[f"uploads/staging/{ALICE}/{upload_id}"] = b"tar bytes"
+    fake_s3.staged[f"uploads/staging/{ALICE}/{upload_id}"] = tar_bytes()
     monkeypatch.setattr("app.mrds.routes.read_mrdfile_header",
                         lambda source, **kw: {"fileName": "converted", "groupName": None,
                                               "ownerId": None, "studyDate": "20260102",
