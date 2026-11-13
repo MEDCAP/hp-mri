@@ -78,11 +78,6 @@ import {
 }
 
 import {
-  to = module.frontend.aws_s3_bucket_website_configuration.site
-  id = "medcap.ai"
-}
-
-import {
   to = module.frontend.aws_s3_bucket_policy.site
   id = "medcap.ai"
 }

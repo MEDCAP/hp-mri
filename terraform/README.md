@@ -66,7 +66,9 @@ blue-green: nothing moves until step 6, and step 6 is one variable.
 - no changes for the imported resources: every import plans as a no-op;
 - on `medcap-data`, only the intended additions: the CORS configuration and the
   `uploads/staging/` lifecycle rule. These change the live bucket and need
-  explicit sign-off. Versioning must not change (it stays `Disabled`);
+  explicit sign-off. Versioning stayed `Disabled` for the import and is
+  enabled afterwards (`versioning_enabled = true`), which cannot be undone,
+  only suspended;
 - CloudFront drift reviewed before apply. Origin ids, `comment`, `price_class`
   and `compress` may not match the console-created distribution. The same
   applies to the Cognito client (`prevent_user_existence_errors`, auth flows,

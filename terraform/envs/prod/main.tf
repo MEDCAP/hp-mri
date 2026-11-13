@@ -93,11 +93,10 @@ module "data" {
 
   bucket_name = "medcap-data"
 
-  # FOLLOW-UP (finding F3): flip to true. The bucket has no versioning today, so
-  # a delete -- by a user, a bad deploy, or anything holding the task role -- is
-  # unrecoverable. Import first with false so the adoption plan is empty, then
-  # enable it in a PR whose whole diff is this line.
-  versioning_enabled = false
+  # One-way: once Enabled the bucket can only be Suspended, never Disabled.
+  # A deleted object stays recoverable as a noncurrent version for 30 days.
+  versioning_enabled             = true
+  noncurrent_version_expiry_days = 30
 
   # FOLLOW-UP (findings F4/F5): neither of these exists on the live bucket. The
   # CORS rule is required before the presigned upload flow can work at all, and
@@ -186,7 +185,6 @@ module "frontend" {
     site = "medcap.ai.s3-website-us-east-1.amazonaws.com"
     api  = "medcap-app-alb-v1-677209935.us-east-1.elb.amazonaws.com"
   }
-  site_origin_ssl_protocols     = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
   site_origin_request_policy_id = "59781a5b-3903-41f3-afcb-af62929ccde1"
 }
 

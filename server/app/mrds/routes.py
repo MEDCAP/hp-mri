@@ -2,6 +2,7 @@ from flask import jsonify, request, current_app, g
 import io
 import logging
 import os
+import tarfile
 import tempfile
 from bson import json_util, ObjectId
 from bson.errors import InvalidId
@@ -16,7 +17,7 @@ from data import (
     get_db, get_s3_client, PARSE_ERROR_MESSAGE
 )
 from app.auth import optional_auth, requires_auth
-from app.errors import ApiError, BadRequest, NotFound
+from app.errors import ApiError, BadRequest, NotFound, UnreadableFile
 from app.jobs.service import start_job
 from app.tyger.runner import run_chain
 from app.tyger.stages import get_converter
@@ -204,15 +205,32 @@ def _staged_size(s3, bucket, staging_key):
     return actual_size
 
 
-def _discard_staged(s3, bucket, staging_key):
+def _discard(s3, bucket, key):
     """
-    Drop a staged object once it has been promoted. Best effort: a leftover is
-    harmless and the staging prefix lifecycle rule expires it.
+    Delete an object that is no longer wanted: a staged upload once it has been
+    promoted or refused, or the output of a conversion that failed. Best
+    effort: a failure is logged and never replaces the outcome being reported.
     """
     try:
-        s3.delete_object(Bucket=bucket, Key=staging_key)
+        s3.delete_object(Bucket=bucket, Key=key)
     except (ClientError, BotoCoreError):
-        logger.warning("failed to clean up staging object %s", staging_key, exc_info=True)
+        logger.warning("failed to clean up object %s", key, exc_info=True)
+
+
+def _check_tar(fileobj):
+    """
+    Refuse a staged upload that is not a tar archive with at least one member.
+    Reads member headers only; what the members hold is the converter's call.
+
+    @raise UnreadableFile: the upload is not a readable, non-empty tar
+    """
+    try:
+        with tarfile.open(fileobj=fileobj, mode="r:") as archive:
+            if archive.next() is None:
+                raise tarfile.ReadError("empty archive")
+    except tarfile.TarError:
+        logger.info("staged upload is not a readable tar", exc_info=True)
+        raise UnreadableFile("The upload could not be read as a tar archive.") from None
 
 
 def _parse_upload_id(upload_id):
@@ -276,12 +294,17 @@ def complete_upload(upload_id):
     actual_size = _staged_size(s3, bucket, staging_key)
 
     obj = s3.get_object(Bucket=bucket, Key=staging_key)
-    metadata = read_mrdfile_header(
-        io.BytesIO(obj['Body'].read()),
-        owner_name=g.user_name,
-        original_filename=filename,
-        file_size=actual_size,
-    )
+    try:
+        metadata = read_mrdfile_header(
+            io.BytesIO(obj['Body'].read()),
+            owner_name=g.user_name,
+            original_filename=filename,
+            file_size=actual_size,
+        )
+    except UnreadableFile:
+        # Refused, so nothing is kept: no document, no copy, no staged object.
+        _discard(s3, bucket, staging_key)
+        raise
     metadata["ownerId"] = g.user_sub
     metadata["groupName"] = group_name
 
@@ -295,7 +318,7 @@ def complete_upload(upload_id):
 
     inserted_id = insert_mrdfile_header({**metadata, "s3_key": s3_key}, doc_id=object_id)
 
-    _discard_staged(s3, bucket, staging_key)
+    _discard(s3, bucket, staging_key)
 
     # Mongo values (datetime, ObjectId) are not JSON-serializable as-is.
     serializable_metadata = {k: str(v) for k, v in metadata.items()}
@@ -339,29 +362,41 @@ def convert_upload(upload_id):
     stages = [{"id": converter}]
 
     def work(handle):
-        with tempfile.TemporaryFile() as staged:
-            handle.s3.download_fileobj(bucket, staging_key, staged)
-            staged.seek(0)
-            with run_chain(stages, staged, stage_context=handle.stage) as converted:
-                size = converted.seek(0, os.SEEK_END)
-                converted.seek(0)
-                metadata = read_mrdfile_header(
-                    converted,
-                    owner_name=owner_name,
-                    original_filename=filename,
-                    file_size=size,
-                )
+        # Succeed or fail, the staged tar is dropped; on failure so is any
+        # output already uploaded, so a failed conversion leaves nothing.
+        uploading = False
+        try:
+            with tempfile.TemporaryFile() as staged:
+                handle.s3.download_fileobj(bucket, staging_key, staged)
+                staged.seek(0)
+                _check_tar(staged)
+                staged.seek(0)
+                with run_chain(stages, staged, stage_context=handle.stage) as converted:
+                    size = converted.seek(0, os.SEEK_END)
+                    converted.seek(0)
+                    metadata = read_mrdfile_header(
+                        converted,
+                        owner_name=owner_name,
+                        original_filename=filename,
+                        file_size=size,
+                    )
 
-                # Uploaded before the document is written, so a listed file
-                # always has an object behind it.
-                converted.seek(0)
-                handle.s3.upload_fileobj(converted, bucket, s3_key)
+                    # Uploaded before the document is written, so a listed file
+                    # always has an object behind it.
+                    converted.seek(0)
+                    uploading = True
+                    handle.s3.upload_fileobj(converted, bucket, s3_key)
 
-        insert_mrdfile_header(
-            {**metadata, "ownerId": owner_id, "groupName": group_name, "s3_key": s3_key},
-            doc_id=object_id,
-        )
-        _discard_staged(handle.s3, bucket, staging_key)
+            insert_mrdfile_header(
+                {**metadata, "ownerId": owner_id, "groupName": group_name, "s3_key": s3_key},
+                doc_id=object_id,
+            )
+        except Exception:
+            if uploading:
+                _discard(handle.s3, bucket, s3_key)
+            raise
+        finally:
+            _discard(handle.s3, bucket, staging_key)
         return str(object_id)
 
     job_id = start_job(

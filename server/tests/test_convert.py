@@ -137,10 +137,12 @@ def test_convert_stores_the_result_as_the_callers_file(
     mrd_files/{upload id} owned by the caller in the requested group, and the
     staging object is dropped.
     """
+    from conftest import tar_bytes  # pylint: disable=import-outside-toplevel
+
     def fake_chain(stage_specs, source_fp, stage_context=None):
         assert [spec["id"] for spec in stage_specs] == ["convert"]
         with stage_context("convert"):
-            assert source_fp.read() == b"tar bytes"
+            assert source_fp.read() == tar_bytes()
         return io.BytesIO(b"mrd2 bytes")
 
     monkeypatch.setattr("app.mrds.routes.run_chain", fake_chain)
@@ -157,7 +159,7 @@ def test_convert_stores_the_result_as_the_callers_file(
         get_db().groups.insert_one({"name": "team-a", "members": ["sub-9"], "admins": []})
 
     staging_key = f"uploads/staging/sub-9/{OID}"
-    fake_s3.staged[staging_key] = b"tar bytes"
+    fake_s3.staged[staging_key] = tar_bytes()
 
     with mock.patch("app.mrds.routes.get_s3_client", return_value=staged()):
         response = db_client.post(
@@ -189,7 +191,70 @@ def test_convert_stores_the_result_as_the_callers_file(
     assert staging_key in fake_s3.deleted
 
 
-def test_a_converted_file_that_cannot_be_parsed_keeps_its_parse_error(
+def run_failing_convert(db_app, db_client, user, fake_s3, await_job, staged_bytes=None):
+    """
+    Start a convert of `staged_bytes` (a valid tar by default) and wait for it.
+    Returns the job and whether a file document exists for the upload.
+    """
+    from conftest import tar_bytes  # pylint: disable=import-outside-toplevel
+
+    fake_s3.staged[f"uploads/staging/sub-9/{OID}"] = (
+        tar_bytes() if staged_bytes is None else staged_bytes
+    )
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=staged()):
+        response = db_client.post(
+            f"/api/uploads/{OID}/convert", headers=user("sub-9"),
+            json={"filename": "scan.tar", "converter": "convert", "groupName": None},
+        )
+    assert response.status_code == 202
+    job = await_job(response.get_json()["jobId"])
+
+    with db_app.app_context():
+        from data import get_db  # pylint: disable=import-outside-toplevel
+
+        stored = get_db().mrdfiles.find_one({"_id": ObjectId(OID)}) is not None
+    return job, stored
+
+
+@pytest.mark.parametrize("not_a_tar", [b"", b"tar bytes", b"\0" * 1024])
+def test_an_upload_that_is_not_a_tar_fails_before_any_stage(
+    db_app, db_client, user, monkeypatch, fake_s3, await_job, not_a_tar
+):
+    chain = mock.Mock()
+    monkeypatch.setattr("app.mrds.routes.run_chain", chain)
+
+    job, stored = run_failing_convert(db_app, db_client, user, fake_s3, await_job,
+                                      staged_bytes=not_a_tar)
+
+    assert job["status"] == "failed"
+    assert job["error"] == "The upload could not be read as a tar archive."
+    assert [s["status"] for s in job["stages"]] == ["queued"]
+    chain.assert_not_called()
+    assert not stored and not fake_s3.uploaded
+    assert fake_s3.deleted == [f"uploads/staging/sub-9/{OID}"]
+
+
+def test_a_failed_conversion_drops_the_staged_tar(
+    db_app, db_client, user, monkeypatch, fake_s3, await_job
+):
+    from app.tyger.runner import StageFailed  # pylint: disable=import-outside-toplevel
+
+    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+        with stage_context("convert"):
+            raise StageFailed("The convert stage failed.")
+
+    monkeypatch.setattr("app.mrds.routes.run_chain", fake_chain)
+
+    job, stored = run_failing_convert(db_app, db_client, user, fake_s3, await_job)
+
+    assert job["status"] == "failed"
+    assert job["error"] == "The convert stage failed."
+    assert [s["status"] for s in job["stages"]] == ["failed"]
+    assert not stored and not fake_s3.uploaded
+    assert fake_s3.deleted == [f"uploads/staging/sub-9/{OID}"]
+
+
+def test_a_converted_file_that_cannot_be_parsed_is_not_stored(
     db_app, db_client, user, monkeypatch, fake_s3, await_job
 ):
     from data import PARSE_ERROR_MESSAGE  # pylint: disable=import-outside-toplevel
@@ -200,18 +265,33 @@ def test_a_converted_file_that_cannot_be_parsed_keeps_its_parse_error(
         return io.BytesIO(b"not an mrd stream")
 
     monkeypatch.setattr("app.mrds.routes.run_chain", fake_chain)
-    fake_s3.staged[f"uploads/staging/sub-9/{OID}"] = b"tar bytes"
 
-    with mock.patch("app.mrds.routes.get_s3_client", return_value=staged()):
-        response = db_client.post(
-            f"/api/uploads/{OID}/convert", headers=user("sub-9"),
-            json={"filename": "scan.tar", "converter": "convert", "groupName": None},
-        )
-    job = await_job(response.get_json()["jobId"])
-    assert job["status"] == "succeeded", job.get("error")
+    job, stored = run_failing_convert(db_app, db_client, user, fake_s3, await_job)
 
-    with db_app.app_context():
-        from data import get_db  # pylint: disable=import-outside-toplevel
+    assert job["status"] == "failed"
+    assert job["error"] == PARSE_ERROR_MESSAGE
+    assert not stored and not fake_s3.uploaded
+    assert fake_s3.deleted == [f"uploads/staging/sub-9/{OID}"]
 
-        document = get_db().mrdfiles.find_one({"_id": ObjectId(OID)})
-    assert document["parse_error"] == PARSE_ERROR_MESSAGE
+
+def test_a_failed_insert_removes_the_uploaded_output(
+    db_app, db_client, user, monkeypatch, fake_s3, await_job
+):
+    from pymongo.errors import PyMongoError  # pylint: disable=import-outside-toplevel
+
+    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+        with stage_context("convert"):
+            pass
+        return io.BytesIO(b"mrd2 bytes")
+
+    monkeypatch.setattr("app.mrds.routes.run_chain", fake_chain)
+    monkeypatch.setattr("app.mrds.routes.read_mrdfile_header",
+                        lambda source, **kwargs: {"fileName": "MID1-epsi"})
+    monkeypatch.setattr("app.mrds.routes.insert_mrdfile_header",
+                        mock.Mock(side_effect=PyMongoError("down")))
+
+    job, stored = run_failing_convert(db_app, db_client, user, fake_s3, await_job)
+
+    assert job["status"] == "failed"
+    assert not stored
+    assert sorted(fake_s3.deleted) == [f"mrd_files/{OID}", f"uploads/staging/sub-9/{OID}"]
