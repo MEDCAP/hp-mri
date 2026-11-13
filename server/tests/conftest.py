@@ -11,6 +11,7 @@ still go through requires_auth / optional_auth exactly as in production.
 """
 import io
 import os
+import tarfile
 import time
 import uuid
 from unittest import mock
@@ -88,6 +89,16 @@ def build_mrd_bytes():
     with mrd.BinaryMrdWriter(buffer) as writer:
         writer.write_header(mrd.Header())
         writer.write_data([image(1), image(10), mrd.StreamItem.WaveformUint32(waveform)])
+    return buffer.getvalue()
+
+
+def tar_bytes():
+    """A tar holding one raw file, as the browser stages a scan folder."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as archive:
+        member = tarfile.TarInfo("scan/raw.dat")
+        member.size = 3
+        archive.addfile(member, io.BytesIO(b"raw"))
     return buffer.getvalue()
 
 

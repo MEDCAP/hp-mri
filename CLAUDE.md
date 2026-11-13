@@ -61,9 +61,9 @@ npm run build && npm run lint
 `_id` (ObjectId), `fileName` (`MID<measurementId>-<protocolName>`), `studyDate`,
 `studyTime`, `ownerName`, `ownerId`, `groupName`, `subjectType`, `isReconstructed`,
 `protocolName`, `measurementId`, `stationName`, `original_filename`,
-`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A file that could
-not be parsed as MRD also has `parse_error`, always the fixed message
-`"The file could not be read as an MRD stream."`. A reconstruction's
+`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A legacy file stored before
+unreadable uploads were refused may also have `parse_error`, always the fixed
+message `"The file could not be read as an MRD stream."`. A reconstruction's
 output also has `parentFileId` (the source file's id) and `reconStages` (the stages
 it ran).
 
@@ -91,8 +91,8 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 | `GET /mrd-files/<id>` | required | — | Full document; 404 if not visible |
 | `POST /uploads/init` | required | `{filename, fileSize, groupName, kind}` — `kind` `"mrd"` (default; `.bin`/`.mrd`/`.mrd2`) or `"raw-tar"` (`.tar`), `fileSize` a positive int ≤ `MAX_UPLOAD_BYTES` (2 GiB), `groupName` null or a group the caller belongs to (else 403) | `{uploadId, uploadUrl, expiresIn}`; no database write |
 | (browser) `PUT <uploadUrl>` | presigned | File bytes, `Content-Type: application/octet-stream`, no `Authorization` header | S3 stores it at `uploads/staging/<sub>/<uploadId>` |
-| `POST /uploads/<id>/complete` | required | `{filename, groupName}` | 201 `{fileId, s3_key, metadata}`; `ownerId`/`ownerName` come from the token. 404 if nothing was staged; 400 if the stored object exceeds the limit |
-| `POST /uploads/<id>/convert` | required | `{filename, groupName, converter}` — `.tar`, `groupName` as for init, `converter` `"convert"` | 202 `{jobId}` (a `convert` job). 404 if nothing is staged under the caller's prefix; 400 if it exceeds the limit. On success the file is stored at `mrd_files/<uploadId>` with `ownerId`/`ownerName` from the token and the given `groupName`, and `output_file_id` = `<uploadId>` |
+| `POST /uploads/<id>/complete` | required | `{filename, groupName}` | 201 `{fileId, s3_key, metadata}`; `ownerId`/`ownerName` come from the token. 404 if nothing was staged; 400 if the stored object exceeds the limit; 422 `{"code": "unreadable"}` if it is not a readable MRD stream. A refused object is deleted from staging and no file is stored |
+| `POST /uploads/<id>/convert` | required | `{filename, groupName, converter}` — `.tar`, `groupName` as for init, `converter` `"convert"` | 202 `{jobId}` (a `convert` job). 404 if nothing is staged under the caller's prefix; 400 if it exceeds the limit. On success the file is stored at `mrd_files/<uploadId>` with `ownerId`/`ownerName` from the token and the given `groupName`, and `output_file_id` = `<uploadId>`. The job fails when the upload is not a tar archive with at least one member, the converter fails, or its output is not a readable MRD stream; a failed job stores no file. The staged tar is deleted either way |
 | `POST /uploads/<id>/abort` | required | — | 204, always |
 | `DELETE /mrd-file` | required | `{ids: [..]}` | `{message, deleted_count, s3_deleted_count, file_results: [{file_id, file_name, status, db_deleted, s3_deleted, error}]}`. Permitted for anyone who can see the file |
 | `POST /mrd-files/<id>/share` | required | `{groupName}` (null/`"null"` = private) | `{message}`; owner only, and the target group must include the owner |

@@ -116,6 +116,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
     }
+
+    # A deleted staged upload is never restored, so its old version goes in a day.
+    dynamic "noncurrent_version_expiration" {
+      for_each = var.versioning_enabled ? [1] : []
+      content {
+        noncurrent_days = 1
+      }
+    }
   }
 
   dynamic "rule" {
