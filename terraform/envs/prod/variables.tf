@@ -55,11 +55,6 @@ variable "route53_zone_id" {
   default     = "Z07746902LXWEEA7WNLDV"
 }
 
-variable "web_acl_arn" {
-  type    = string
-  default = "arn:aws:wafv2:us-east-1:862065604168:global/webacl/CreatedByCloudFront-f1868bcf-3a73-4c76-b3bc-f2b32bbfa1df/e5de59c1-72c5-459a-b51e-84be500a64ac"
-}
-
 variable "api_function_arn" {
   description = "secureApiForwarding. Referenced so the import is clean; not a security control."
   type        = string
