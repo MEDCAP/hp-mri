@@ -301,7 +301,7 @@ def instant_chain(monkeypatch):
 
     from conftest import build_mrd_bytes  # pylint: disable=import-outside-toplevel
 
-    def chain(stage_specs, _source, stage_context=None):
+    def chain(stage_specs, _source, stage_context=None, tags=None):  # pylint: disable=unused-argument
         for spec in stage_specs:
             with stage_context(spec["id"]):
                 pass

@@ -371,7 +371,8 @@ def convert_upload(upload_id):
                 staged.seek(0)
                 _check_tar(staged)
                 staged.seek(0)
-                with run_chain(stages, staged, stage_context=handle.stage) as converted:
+                with run_chain(stages, staged, stage_context=handle.stage,
+                               tags={"job": str(handle.job_id)}) as converted:
                     size = converted.seek(0, os.SEEK_END)
                     converted.seek(0)
                     metadata = read_mrdfile_header(
