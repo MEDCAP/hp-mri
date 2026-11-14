@@ -231,3 +231,83 @@ def await_job(db_app):
         raise AssertionError(f"job {job_id} never finished")
 
     return wait
+
+
+# --- the tyger CLI ------------------------------------------------------------
+
+class FakeTyger:
+    """
+    Stands in for subprocess.run under app.tyger.runner, answering each tyger
+    subcommand the way the real CLI does, and recording every argv in `calls`.
+
+    `output` is what `buffer read` writes, `statuses` maps a stage id to the
+    status `run show` reports (default "Succeeded"), `logs` is what `run logs`
+    prints, `listed` is what `buffer list` returns, and `errors` maps a
+    (noun, verb) pair to the stderr of a non-zero exit, or to an exception to
+    raise.
+    """
+
+    def __init__(self):
+        self.calls = []
+        self.output = b"reconstructed"
+        self.statuses = {}
+        self.logs = ""
+        self.listed = []
+        self.errors = {}
+        self.watch_times_out = False
+        self.written = {}
+        self._run_stages = {}
+        self._ids = {}
+
+    def _new_id(self, prefix):
+        self._ids[prefix] = self._ids.get(prefix, 0) + 1
+        return f"{prefix}{self._ids[prefix]}"
+
+    def calls_to(self, noun, verb):
+        return [cmd for cmd in self.calls if cmd[1:3] == [noun, verb]]
+
+    def __call__(self, cmd, stdin=None, stdout=None, timeout=None, **_kwargs):
+        import json  # pylint: disable=import-outside-toplevel
+        import subprocess  # pylint: disable=import-outside-toplevel
+
+        assert cmd[0] == "tyger"
+        self.calls.append(list(cmd))
+        noun, verb, rest = cmd[1], cmd[2], cmd[3:]
+
+        error = self.errors.get((noun, verb))
+        if isinstance(error, BaseException):
+            raise error
+        if error is not None:
+            return subprocess.CompletedProcess(cmd, 1, b"", error)
+
+        printed = ""
+        if (noun, verb) == ("buffer", "create"):
+            printed = self._new_id("buf")
+        elif (noun, verb) == ("buffer", "write"):
+            self.written[rest[0]] = stdin.read()
+        elif (noun, verb) == ("buffer", "read"):
+            stdout.write(self.output)
+        elif (noun, verb) == ("buffer", "list"):
+            printed = json.dumps(self.listed)
+        elif (noun, verb) == ("run", "create"):
+            printed = self._new_id("run")
+            stage = next(tag.split("=", 1)[1] for tag in rest if tag.startswith("stage="))
+            self._run_stages[printed] = stage
+        elif (noun, verb) == ("run", "watch") and self.watch_times_out:
+            raise subprocess.TimeoutExpired(cmd, timeout)
+        elif (noun, verb) == ("run", "show"):
+            stage = self._run_stages[rest[0]]
+            printed = json.dumps({"id": rest[0],
+                                  "status": self.statuses.get(stage, "Succeeded")})
+        elif (noun, verb) == ("run", "logs"):
+            printed = self.logs
+
+        out = printed.encode() if stdout is subprocess.PIPE else None
+        return subprocess.CompletedProcess(cmd, 0, out, b"")
+
+
+@pytest.fixture()
+def fake_tyger(monkeypatch):
+    tyger = FakeTyger()
+    monkeypatch.setattr("app.tyger.runner.subprocess.run", tyger)
+    return tyger

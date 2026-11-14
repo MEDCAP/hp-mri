@@ -230,7 +230,8 @@ A job is visible only to the user who started it (`ownerId` = the caller's sub).
 - **Database and S3:** through `data.py` (`get_db()`, `get_s3_client()`).
   - Configuration from env: `MONGO_URI`, `MONGO_DB_NAME` (default `hpmri_dev`;
     production sets `hpmri_prod`), `S3_BUCKET` (default `medcap-data`), `CORS_ORIGINS`,
-    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`.
+    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`, `TYGER_BUFFER_TTL` (empty, off,
+    by default).
 - **Frontend HTTP:** only through `src/api/`; lint rejects `axios` imports
   elsewhere.
   - Sign-in state comes from `useCurrentUser()` (`src/auth/useCurrentUser.ts`).

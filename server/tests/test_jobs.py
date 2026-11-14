@@ -4,12 +4,11 @@ The job state machine, and what a failing stage is allowed to tell a caller.
 The lifecycle tests need a real database, because the point of them is the
 document a background thread writes; they skip without MONGO_TEST_URI like the
 rest of the integration suite. The leak test and the stale-run tests need
-neither a database nor a subprocess and always run.
+neither a database nor the tyger CLI and always run.
 
 Who may read which job is pinned in test_access_integration.py.
 """
 import io
-import subprocess
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -31,14 +30,6 @@ RECON_STAGES = [
     {"id": "recon", "params": {"peaks": [{"name": "pyr", "modifiers": "s",
                                           "ppm": 9.7}]}},
 ]
-
-
-def _fake_tyger(output=b"reconstructed", returncode=0, stderr=b""):
-    def run(cmd, **kwargs):
-        kwargs["stdout"].write(output)
-        return subprocess.CompletedProcess(cmd, returncode, b"", stderr)
-
-    return run
 
 
 def _signed_in(sub="user-1", name="kento"):
@@ -105,10 +96,8 @@ def test_an_unknown_stage_fails_the_request_not_the_thread(app):
 # --- lifecycle against a real database --------------------------------------
 
 # fake_s3: the job thread builds its own S3 client, kept off the network.
-@pytest.mark.usefixtures("fake_s3")
-def test_a_job_runs_queued_then_running_then_succeeded(db_app, monkeypatch):
-    monkeypatch.setattr("app.tyger.runner.subprocess.run", _fake_tyger())
-
+@pytest.mark.usefixtures("fake_s3", "fake_tyger")
+def test_a_job_runs_queued_then_running_then_succeeded(db_app):
     release = threading.Event()
 
     def work(handle):
@@ -144,12 +133,10 @@ def test_a_job_runs_queued_then_running_then_succeeded(db_app, monkeypatch):
 
 @pytest.mark.usefixtures("fake_s3")
 def test_a_failing_stage_records_a_safe_message_and_logs_the_rest(
-    db_app, db_client, user, monkeypatch, caplog
+    db_app, db_client, user, fake_tyger, caplog
 ):
-    monkeypatch.setattr(
-        "app.tyger.runner.subprocess.run",
-        _fake_tyger(returncode=1, stderr=SECRET_STDERR.encode()),
-    )
+    fake_tyger.statuses["shift"] = "Failed"
+    fake_tyger.logs = SECRET_STDERR
 
     def work(handle):
         with run_chain(RECON_STAGES, io.BytesIO(b"input"),
