@@ -76,6 +76,20 @@ it ran).
 only. A `running` job whose current stage is past its timeout (or that started no
 stage within 120 s) is reported `failed`.
 
+## Tyger tags
+
+Set by `app/tyger/runner.py` on everything a job creates on the Tyger instance.
+
+| Tag | On | Value |
+|---|---|---|
+| `kind` | buffers, runs | `webapp`: marks it as created by this app. Buffers with this tag older than 3 days are deleted before each job |
+| `job` | buffers, runs | the job's `_id` |
+| `stage` | runs | the stage id (`convert`, `shift`, `recon`) |
+| `version` | runs | `"1.0"`, from the codespec |
+
+A job's buffers are its input buffer and one output buffer per stage; all are
+deleted when the job ends.
+
 ## API
 
 All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` from the

@@ -5,8 +5,13 @@ The source is written to a tyger buffer, each stage is started with
 `tyger run create` reading one buffer and writing a fresh one, and only the
 last stage's buffer is read back. Intermediates stay inside tyger, and no CLI
 process is held open on this server while a stage runs. Every buffer a chain
-creates is deleted when it ends, and buffers and runs carry `app=hpmri` plus
-the caller's tags (the job id) so leftovers can be traced.
+creates is deleted when it ends.
+
+Tags, which are how a leftover is traced back to its job:
+  buffers  kind=webapp, job=<job id>
+  runs     kind=webapp, job=<job id>, stage=<stage id>, version="1.0" (codespec)
+`kind=webapp` is also what the sweep lists by, so nothing else on the tyger
+instance may use it.
 
 A run that fails still leaves partial data in its output buffer, so a stage's
 status is checked before anything downstream reads it.
@@ -30,7 +35,7 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 _TYGER = "tyger"
-_APP_TAGS = {"app": "hpmri"}
+_APP_TAGS = {"kind": "webapp"}
 _SWEEP_AGE = timedelta(days=3)
 _LOG_TAIL_CHARS = 4000
 _HOUSEKEEPING_TIMEOUT = 120

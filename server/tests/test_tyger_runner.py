@@ -32,7 +32,7 @@ def test_a_chain_writes_the_source_and_returns_the_last_buffer(fake_tyger):
     assert fake_tyger.written == {"buf1": b"raw scan"}
     assert [cmd[3] for cmd in fake_tyger.calls_to("buffer", "read")] == ["buf3"]
     for cmd in fake_tyger.calls_to("buffer", "create"):
-        assert set(_flag_values(cmd, "--tag")) == {"app=hpmri", "job=j1"}
+        assert set(_flag_values(cmd, "--tag")) == {"kind=webapp", "job=j1"}
 
 
 def test_stage_one_output_is_stage_two_input(fake_tyger):
@@ -41,8 +41,8 @@ def test_stage_one_output_is_stage_two_input(fake_tyger):
     first, second = fake_tyger.calls_to("run", "create")
     assert _flag_values(first, "-b") == ["input=buf1", "output=buf2"]
     assert _flag_values(second, "-b") == ["input=buf2", "output=buf3"]
-    assert set(_flag_values(first, "--tag")) == {"app=hpmri", "job=j1", "stage=shift"}
-    assert set(_flag_values(second, "--tag")) == {"app=hpmri", "job=j1", "stage=recon"}
+    assert set(_flag_values(first, "--tag")) == {"kind=webapp", "job=j1", "stage=shift"}
+    assert set(_flag_values(second, "--tag")) == {"kind=webapp", "job=j1", "stage=recon"}
 
 
 def test_buffers_are_deleted_after_success(fake_tyger):
@@ -125,7 +125,7 @@ def test_the_stage_context_wraps_each_stage(fake_tyger):
 def _listed(buffer_id, age):
     created = datetime.now(timezone.utc) - age
     return {"id": buffer_id, "createdAt": created.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "tags": {"app": "hpmri"}}
+            "tags": {"kind": "webapp"}}
 
 
 def test_the_sweep_deletes_only_buffers_older_than_three_days(fake_tyger):
@@ -138,7 +138,7 @@ def test_the_sweep_deletes_only_buffers_older_than_three_days(fake_tyger):
     run_chain([{"id": "shift"}], io.BytesIO(b"raw")).close()
 
     listing = fake_tyger.calls_to("buffer", "list")[0]
-    assert _flag_values(listing, "--tag") == ["app=hpmri"]
+    assert _flag_values(listing, "--tag") == ["kind=webapp"]
     assert sorted(_deleted(fake_tyger)) == ["buf1", "buf2", "old", "older"]
 
 
