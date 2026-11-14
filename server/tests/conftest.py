@@ -242,7 +242,7 @@ class FakeTyger:
 
     `output` is what `buffer read` writes, `statuses` maps a stage id to the
     status `run show` reports (default "Succeeded"), `logs` is what `run logs`
-    prints, `listed` is what `buffer list` returns, and `errors` maps a
+    prints, `envs` is the env of each call, and `errors` maps a
     (noun, verb) pair to the stderr of a non-zero exit, or to an exception to
     raise.
     """
@@ -252,7 +252,7 @@ class FakeTyger:
         self.output = b"reconstructed"
         self.statuses = {}
         self.logs = ""
-        self.listed = []
+        self.envs = []
         self.errors = {}
         self.watch_times_out = False
         self.written = {}
@@ -272,6 +272,7 @@ class FakeTyger:
 
         assert cmd[0] == "tyger"
         self.calls.append(list(cmd))
+        self.envs.append(_kwargs.get("env"))
         noun, verb, rest = cmd[1], cmd[2], cmd[3:]
 
         error = self.errors.get((noun, verb))
@@ -287,8 +288,6 @@ class FakeTyger:
             self.written[rest[0]] = stdin.read()
         elif (noun, verb) == ("buffer", "read"):
             stdout.write(self.output)
-        elif (noun, verb) == ("buffer", "list"):
-            printed = json.dumps(self.listed)
         elif (noun, verb) == ("run", "create"):
             printed = self._new_id("run")
             stage = next(tag.split("=", 1)[1] for tag in rest if tag.startswith("stage="))

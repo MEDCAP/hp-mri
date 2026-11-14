@@ -47,10 +47,8 @@ class Config:
     # token, whichever comes first.
     PRESIGN_EXPIRY_SECONDS = int(os.getenv('PRESIGN_EXPIRY_SECONDS', 3600))
 
-    # Passed as --ttl to `tyger buffer create` when set. The intended value is
-    # 3.00:00:00, but the tyger server currently answers any --ttl with HTTP
-    # 500, so it is off by default.
-    TYGER_BUFFER_TTL = os.getenv('TYGER_BUFFER_TTL', '')
+    # Passed as --ttl (D.HH:MM:SS) to `tyger buffer create`; empty for none.
+    TYGER_BUFFER_TTL = os.getenv('TYGER_BUFFER_TTL', '3.00:00:00')
 
 class DevelopmentConfig(Config):
     DEBUG=True

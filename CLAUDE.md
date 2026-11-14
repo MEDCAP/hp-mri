@@ -82,13 +82,14 @@ Set by `app/tyger/runner.py` on everything a job creates on the Tyger instance.
 
 | Tag | On | Value |
 |---|---|---|
-| `kind` | buffers, runs | `webapp`: marks it as created by this app. Buffers with this tag older than 3 days are deleted before each job |
+| `kind` | buffers, runs | `webapp`: marks it as created by this app |
 | `job` | buffers, runs | the job's `_id` |
 | `stage` | runs | the stage id (`convert`, `shift`, `recon`) |
 | `version` | runs | `"1.0"`, from the codespec |
 
 A job's buffers are its input buffer and one output buffer per stage; all are
-deleted when the job ends.
+deleted when the job ends, and each is created with a 3-day TTL
+(`TYGER_BUFFER_TTL`) so one left by a crash expires.
 
 ## API
 
@@ -244,8 +245,8 @@ A job is visible only to the user who started it (`ownerId` = the caller's sub).
 - **Database and S3:** through `data.py` (`get_db()`, `get_s3_client()`).
   - Configuration from env: `MONGO_URI`, `MONGO_DB_NAME` (default `hpmri_dev`;
     production sets `hpmri_prod`), `S3_BUCKET` (default `medcap-data`), `CORS_ORIGINS`,
-    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`, `TYGER_BUFFER_TTL` (empty, off,
-    by default).
+    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`, `TYGER_BUFFER_TTL` (default
+    `3.00:00:00`).
 - **Frontend HTTP:** only through `src/api/`; lint rejects `axios` imports
   elsewhere.
   - Sign-in state comes from `useCurrentUser()` (`src/auth/useCurrentUser.ts`).

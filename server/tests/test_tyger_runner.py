@@ -4,7 +4,6 @@ calls it makes, what it refuses to read, and what it cleans up.
 """
 import io
 import subprocess
-from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -122,52 +121,22 @@ def test_the_stage_context_wraps_each_stage(fake_tyger):
     assert entered == ["shift", "recon"]
 
 
-def _listed(buffer_id, age):
-    created = datetime.now(timezone.utc) - age
-    return {"id": buffer_id, "createdAt": created.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "tags": {"kind": "webapp"}}
-
-
-def test_the_sweep_deletes_only_buffers_older_than_three_days(fake_tyger):
-    fake_tyger.listed = [
-        _listed("old", timedelta(days=3, minutes=1)),
-        _listed("older", timedelta(days=30)),
-        _listed("recent", timedelta(days=2, hours=23)),
-    ]
-
+def test_buffers_are_created_with_the_configured_ttl(fake_tyger):
     run_chain([{"id": "shift"}], io.BytesIO(b"raw")).close()
 
-    listing = fake_tyger.calls_to("buffer", "list")[0]
-    assert _flag_values(listing, "--tag") == ["kind=webapp"]
-    assert sorted(_deleted(fake_tyger)) == ["buf1", "buf2", "old", "older"]
+    for cmd in fake_tyger.calls_to("buffer", "create"):
+        assert _flag_values(cmd, "--ttl") == ["3.00:00:00"]
 
 
-@pytest.mark.parametrize("error", [b"server error", subprocess.TimeoutExpired("tyger", 1)])
-def test_a_sweep_failure_does_not_fail_the_chain(fake_tyger, error):
-    fake_tyger.errors[("buffer", "list")] = error
+def test_an_empty_ttl_setting_passes_none(fake_tyger, monkeypatch):
+    monkeypatch.setattr("app.tyger.runner.Config.TYGER_BUFFER_TTL", "")
 
-    with run_chain([{"id": "shift"}], io.BytesIO(b"raw")) as result:
-        assert result.read() == b"reconstructed"
-
-
-def test_an_unparseable_listing_does_not_fail_the_chain(fake_tyger):
-    fake_tyger.listed = [{"id": "x"}]
-
-    run_chain([{"id": "shift"}], io.BytesIO(b"raw")).close()
-
-    assert sorted(_deleted(fake_tyger)) == ["buf1", "buf2"]
-
-
-def test_ttl_is_not_passed_by_default(fake_tyger):
     run_chain([{"id": "shift"}], io.BytesIO(b"raw")).close()
 
     assert all("--ttl" not in cmd for cmd in fake_tyger.calls_to("buffer", "create"))
 
 
-def test_ttl_is_passed_when_configured(fake_tyger, monkeypatch):
-    monkeypatch.setattr("app.tyger.runner.Config.TYGER_BUFFER_TTL", "3.00:00:00")
-
+def test_every_tyger_command_runs_in_utc(fake_tyger):
     run_chain([{"id": "shift"}], io.BytesIO(b"raw")).close()
 
-    for cmd in fake_tyger.calls_to("buffer", "create"):
-        assert _flag_values(cmd, "--ttl") == ["3.00:00:00"]
+    assert fake_tyger.envs and all(env["TZ"] == "UTC" for env in fake_tyger.envs)
