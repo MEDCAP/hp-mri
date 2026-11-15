@@ -40,7 +40,7 @@ _HOUSEKEEPING_TIMEOUT = 120
 _UNAVAILABLE = "The processing service is unavailable."
 
 # The CLI turns --ttl into an expiresAt in the local zone, and the server
-# answers 500 to any offset other than UTC.
+# answers 500 to any offset other than UTC. See README.md in this directory.
 _ENV = {**os.environ, "TZ": "UTC"}
 
 
