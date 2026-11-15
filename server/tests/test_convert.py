@@ -139,7 +139,10 @@ def test_convert_stores_the_result_as_the_callers_file(
     """
     from conftest import tar_bytes  # pylint: disable=import-outside-toplevel
 
-    def fake_chain(stage_specs, source_fp, stage_context=None):
+    seen = {}
+
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):
+        seen["tags"] = tags
         assert [spec["id"] for spec in stage_specs] == ["convert"]
         with stage_context("convert"):
             assert source_fp.read() == tar_bytes()
@@ -172,6 +175,7 @@ def test_convert_stores_the_result_as_the_callers_file(
     job = await_job(response.get_json()["jobId"])
     assert job["status"] == "succeeded", job.get("error")
     assert job["kind"] == "convert"
+    assert seen["tags"] == {"job": response.get_json()["jobId"]}
     assert job["ownerId"] == "sub-9"
     assert job["staging_upload_id"] == OID
     assert job["output_file_id"] == OID
@@ -239,7 +243,7 @@ def test_a_failed_conversion_drops_the_staged_tar(
 ):
     from app.tyger.runner import StageFailed  # pylint: disable=import-outside-toplevel
 
-    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):  # pylint: disable=unused-argument
         with stage_context("convert"):
             raise StageFailed("The convert stage failed.")
 
@@ -259,7 +263,7 @@ def test_a_converted_file_that_cannot_be_parsed_is_not_stored(
 ):
     from data import PARSE_ERROR_MESSAGE  # pylint: disable=import-outside-toplevel
 
-    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):  # pylint: disable=unused-argument
         with stage_context("convert"):
             pass
         return io.BytesIO(b"not an mrd stream")
@@ -279,7 +283,7 @@ def test_a_failed_insert_removes_the_uploaded_output(
 ):
     from pymongo.errors import PyMongoError  # pylint: disable=import-outside-toplevel
 
-    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):  # pylint: disable=unused-argument
         with stage_context("convert"):
             pass
         return io.BytesIO(b"mrd2 bytes")

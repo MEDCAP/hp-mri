@@ -47,6 +47,9 @@ class Config:
     # token, whichever comes first.
     PRESIGN_EXPIRY_SECONDS = int(os.getenv('PRESIGN_EXPIRY_SECONDS', 3600))
 
+    # Passed as --ttl (D.HH:MM:SS) to `tyger buffer create`; empty for none.
+    TYGER_BUFFER_TTL = os.getenv('TYGER_BUFFER_TTL', '3.00:00:00')
+
 class DevelopmentConfig(Config):
     DEBUG=True
     # parse environment variables
