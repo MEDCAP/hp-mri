@@ -103,7 +103,10 @@ def _fake_header(source, **kwargs):  # pylint: disable=unused-argument
 def test_recon_stores_its_output_as_a_private_file_traceable_to_the_source(
     db_app, db_client, user, monkeypatch, fake_s3, await_job, stored_file
 ):
-    def fake_chain(stage_specs, source_fp, stage_context=None):
+    seen = {}
+
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):
+        seen["tags"] = tags
         assert [spec["id"] for spec in stage_specs] == ["shift", "recon"]
         assert source_fp.read() == b"raw scan"
         for spec in stage_specs:
@@ -126,6 +129,7 @@ def test_recon_stores_its_output_as_a_private_file_traceable_to_the_source(
     job = await_job(response.get_json()["jobId"])
     assert job["status"] == "succeeded", job.get("error")
     assert job["kind"] == "recon"
+    assert seen["tags"] == {"job": response.get_json()["jobId"]}
     assert job["ownerId"] == OWNER
     assert job["input_file_id"] == stored_file
     assert [s["status"] for s in job["stages"]] == ["succeeded", "succeeded"]
@@ -154,7 +158,7 @@ def test_a_failing_stage_leaves_no_output_file(
     """A half-written reconstruction in the file list is worse than none."""
     from app.tyger.runner import StageFailed  # pylint: disable=import-outside-toplevel
 
-    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):  # pylint: disable=unused-argument
         with stage_context("shift"):
             raise StageFailed("The shift stage failed.")
 
@@ -180,7 +184,7 @@ def test_a_failing_stage_leaves_no_output_file(
 @pytest.mark.usefixtures("db_app")
 def test_an_unexpected_failure_records_no_exception_text(
         db_client, user, monkeypatch, fake_s3, await_job, stored_file):
-    def fake_chain(stage_specs, source_fp, stage_context=None):  # pylint: disable=unused-argument
+    def fake_chain(stage_specs, source_fp, stage_context=None, tags=None):  # pylint: disable=unused-argument
         with stage_context("shift"):
             raise RuntimeError("s3://secret-bucket/internal/path exploded")
 
