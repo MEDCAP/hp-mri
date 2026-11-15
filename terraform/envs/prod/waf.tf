@@ -14,12 +14,14 @@ resource "aws_wafv2_web_acl" "this" {
     allow {}
   }
 
+  # Two rate tiers per IP. WAF cannot verify a token, so "signed in" here means
+  # only that the request carries a Bearer header: a forged one buys the higher
+  # ceiling, not an exemption, and the API answers it with a 401.
   rule {
-    name     = "AWS-RateBasedRule-IP-300-CreatedByCloudFront"
+    name     = "rate-limit-anonymous"
     priority = 0
 
-    # The site gets a few hundred requests a day in total; an IP over 300 in
-    # five minutes is a scanner.
+    # Guests and scanners. The site gets a few hundred requests a day in total.
     action {
       block {}
     }
@@ -28,13 +30,35 @@ resource "aws_wafv2_web_acl" "this" {
       rate_based_statement {
         aggregate_key_type    = "IP"
         evaluation_window_sec = 300
-        limit                 = 300
+        limit                 = 200
+
+        scope_down_statement {
+          not_statement {
+            statement {
+              byte_match_statement {
+                positional_constraint = "STARTS_WITH"
+                search_string         = "Bearer "
+
+                field_to_match {
+                  single_header {
+                    name = "authorization"
+                  }
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+          }
+        }
       }
     }
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "AWS-RateBasedRule-IP-300-CreatedByCloudFront"
+      metric_name                = "rate-limit-anonymous"
       sampled_requests_enabled   = true
     }
   }
@@ -110,6 +134,50 @@ resource "aws_wafv2_web_acl" "this" {
     visibility_config {
       cloudwatch_metrics_enabled = true
       metric_name                = "AWS-AWSManagedRulesKnownBadInputsRuleSet"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  rule {
+    name     = "rate-limit-authorized"
+    priority = 4
+
+    # A folder upload polls one job every 2 s per folder, 3 at a time: about
+    # 450 requests in five minutes from one browser, and lab members may
+    # share one address.
+    action {
+      block {}
+    }
+
+    statement {
+      rate_based_statement {
+        aggregate_key_type    = "IP"
+        evaluation_window_sec = 300
+        limit                 = 2000
+
+        scope_down_statement {
+          byte_match_statement {
+            positional_constraint = "STARTS_WITH"
+            search_string         = "Bearer "
+
+            field_to_match {
+              single_header {
+                name = "authorization"
+              }
+            }
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "rate-limit-authorized"
       sampled_requests_enabled   = true
     }
   }
