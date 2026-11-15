@@ -112,11 +112,10 @@ module "data" {
 
   bucket_name = "medcap-data"
 
-  # FOLLOW-UP (finding F3): flip to true. The bucket has no versioning today, so
-  # a delete -- by a user, a bad deploy, or anything holding the task role -- is
-  # unrecoverable. Import first with false so the adoption plan is empty, then
-  # enable it in a PR whose whole diff is this line.
-  versioning_enabled = false
+  # One-way: once Enabled the bucket can only be Suspended, never Disabled.
+  # A deleted object stays recoverable as a noncurrent version for 30 days.
+  versioning_enabled             = true
+  noncurrent_version_expiry_days = 30
 
   # FOLLOW-UP (findings F4/F5): neither of these exists on the live bucket. The
   # CORS rule is required before the presigned upload flow can work at all, and
@@ -193,7 +192,7 @@ module "frontend" {
   aliases         = ["medcap.ai"]
   certificate_arn = var.certificate_arn
   route53_zone_id = var.route53_zone_id
-  web_acl_arn     = var.web_acl_arn
+  web_acl_arn     = aws_wafv2_web_acl.this.arn
 
   origin_verify_header = local.origin_verify_header
 
@@ -204,18 +203,9 @@ module "frontend" {
     site = "medcap.ai.s3-website-us-east-1.amazonaws.com"
     api  = "medcap-app-alb-v1-677209935.us-east-1.elb.amazonaws.com"
   }
-  site_origin_ssl_protocols     = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
   site_origin_request_policy_id = "59781a5b-3903-41f3-afcb-af62929ccde1"
 }
 
-/**
- * The Mongo connection string. ProductionConfig reads MONGO_URI and falls back
- * to the hardcoded Atlas cluster URI when it is unset.
- *
- * The value is supplied out of band (terraform apply -var, or written once by
- * hand) and then ignored, so that rotating it in the console is not reverted by
- * the next apply and so it never lands in a committed tfvars file.
- */
 /*
  * The Tyger service principal the container logs in as (docker-entrypoint.sh).
  * Created with a placeholder and written once out of band, so the PEM never
@@ -235,10 +225,18 @@ resource "aws_ssm_parameter" "tyger" {
   }
 }
 
+/*
+ * The Mongo connection string lives in SSM, not in Terraform. The task
+ * definition references this parameter by ARN and ECS reads the value when a
+ * task starts; plan and apply never take the URI as input. Terraform only
+ * creates the parameter, with a placeholder. Write or rotate the value there:
+ *   aws ssm put-parameter --overwrite --name /hpmri/prod/MONGO_URI \
+ *     --type SecureString --value '<uri>'
+ */
 resource "aws_ssm_parameter" "mongo_uri" {
   name  = "/hpmri/prod/MONGO_URI"
   type  = "SecureString"
-  value = var.mongo_uri
+  value = "set-out-of-band"
 
   lifecycle {
     ignore_changes = [value]

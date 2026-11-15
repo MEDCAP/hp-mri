@@ -28,7 +28,6 @@
  *                            builds a properly separated pair instead. Add the
  *                            new task role ARN to Atlas BEFORE cutting over --
  *                            see README.md.
- *   The WAF WebACL           CloudFront-managed; referenced, not owned.
  *   The ACM certificate      DNS-validated and stable; read as a data source.
  */
 
@@ -79,11 +78,6 @@ import {
 }
 
 import {
-  to = module.frontend.aws_s3_bucket_website_configuration.site
-  id = "medcap.ai"
-}
-
-import {
   to = module.frontend.aws_s3_bucket_policy.site
   id = "medcap.ai"
 }
@@ -101,4 +95,11 @@ import {
 import {
   to = module.frontend.aws_route53_record.alias[0]
   id = "Z07746902LXWEEA7WNLDV_medcap.ai_A"
+}
+
+# --- group 4: the WAF web ACL ------------------------------------------------
+
+import {
+  to = aws_wafv2_web_acl.this
+  id = "e5de59c1-72c5-459a-b51e-84be500a64ac/CreatedByCloudFront-f1868bcf-3a73-4c76-b3bc-f2b32bbfa1df/CLOUDFRONT"
 }

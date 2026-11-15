@@ -134,6 +134,7 @@ resource "aws_lb" "this" {
   subnets            = var.public_subnet_ids
 
   enable_deletion_protection = var.enable_deletion_protection
+  drop_invalid_header_fields = true
 }
 
 resource "aws_lb_target_group" "api" {

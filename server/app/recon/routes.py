@@ -69,7 +69,8 @@ def reconstruct():
         with tempfile.TemporaryFile() as raw:
             handle.s3.download_fileobj(bucket, source_key, raw)
             raw.seek(0)
-            with run_chain(stages, raw, stage_context=handle.stage) as result:
+            with run_chain(stages, raw, stage_context=handle.stage,
+                           tags={"job": str(handle.job_id)}) as result:
                 size = result.seek(0, os.SEEK_END)
                 result.seek(0)
                 metadata = read_mrdfile_header(

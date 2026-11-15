@@ -17,6 +17,7 @@ from typing import Union, List, Optional
 import io
 
 import app.external.python.mrd as mrd
+from app.errors import UnreadableFile
 
 logger = logging.getLogger(__name__)
 
@@ -237,9 +238,9 @@ def delete_mrdfiles_by_ids(file_ids):
     result = db.mrdfiles.delete_many({"_id": {"$in": object_ids}})
     return result.deleted_count
 
-# What an unparseable file's document records as parse_error. The exception
-# itself goes to the log: its text can carry paths and library internals, and
-# GET /mrd-files/<id> returns the document as stored.
+# The message an unparseable file is refused with, and what GET /mrd-files/<id>
+# shows for a legacy document stored with a parse_error. The exception itself
+# goes to the log: its text can carry paths and library internals.
 PARSE_ERROR_MESSAGE = "The file could not be read as an MRD stream."
 
 
@@ -254,6 +255,7 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
                               derived from the path otherwise.
     :param file_size: Size in bytes to record. Required when source is file-like;
                       derived from the path otherwise.
+    :raise UnreadableFile: the source is not a readable MRD stream
     """
     # A file-like source has no name or size on disk, so the caller supplies both.
     if original_filename is None:
@@ -274,31 +276,9 @@ def read_mrdfile_header(source, owner_name=None, original_filename=None, file_si
                     image_exist = True
                     break
     except Exception:  # pylint: disable=broad-except
-        # Not a failure path: an unparseable file is still stored, with basic
-        # metadata and a fixed parse_error. The traceback goes to the log only.
+        # The traceback goes to the log only; the caller gets the fixed message.
         logger.warning("MRD parsing failed for %s", original_filename, exc_info=True)
-        # Create basic metadata for files that can't be parsed as MRD
-        filename = original_filename
-        # Use provided owner_name or "unknown" for failed parsing
-        effective_owner_name = owner_name if owner_name else "unknown"
-        basic_metadata = {
-            "fileName": filename,
-            "studyDate": "unknown",
-            "studyTime": "unknown",
-            "ownerName": effective_owner_name,
-            "subjectType": "unknown",
-            "groupName": None,  # Set by the upload route
-            "ownerId": None,    # Set by the upload route
-            "isReconstructed": False,
-            "protocolName": "unknown",
-            "measurementId": os.path.splitext(filename)[0],
-            "stationName": "unknown",
-            "original_filename": filename,
-            "upload_timestamp": datetime.utcnow(),
-            "file_size": file_size,
-            "parse_error": PARSE_ERROR_MESSAGE
-        }
-        return basic_metadata
+        raise UnreadableFile(PARSE_ERROR_MESSAGE) from None
 
     # Every header section is optional; a missing one leaves only its own
     # fields unknown.

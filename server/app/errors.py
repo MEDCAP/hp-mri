@@ -52,6 +52,13 @@ class NotFound(ApiError):
     code = "not_found"
 
 
+class UnreadableFile(ApiError):
+    """The file could not be read in the format it was declared as."""
+
+    status = 422
+    code = "unreadable"
+
+
 class StorageUnavailable(ApiError):
     """A backing store (MongoDB or S3) could not be reached."""
 

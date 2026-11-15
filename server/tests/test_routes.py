@@ -138,17 +138,24 @@ def test_complete_without_a_group_is_private(client, user):
     member.assert_not_called()
 
 
-def test_an_unparseable_upload_stores_and_returns_no_exception_text(client, user, caplog):
-    with mock.patch("app.mrds.routes.get_s3_client", return_value=staged_s3()), \
+@pytest.mark.parametrize("delete_error", [None, client_error()])
+def test_an_unreadable_upload_is_refused_and_leaves_nothing(client, user, caplog, delete_error):
+    s3 = staged_s3()
+    s3.delete_object.side_effect = delete_error
+    with mock.patch("app.mrds.routes.get_s3_client", return_value=s3), \
          mock.patch("data.mrd.BinaryMrdReader", side_effect=RuntimeError(SECRET)), \
          mock.patch("app.mrds.routes.insert_mrdfile_header", return_value=OID) as insert:
-        response = client.post(f"/api/uploads/{OID}/complete", headers=user(),
+        response = client.post(f"/api/uploads/{OID}/complete", headers=user("sub-9"),
                                json={"filename": "scan.mrd", "groupName": None})
 
-    assert response.status_code == 201
+    # A failed clean-up is logged; it does not turn the refusal into a 500.
+    assert response.status_code == 422
+    assert response.get_json() == {"error": PARSE_ERROR_MESSAGE, "code": "unreadable"}
     assert SECRET not in response.get_data(as_text=True)
-    assert response.get_json()["metadata"]["parse_error"] == PARSE_ERROR_MESSAGE
-    assert insert.call_args.args[0]["parse_error"] == PARSE_ERROR_MESSAGE
+    insert.assert_not_called()
+    s3.copy_object.assert_not_called()
+    s3.delete_object.assert_called_once_with(Bucket="test-bucket",
+                                             Key=f"uploads/staging/sub-9/{OID}")
     assert SECRET in caplog.text, "the exception must still reach the log"
 
 

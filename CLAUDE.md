@@ -61,9 +61,9 @@ npm run build && npm run lint
 `_id` (ObjectId), `fileName` (`MID<measurementId>-<protocolName>`), `studyDate`,
 `studyTime`, `ownerName`, `ownerId`, `groupName`, `subjectType`, `isReconstructed`,
 `protocolName`, `measurementId`, `stationName`, `original_filename`,
-`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A file that could
-not be parsed as MRD also has `parse_error`, always the fixed message
-`"The file could not be read as an MRD stream."`. A reconstruction's
+`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A legacy file stored before
+unreadable uploads were refused may also have `parse_error`, always the fixed
+message `"The file could not be read as an MRD stream."`. A reconstruction's
 output also has `parentFileId` (the source file's id) and `reconStages` (the stages
 it ran).
 
@@ -75,6 +75,21 @@ it ran).
 `ownerName`, `created_at`, `updated_at`, `error`. `error` fields hold a safe message
 only. A `running` job whose current stage is past its timeout (or that started no
 stage within 120 s) is reported `failed`.
+
+## Tyger tags
+
+Set by `app/tyger/runner.py` on everything a job creates on the Tyger instance.
+
+| Tag | On | Value |
+|---|---|---|
+| `kind` | buffers, runs | `webapp`: marks it as created by this app |
+| `job` | buffers, runs | the job's `_id` |
+| `stage` | runs | the stage id (`convert`, `shift`, `recon`) |
+| `version` | runs | `"1.0"`, from the codespec |
+
+A job's buffers are its input buffer and one output buffer per stage; all are
+deleted when the job ends, and each is created with a 3-day TTL
+(`TYGER_BUFFER_TTL`) so one left by a crash expires.
 
 ## API
 
@@ -91,8 +106,8 @@ All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` fro
 | `GET /mrd-files/<id>` | required | — | Full document; 404 if not visible |
 | `POST /uploads/init` | required | `{filename, fileSize, groupName, kind}` — `kind` `"mrd"` (default; `.bin`/`.mrd`/`.mrd2`) or `"raw-tar"` (`.tar`), `fileSize` a positive int ≤ `MAX_UPLOAD_BYTES` (2 GiB), `groupName` null or a group the caller belongs to (else 403) | `{uploadId, uploadUrl, expiresIn}`; no database write |
 | (browser) `PUT <uploadUrl>` | presigned | File bytes, `Content-Type: application/octet-stream`, no `Authorization` header | S3 stores it at `uploads/staging/<sub>/<uploadId>` |
-| `POST /uploads/<id>/complete` | required | `{filename, groupName}` | 201 `{fileId, s3_key, metadata}`; `ownerId`/`ownerName` come from the token. 404 if nothing was staged; 400 if the stored object exceeds the limit |
-| `POST /uploads/<id>/convert` | required | `{filename, groupName, converter}` — `.tar`, `groupName` as for init, `converter` `"convert"` | 202 `{jobId}` (a `convert` job). 404 if nothing is staged under the caller's prefix; 400 if it exceeds the limit. On success the file is stored at `mrd_files/<uploadId>` with `ownerId`/`ownerName` from the token and the given `groupName`, and `output_file_id` = `<uploadId>` |
+| `POST /uploads/<id>/complete` | required | `{filename, groupName}` | 201 `{fileId, s3_key, metadata}`; `ownerId`/`ownerName` come from the token. 404 if nothing was staged; 400 if the stored object exceeds the limit; 422 `{"code": "unreadable"}` if it is not a readable MRD stream. A refused object is deleted from staging and no file is stored |
+| `POST /uploads/<id>/convert` | required | `{filename, groupName, converter}` — `.tar`, `groupName` as for init, `converter` `"convert"` | 202 `{jobId}` (a `convert` job). 404 if nothing is staged under the caller's prefix; 400 if it exceeds the limit. On success the file is stored at `mrd_files/<uploadId>` with `ownerId`/`ownerName` from the token and the given `groupName`, and `output_file_id` = `<uploadId>`. The job fails when the upload is not a tar archive with at least one member, the converter fails, or its output is not a readable MRD stream; a failed job stores no file. The staged tar is deleted either way |
 | `POST /uploads/<id>/abort` | required | — | 204, always |
 | `DELETE /mrd-file` | required | `{ids: [..]}` | `{message, deleted_count, s3_deleted_count, file_results: [{file_id, file_name, status, db_deleted, s3_deleted, error}]}`. Permitted for anyone who can see the file |
 | `POST /mrd-files/<id>/share` | required | `{groupName}` (null/`"null"` = private) | `{message}`; owner only, and the target group must include the owner |
@@ -230,7 +245,8 @@ A job is visible only to the user who started it (`ownerId` = the caller's sub).
 - **Database and S3:** through `data.py` (`get_db()`, `get_s3_client()`).
   - Configuration from env: `MONGO_URI`, `MONGO_DB_NAME` (default `hpmri_dev`;
     production sets `hpmri_prod`), `S3_BUCKET` (default `medcap-data`), `CORS_ORIGINS`,
-    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`.
+    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`, `TYGER_BUFFER_TTL` (default
+    `3.00:00:00`).
 - **Frontend HTTP:** only through `src/api/`; lint rejects `axios` imports
   elsewhere.
   - Sign-in state comes from `useCurrentUser()` (`src/auth/useCurrentUser.ts`).

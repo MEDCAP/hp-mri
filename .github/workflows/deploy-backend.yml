@@ -72,8 +72,20 @@ jobs:
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push
+      # Tags are immutable, so a re-run for the same commit reuses its image.
+      - name: Skip build if the tag exists
+        id: exists
         if: steps.tag.outputs.build == 'true'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if aws ecr describe-images --repository-name medcap-app \
+              --image-ids imageTag="$TAG" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        if: steps.tag.outputs.build == 'true' && steps.exists.outputs.found != 'true'
         uses: docker/build-push-action@v6
         with:
           context: server

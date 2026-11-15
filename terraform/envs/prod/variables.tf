@@ -55,21 +55,6 @@ variable "route53_zone_id" {
   default     = "Z07746902LXWEEA7WNLDV"
 }
 
-variable "web_acl_arn" {
-  type    = string
-  default = "arn:aws:wafv2:us-east-1:862065604168:global/webacl/CreatedByCloudFront-f1868bcf-3a73-4c76-b3bc-f2b32bbfa1df/e5de59c1-72c5-459a-b51e-84be500a64ac"
-}
-
-variable "mongo_uri" {
-  description = <<-EOT
-    Supplied out of band -- never in a committed tfvars file. The parameter
-    ignores changes to its value after creation, so rotating it in the console
-    is safe.
-  EOT
-  type        = string
-  sensitive   = true
-}
-
 variable "tyger_server_url" {
   description = "The Tyger server the convert/recon stages run on."
   type        = string

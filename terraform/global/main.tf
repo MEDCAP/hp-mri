@@ -45,15 +45,12 @@ import {
 resource "aws_ecr_repository" "app" {
   name = "medcap-app"
 
-  # FOLLOW-UP: the live repository is MUTABLE. Immutable tags are the right end
-  # state -- they make a rollback to an older tag mean exactly what it says --
-  # but flipping it is a change, so it plans clean as MUTABLE first.
-  image_tag_mutability = "MUTABLE"
+  # A rollback to an older tag means exactly that build. deploy-backend.yml
+  # tags per commit and skips the push when the tag already exists.
+  image_tag_mutability = "IMMUTABLE"
 
-  # The live value, read from the first plan. Turning scan on is a follow-up
-  # change, not part of the import.
   image_scanning_configuration {
-    scan_on_push = false
+    scan_on_push = true
   }
 }
 
