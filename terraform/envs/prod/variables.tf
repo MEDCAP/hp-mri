@@ -55,12 +55,6 @@ variable "route53_zone_id" {
   default     = "Z07746902LXWEEA7WNLDV"
 }
 
-variable "api_function_arn" {
-  description = "secureApiForwarding. Referenced so the import is clean; not a security control."
-  type        = string
-  default     = "arn:aws:cloudfront::862065604168:function/secureApiForwarding"
-}
-
 variable "tyger_server_url" {
   description = "The Tyger server the convert/recon stages run on."
   type        = string

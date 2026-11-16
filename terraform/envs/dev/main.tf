@@ -32,6 +32,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.70"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -49,6 +53,21 @@ provider "aws" {
 
 locals {
   name_prefix = "hpmri-dev"
+}
+
+# Shared between CloudFront and the ALB listener; see modules/backend-ecs.
+# Rotating it (taint and apply) briefly 403s /api/* until the distribution
+# finishes deploying.
+resource "random_password" "origin_verify" {
+  length  = 48
+  special = false
+}
+
+locals {
+  origin_verify_header = {
+    name  = "X-Origin-Verify"
+    value = random_password.origin_verify.result
+  }
 }
 
 module "network" {
@@ -111,7 +130,8 @@ module "backend" {
   # Dev is the one place spot genuinely fits: an interruption costs nothing.
   capacity_providers = [{ name = "FARGATE_SPOT", weight = 1, base = 0 }]
 
-  certificate_arn = var.certificate_arn
+  certificate_arn      = var.certificate_arn
+  origin_verify_header = local.origin_verify_header
 
   s3_bucket_name        = module.data.bucket_name
   s3_access_policy_json = module.data.access_policy_json
@@ -140,10 +160,11 @@ module "frontend" {
   certificate_arn = var.certificate_arn
   route53_zone_id = var.route53_zone_id
 
-  # No Referer function and no WAF. Dev should look like the application's real
-  # security posture, not a decorated version of it.
-  api_function_arn = ""
-  web_acl_arn      = null
+  # No WAF. Dev should look like the application's real security posture, not a
+  # decorated version of it.
+  web_acl_arn = null
+
+  origin_verify_header = local.origin_verify_header
 
   comment = "hp-mri dev"
 }

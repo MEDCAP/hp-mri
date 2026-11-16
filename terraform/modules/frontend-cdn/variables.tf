@@ -36,14 +36,13 @@ variable "web_acl_arn" {
   default     = null
 }
 
-variable "api_function_arn" {
-  description = <<-EOT
-    The secureApiForwarding CloudFront Function on /api/*. Set in prod only so
-    the import plans clean. Leave empty everywhere else -- a Referer check is
-    not access control (finding F1).
-  EOT
-  type        = string
-  default     = ""
+variable "origin_verify_header" {
+  description = "Header CloudFront adds to every /api/* origin request; modules/backend-ecs forwards only requests that carry it."
+  type = object({
+    name  = string
+    value = string
+  })
+  sensitive = true
 }
 
 variable "cache_static_assets" {
