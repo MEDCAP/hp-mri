@@ -1,7 +1,7 @@
 {
   "name": "medcap-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Frontend for the MEDCAP MRI Instrument Data Web Application",
   "author": "Benjamin Yoon",
   "license": "MIT | Penn",
