@@ -1,0 +1,244 @@
+/**
+ * Production.
+ *
+ * Adoption is deliberately split in two.
+ *
+ * The long-lived, hard-to-replace things are IMPORTED and must plan clean: the
+ * data bucket, the Cognito pool holding real accounts, the site bucket, the
+ * CloudFront distribution and the DNS record. Those keep their existing names
+ * because their names are either immutable (S3) or irrelevant (Cognito is
+ * addressed by id).
+ *
+ * The compute layer is BUILT FRESH alongside the old one, not imported. The
+ * live cluster and service are named mrissim-test1 and medcap-app-service-v3,
+ * and adopting them under sane names would force a replace anyway -- so rather
+ * than import a mess and then mutate it, the new stack is created beside the
+ * old and traffic is moved at CloudFront. That also lets the sizing, capacity
+ * provider and IAM role split land as part of the build instead of as three
+ * more changes to live infrastructure.
+ *
+ * The cutover is var.api_origin_dns_name: it points at the OLD ALB until you
+ * have verified the new one, so the first apply builds without moving traffic.
+ * See terraform/README.md for the sequence.
+ */
+terraform {
+  required_version = "~> 1.9"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.70"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+
+  default_tags {
+    tags = {
+      Project     = "hp-mri"
+      Environment = "prod"
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
+locals {
+  name_prefix = "hpmri-prod"
+  web_origin  = "https://medcap.ai"
+}
+
+# Shared between CloudFront and the ALB listener; see modules/backend-ecs.
+# Rotating it (taint and apply) briefly 403s /api/* until the distribution
+# finishes deploying.
+resource "random_password" "origin_verify" {
+  length  = 48
+  special = false
+}
+
+locals {
+  origin_verify_header = {
+    name  = "X-Origin-Verify"
+    value = random_password.origin_verify.result
+  }
+}
+
+module "network" {
+  source = "../../modules/network"
+
+  name_prefix = local.name_prefix
+  create_vpc  = false
+  vpc_id      = var.vpc_id
+  subnet_ids  = var.subnet_ids
+}
+
+module "auth" {
+  source = "../../modules/auth"
+
+  # Auto-generated name on the live pool; it must be reproduced verbatim.
+  pool_name   = "User pool - lwrhys"
+  client_name = "medcap-frontend"
+
+  # Everything below matches the live pool and client, so the import plans
+  # clean. The callback is a retired CloudFront domain; the SPA signs in with
+  # SRP and never uses it.
+  explicit_auth_flows = ["ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_AUTH", "ALLOW_USER_SRP_AUTH"]
+  callback_urls       = ["https://d84l1y8p4kdic.cloudfront.net"]
+  logout_urls         = []
+
+  oauth = {
+    flows  = ["code"]
+    scopes = ["email", "openid", "phone"]
+  }
+  token_validity = {
+    access_minutes = 60
+    id_minutes     = 60
+    refresh_days   = 5
+  }
+
+  phone_recovery = true
+  ses_email = {
+    source_arn         = "arn:aws:ses:us-east-1:862065604168:identity/medcap.ai"
+    from_email_address = "MEDCAP Verification <no-reply@medcap.ai>"
+  }
+}
+
+module "data" {
+  source = "../../modules/data"
+
+  bucket_name = "medcap-data"
+
+  # One-way: once Enabled the bucket can only be Suspended, never Disabled.
+  # A deleted object stays recoverable as a noncurrent version for 30 days.
+  versioning_enabled             = true
+  noncurrent_version_expiry_days = 30
+
+  # FOLLOW-UP (findings F4/F5): neither of these exists on the live bucket. The
+  # CORS rule is required before the presigned upload flow can work at all, and
+  # server/config.py already assumes the staging lifecycle rule is in place.
+  cors_allowed_origins = [local.web_origin, "http://localhost:5173"]
+
+  force_destroy = false
+}
+
+module "backend" {
+  source = "../../modules/backend-ecs"
+
+  name_prefix = local.name_prefix
+  region      = var.region
+
+  vpc_id                    = module.network.vpc_id
+  public_subnet_ids         = var.service_subnet_ids
+  service_subnet_ids        = var.service_subnet_ids
+  alb_security_group_id     = module.network.alb_security_group_id
+  service_security_group_id = module.network.service_security_group_id
+
+  ecr_repository_url = var.ecr_repository_url
+  image_tag          = var.seed_image_tag
+
+  # Nothing is imported here, so the recommended values apply from the start
+  # rather than arriving as a later change. The old task was 4096/8192 on
+  # FARGATE_SPOT while using 0.1% CPU and 233 MiB over 14 days; 1024/2048
+  # on-demand costs less than that did AND removes the single-spot-task failure
+  # mode (finding F6). Module defaults, stated here because they are a decision.
+  cpu                = 1024
+  memory             = 2048
+  capacity_providers = [{ name = "FARGATE", weight = 1, base = 1 }]
+
+  certificate_arn      = var.certificate_arn
+  origin_verify_header = local.origin_verify_header
+
+  s3_bucket_name        = module.data.bucket_name
+  s3_access_policy_json = module.data.access_policy_json
+
+  # Renaming this is a data migration, not a config change: production ran
+  # against a database literally named medcap_dev. Run
+  # scripts/rename-mongo-database.sh BEFORE applying this, or the service comes
+  # up pointed at a database that does not exist yet.
+  mongo_db_name = "hpmri_prod"
+  cors_origins  = [local.web_origin]
+
+  extra_environment = {
+    TYGER_SERVER_URL = var.tyger_server_url
+  }
+
+  secret_environment = {
+    MONGO_URI               = aws_ssm_parameter.mongo_uri.arn
+    TYGER_CERT_PEM          = aws_ssm_parameter.tyger["TYGER_CERT_PEM"].arn
+    TYGER_SERVICE_PRINCIPAL = aws_ssm_parameter.tyger["TYGER_SERVICE_PRINCIPAL"].arn
+  }
+  secret_parameter_arns = concat(
+    [aws_ssm_parameter.mongo_uri.arn],
+    [for p in aws_ssm_parameter.tyger : p.arn],
+  )
+
+  log_retention_days = 30
+}
+
+module "frontend" {
+  source = "../../modules/frontend-cdn"
+
+  site_bucket_name = "medcap.ai"
+
+  # THE CUTOVER. While this is set, /api/* still goes to the old ALB, so the
+  # new stack can be built and tested without touching live traffic. Setting it
+  # to "" moves production onto the new ALB, and is the only change in that
+  # apply. Reverting it is the rollback.
+  alb_dns_name    = var.api_origin_dns_name != "" ? var.api_origin_dns_name : module.backend.alb_dns_name
+  aliases         = ["medcap.ai"]
+  certificate_arn = var.certificate_arn
+  route53_zone_id = var.route53_zone_id
+  web_acl_arn     = aws_wafv2_web_acl.this.arn
+
+  origin_verify_header = local.origin_verify_header
+
+  # The live distribution's console-created values, so the import plans clean.
+  comment     = "Cloudfront to host S3 static site of medcap.ai"
+  price_class = "PriceClass_All"
+  origin_ids = {
+    site = "medcap.ai.s3-website-us-east-1.amazonaws.com"
+    api  = "medcap-app-alb-v1-677209935.us-east-1.elb.amazonaws.com"
+  }
+  site_origin_request_policy_id = "59781a5b-3903-41f3-afcb-af62929ccde1"
+}
+
+/*
+ * The Tyger service principal the container logs in as (docker-entrypoint.sh).
+ * Created with a placeholder and written once out of band, so the PEM never
+ * passes through Terraform state or a tfvars file:
+ *   aws ssm put-parameter --overwrite --name /hpmri/prod/TYGER_CERT_PEM \
+ *     --type SecureString --value file://tyger-sp.pem
+ */
+resource "aws_ssm_parameter" "tyger" {
+  for_each = toset(["TYGER_CERT_PEM", "TYGER_SERVICE_PRINCIPAL"])
+
+  name  = "/hpmri/prod/${each.key}"
+  type  = "SecureString"
+  value = "set-out-of-band"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+/*
+ * The Mongo connection string lives in SSM, not in Terraform. The task
+ * definition references this parameter by ARN and ECS reads the value when a
+ * task starts; plan and apply never take the URI as input. Terraform only
+ * creates the parameter, with a placeholder. Write or rotate the value there:
+ *   aws ssm put-parameter --overwrite --name /hpmri/prod/MONGO_URI \
+ *     --type SecureString --value '<uri>'
+ */
+resource "aws_ssm_parameter" "mongo_uri" {
+  name  = "/hpmri/prod/MONGO_URI"
+  type  = "SecureString"
+  value = "set-out-of-band"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}

@@ -12,7 +12,6 @@ dotenv==0.9.9
 Flask==3.0.3
 Flask-Cors==5.0.0
 Flask-PyMongo==3.0.1
-Flask-Uploads==0.2.1
 fonttools==4.55.1
 gunicorn==23.0.0
 idna==3.10

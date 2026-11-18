@@ -39,3 +39,14 @@ server/app/images.bin
 server/app/phantom.bin
 server/mrds/__pycache__
 server/.medcap-venv
+# Terraform
+# The lock file IS committed: it pins provider versions so a plan on someone
+# else's machine matches the one reviewed in the PR.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# Never commit variable files -- they are where a Mongo URI would end up.
+*.auto.tfvars
+terraform.tfvars

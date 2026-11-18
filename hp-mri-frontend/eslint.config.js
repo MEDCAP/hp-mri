@@ -23,6 +23,14 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // All HTTP goes through src/api/, which attaches the auth token.
+      'no-restricted-imports': ['error', {
+        paths: [{ name: 'axios', message: 'Call the typed functions in src/api/ instead.' }],
+      }],
     },
+  },
+  {
+    files: ['src/api/**/*.ts'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 )

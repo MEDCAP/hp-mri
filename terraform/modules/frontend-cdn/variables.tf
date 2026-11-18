@@ -1,0 +1,86 @@
+variable "site_bucket_name" {
+  description = "medcap.ai in prod -- the bucket is named after the domain."
+  type        = string
+}
+
+variable "alb_dns_name" {
+  description = "Backend origin for the /api/* behaviour, from modules/backend-ecs."
+  type        = string
+}
+
+variable "aliases" {
+  description = "Domains served. Empty means the CloudFront default domain only, which is right for dev."
+  type        = list(string)
+  default     = []
+}
+
+variable "certificate_arn" {
+  description = "Required whenever aliases is non-empty. Must be an us-east-1 certificate."
+  type        = string
+  default     = ""
+}
+
+variable "route53_zone_id" {
+  description = "Empty skips DNS. The medcap.ai zone is in this account, so prod can manage its own records."
+  type        = string
+  default     = ""
+}
+
+variable "web_acl_arn" {
+  description = <<-EOT
+    The live distribution has a CloudFront-created WAF attached. Worth keeping,
+    though it is worth noticing that the WAF costs more per month than the
+    application's actual authentication does, which is nothing.
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "origin_verify_header" {
+  description = "Header CloudFront adds to every /api/* origin request; modules/backend-ecs forwards only requests that carry it."
+  type = object({
+    name  = string
+    value = string
+  })
+  sensitive = true
+}
+
+variable "cache_static_assets" {
+  description = <<-EOT
+    The live distribution disables caching on the static site as well as the
+    API. Vite emits content-hashed filenames, so the assets could be cached
+    immutably at the edge; flipping this is a real behaviour change and belongs
+    in its own PR, not in an import.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "price_class" {
+  description = "PriceClass_100 covers North America and Europe, which is where this group's users are."
+  type        = string
+  default     = "PriceClass_100"
+}
+
+variable "comment" {
+  type    = string
+  default = ""
+}
+
+variable "origin_ids" {
+  description = "Origin ids inside the distribution. The imported prod distribution keeps its console-generated ids."
+  type = object({
+    site = string
+    api  = string
+  })
+  default = {
+    site = "site"
+    api  = "api"
+  }
+}
+
+variable "site_origin_request_policy_id" {
+  description = "Origin request policy on the default (site) behaviour; null for none."
+  type        = string
+  default     = null
+}

@@ -1,0 +1,93 @@
+name: Deploy frontend
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    # Inert until the infrastructure exists. Gated here rather than in each
+    # caller, so workflow_dispatch and every caller are covered.
+    if: vars.DEPLOY_ENABLED == 'true'
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-frontend-${{ inputs.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: hp-mri-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: hp-mri-frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          # From the Terraform outputs, set as GitHub Environment variables.
+          # src/config/env.ts still carries hardcoded fallbacks; once every
+          # build supplies these, those should go.
+          VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
+        run: npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::862065604168:role/gha-deploy-${{ inputs.environment }}
+          aws-region: us-east-1
+
+      # Order matters. Hashed assets go up first with a long TTL, so they are
+      # already in place when the new index.html starts referencing them; the
+      # entry point goes last with no-cache. Uploading index.html first would
+      # leave a window serving markup whose assets do not exist yet.
+      - name: Upload hashed assets
+        env:
+          BUCKET: ${{ vars.SITE_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 sync dist "s3://${BUCKET}" --delete \
+            --exclude index.html \
+            --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload entry point
+        env:
+          BUCKET: ${{ vars.SITE_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 cp dist/index.html "s3://${BUCKET}/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      # Only the entry point needs invalidating: everything else is
+      # content-hashed, and /* costs money past 1000 paths a month.
+      - name: Invalidate
+        env:
+          DISTRIBUTION: ${{ vars.CF_DISTRIBUTION_ID }}
+        run: |
+          set -euo pipefail
+          id=$(aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION" \
+            --paths '/index.html' '/' \
+            --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$DISTRIBUTION" --id "$id"

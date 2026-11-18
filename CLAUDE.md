@@ -1,0 +1,266 @@
+# HP-MRI Web App
+
+Web app for the MEDCAP group (UPenn) to upload, share and view Hyperpolarized MRI
+data in the MRD format. React SPA (`hp-mri-frontend/`) + Flask REST API (`server/`).
+File metadata lives in MongoDB Atlas; MRD files live in S3.
+
+## Repo layout
+
+- `hp-mri-frontend/src/`
+  - `api/` — HTTP functions
+  - `auth/` — Cognito session, route guard
+  - `features/` — `auth`, `home`, `calculator`, `files`, `groups`, `recon`,
+    `simulator`, `viewer`
+  - `components/`, `layouts/`, `config/`, `utils/`, `types/`
+- `server/`
+  - `app/` — blueprints `mrds`, `viewer`, `groups`, `recon`, `jobs`, plus
+    `auth.py`, `errors.py`
+  - `app/tyger/` — pipeline stages (`stages.py`: `convert`, `shift`, `recon`) and
+    the runner that chains them through the `tyger` CLI (shipped in the backend
+    image)
+  - `data.py` — MongoDB and S3 access
+  - `config.py`
+  - `tests/`
+- `terraform/` — AWS infrastructure; see `terraform/README.md`
+- `server/app/external/` — git submodule `MEDCAP/mrd-fork` (branch `dev`), the MRD
+  library. Read-only here.
+
+## Commands
+
+```bash
+git submodule update --init
+cd server && ./setup_aws.sh && python run.py          # API on :5001
+cd server && pytest                                   # unit tests
+docker compose -f docker-compose.test.yml up -d       # local MongoDB for integration tests
+cd server && MONGO_TEST_URI=mongodb://localhost:27017 pytest
+pylint server                                         # from repo root; floor is fail-under in .pylintrc
+cd hp-mri-frontend && npm install && npm run dev      # SPA on :5173, /api proxied to :5001
+npm run build && npm run lint
+```
+
+`MONGO_TEST_URI` must point at a local throwaway server, never Atlas.
+
+## Users and visibility
+
+- **Guest:** not signed in. Sees files whose `groupName` is `"public"`.
+- **Signed-in user:** Cognito ID token sent as `Authorization: Bearer <token>`.
+  Sees:
+  - their own files (`ownerId` = their sub)
+  - files in any group they are a member of
+  - `"public"` files
+  - legacy files that have neither `ownerId` nor `groupName`
+- **File visibility** is `groupName`:
+  - `null` — private to the owner
+  - `"public"` — everyone, guests included
+  - a group name — members of that group
+- A request with an invalid or expired token is answered 401 on protected routes,
+  and treated as a guest on optional-auth routes.
+
+## MRD file document (`mrdfiles` collection)
+
+`_id` (ObjectId), `fileName` (`MID<measurementId>-<protocolName>`), `studyDate`,
+`studyTime`, `ownerName`, `ownerId`, `groupName`, `subjectType`, `isReconstructed`,
+`protocolName`, `measurementId`, `stationName`, `original_filename`,
+`upload_timestamp`, `file_size`, `s3_key` (`mrd_files/<_id>`). A legacy file stored before
+unreadable uploads were refused may also have `parse_error`, always the fixed
+message `"The file could not be read as an MRD stream."`. A reconstruction's
+output also has `parentFileId` (the source file's id) and `reconStages` (the stages
+it ran).
+
+## Job document (`jobs` collection)
+
+`_id`, `kind` (`convert` | `recon`), `status` (`queued` | `running` | `succeeded` |
+`failed`), `stages: [{id, status, error, started_at, ended_at}]`, `input_file_id`,
+`staging_upload_id`, `output_file_id`, `params`, `ownerId` (the starter's sub),
+`ownerName`, `created_at`, `updated_at`, `error`. `error` fields hold a safe message
+only. A `running` job whose current stage is past its timeout (or that started no
+stage within 120 s) is reported `failed`.
+
+## Tyger tags
+
+Set by `app/tyger/runner.py` on everything a job creates on the Tyger instance.
+
+| Tag | On | Value |
+|---|---|---|
+| `kind` | buffers, runs | `webapp`: marks it as created by this app |
+| `job` | buffers, runs | the job's `_id` |
+| `stage` | runs | the stage id (`convert`, `shift`, `recon`) |
+| `version` | runs | `"1.0"`, from the codespec |
+
+A job's buffers are its input buffer and one output buffer per stage; all are
+deleted when the job ends, and each is created with a 3-day TTL
+(`TYGER_BUFFER_TTL`) so one left by a crash expires.
+
+## API
+
+All routes are under `/api`. Errors are `{"error": <string>, "code": <tag>}` from the
+`mrds`, `viewer`, `recon` and `jobs` blueprints, and `{"error": <string>}` from
+`groups`.
+`GET /api/health` → `{status, mode}`.
+
+### Files — `app/mrds/routes.py`
+
+| Route | Auth | Input | Output |
+|---|---|---|---|
+| `GET /mrd-files` | optional | `?limit` (≤200, default 50), `?skip` (≥0) | List of visible file documents, newest `studyDate`/`studyTime` first. Guests get no `ownerId`, `measurementId`, `stationName`, `original_filename` or `s3_key` |
+| `GET /mrd-files/<id>` | required | — | Full document; 404 if not visible |
+| `POST /uploads/init` | required | `{filename, fileSize, groupName, kind}` — `kind` `"mrd"` (default; `.bin`/`.mrd`/`.mrd2`) or `"raw-tar"` (`.tar`), `fileSize` a positive int ≤ `MAX_UPLOAD_BYTES` (2 GiB), `groupName` null or a group the caller belongs to (else 403) | `{uploadId, uploadUrl, expiresIn}`; no database write |
+| (browser) `PUT <uploadUrl>` | presigned | File bytes, `Content-Type: application/octet-stream`, no `Authorization` header | S3 stores it at `uploads/staging/<sub>/<uploadId>` |
+| `POST /uploads/<id>/complete` | required | `{filename, groupName}` | 201 `{fileId, s3_key, metadata}`; `ownerId`/`ownerName` come from the token. 404 if nothing was staged; 400 if the stored object exceeds the limit; 422 `{"code": "unreadable"}` if it is not a readable MRD stream. A refused object is deleted from staging and no file is stored |
+| `POST /uploads/<id>/convert` | required | `{filename, groupName, converter}` — `.tar`, `groupName` as for init, `converter` `"convert"` | 202 `{jobId}` (a `convert` job). 404 if nothing is staged under the caller's prefix; 400 if it exceeds the limit. On success the file is stored at `mrd_files/<uploadId>` with `ownerId`/`ownerName` from the token and the given `groupName`, and `output_file_id` = `<uploadId>`. The job fails when the upload is not a tar archive with at least one member, the converter fails, or its output is not a readable MRD stream; a failed job stores no file. The staged tar is deleted either way |
+| `POST /uploads/<id>/abort` | required | — | 204, always |
+| `DELETE /mrd-file` | required | `{ids: [..]}` | `{message, deleted_count, s3_deleted_count, file_results: [{file_id, file_name, status, db_deleted, s3_deleted, error}]}`. Permitted for anyone who can see the file |
+| `POST /mrd-files/<id>/share` | required | `{groupName}` (null/`"null"` = private) | `{message}`; owner only, and the target group must include the owner |
+| `GET /mrd-file/<id>/download` | required | — | 501 (not implemented) |
+
+### Viewer — `app/viewer/routes.py`
+
+| Route | Auth | Input | Output |
+|---|---|---|---|
+| `GET /viewer/<id>/arrays` | optional | — | `{file_id, arrays, unsupported}`. `arrays`: one descriptor per renderable stream, `{key, name, kind, tag, shape, dim_labels, labels, dtype, transform, item_count}`, no data. `unsupported`: `[{tag, count}]` for skipped stream items (acquisitions and other non-array items) |
+| `GET /viewer/<id>/arrays/<key>` | optional | `key` from the list | The descriptor plus `value_min`, `value_max` and `data`, unscaled |
+| `GET /viewer/<id>/kspace` | optional | — | `{nswitch, encodings: [{ref, name, total, discard_pre, kept, echo, signal, brightest}]}`: acquisitions folded on the gradient switch, `signal` `nswitch × total` summed over views and repetitions. 404 when the file has no EPSI readout (no `nswitches` user parameter) |
+| `GET /viewer/<id>/waveforms` | optional | — | `{pulses, gradients, acquisitions, decimation}`; each trace `{name, t, values, samples, stride}`, `t` in seconds, at most 2000 points per trace and 24 items per group; `decimation: {max_points_per_trace, max_items_per_group, items_omitted: {pulses, gradients, acquisitions}}` |
+| `GET /get_count_datasets/<magnet>` | none | magnet ∈ `HUPC`, `Clinical`, `MR Solutions` | `{numDatasets}` |
+| `POST /get_proton_picture/<n>` | none | body `{magnetType}` | PNG |
+| `POST /get_hp_mri_data/<n>` | none | `?threshold`, `?magnetType` | Spectral data |
+| `POST /viewer-upload`, `GET /get_imaging_metadata`, `GET /get_imaging_matrix` | none | — | Non-functional |
+
+`/arrays` descriptors:
+- `kind: "image"`: `data` is 6-D `[channel][slice][row][col][frequency][measurement]`;
+  `dim_labels` is `CHANNEL, Z, Y, X, FREQUENCY, MEASUREMENT`.
+- `kind: "trace"` (waveforms, 1-D arrays, spectra): `data` is 3-D
+  `[series][sample][measurement]`.
+- Stream items with the same tag, type, labels and shape are stacked on the
+  measurement axis; `item_count` is how many.
+- `labels`: per-frequency (metabolite) labels, `[]` if none.
+- `transform: "magnitude"` when a complex array was reduced to its magnitude; `dtype`
+  is the stored type.
+- `meta`: the array's MRD meta as `{key: [value, ...]}` (strings and numbers; a
+  non-finite number is `null`). Reconstructions carry e.g. `xscale_ppm`,
+  `peak_names`, `peak_offsets_ppm`, `biggest_peak_index`, `fit_loss`.
+- Keys are stable for a given file.
+
+`/arrays`, `/kspace` and `/waveforms` errors: 404 when the file is not visible to
+the caller, its S3 object is missing, or the key is unknown; 422
+`{"code": "unreadable"}` when the object is not a readable MRD stream. A file with
+nothing renderable returns `arrays: []`.
+
+### Reconstruction — `app/recon/routes.py`
+
+| Route | Auth | Input | Output |
+|---|---|---|---|
+| `POST /recon` | required | `{fileId, stages: [{id, params}]}`. `id` ∈ `shift` (no params), `recon` (`{peaks: [{name, ppm, modifiers}], line_broadening?, fit_df?, fit_dw?, fit_dph?}`; `name` `[A-Za-z][A-Za-z0-9]*`, `modifiers` letters from `s`, `t`, `m`) | 202 `{jobId}` (a `recon` job). 404 when `fileId` is not visible to the caller (same rule as `GET /mrd-files/<id>`); 400 on a bad chain, before any job exists. On success the output is a new file owned by the caller, `groupName` null (private), with `parentFileId` and `reconStages` |
+
+### Jobs — `app/jobs/routes.py` (all require auth)
+
+A job is visible only to the user who started it (`ownerId` = the caller's sub).
+
+- `GET /jobs/<id>`: the job document without `ownerId`, dates as ISO strings. 404
+  when it does not exist, is malformed, or belongs to someone else.
+- `GET /jobs`: the caller's jobs, newest first, at most 50; `?fileId=` matches
+  `input_file_id`, `?status=` one of the four statuses (else 400).
+
+### Groups — `app/groups/routes.py` (all require auth)
+
+- `GET /groups`: the caller's groups
+- `POST /groups`: body `{name, displayName, description}`. `name` is 3–50 chars of
+  `[A-Za-z0-9_-]`; 409 if taken. Returns 201 `{groupId}`, and the creator becomes a
+  member and admin.
+- `GET /groups/<name>`, `GET /groups/<name>/members`, `GET /groups/<name>/settings`:
+  members only
+- `PATCH /groups/<name>`: admins; body with any of `displayName`, `description`,
+  `properties`
+- `DELETE /groups/<name>`: admins; refused while the group has files
+- `POST /groups/<name>/members`: any member; body `{userSub}`
+- `DELETE /groups/<name>/members/<sub>`: admins, or the member themselves
+- `POST /groups/<name>/admins`: admins; body `{userSub}`
+- `DELETE /groups/<name>/admins/<sub>`: admins
+- `PATCH /groups/<name>/settings`: admins; body with any of `isDiscoverable`,
+  `autoApprove` (booleans)
+- Invite codes:
+  - `POST /groups/<name>/invite-codes`: admins; body with optional `expiresInDays`
+    and `maxUses` (positive ints). Returns 201 `{code, expiresInDays, maxUses}`.
+  - `GET /groups/<name>/invite-codes`: admins; returns `{inviteCodes}`
+  - `DELETE /groups/<name>/invite-codes/<code>`: admins
+  - `POST /groups/join-by-code`: body `{code}`; returns `{groupName, displayName}`
+- Discovery and join requests:
+  - `GET /groups/search?q=`: returns `{groups}` (discoverable groups)
+  - `POST /groups/<name>/join-requests`: request to join; auto-approved when the
+    group's `autoApprove` is set
+  - `GET /groups/<name>/join-requests`: admins; returns `{joinRequests}`
+  - `POST /groups/<name>/join-requests/<sub>/approve` and `.../deny`: admins
+  - `GET /groups/my-join-requests`: the caller's own; returns `{joinRequests}`
+  - `POST /groups/<name>/join-requests/withdraw`: the caller's own
+
+## Frontend features
+
+- **Home** (`/`, `/members`, `/publication`, `/concept`, `/convert-store`,
+  `/reconstruction-tools`), home layout
+- **MR coil calculator** (`/mr-coil-calculator`), client-side only
+- **Sign-in** (`/account`, `/signup`, `/confirm-signup`), Cognito
+- **Files** (`/mrd-files`), open to guests:
+  - table with search, sort and selection (single-click selects, double-click
+    opens); each row shows its visibility (Private / group / Public)
+  - details pane; the owner can change visibility (Private / a group / Public)
+  - upload: drag-and-drop of `.bin`/`.mrd`/`.mrd2` up to 2 GiB each, 3 in parallel,
+    with a visibility picker, per-file progress and cancel
+  - upload of scan folders (drag-and-drop or browse): each folder is tarred in the
+    browser, staged as `raw-tar`, converted with `POST /uploads/<id>/convert`, and
+    its job polled until the converted file exists; the visibility picker applies
+  - Reconstruct (signed-in only): pick a visible file (the selected one is
+    preselected), build a `shift`/`recon` pipeline with peaks and tunables, start
+    `POST /recon` and follow the job's stages; the list is re-fetched when it
+    succeeds
+  - batch delete
+- **Groups** (`/groups`, `/groups/:groupName`), signed-in only: create, join by
+  code, search and request to join, members, admins, invite codes, join requests,
+  settings
+- **Viewer** (`/viewer`), open to guests:
+  - a grid of panels, up to 3×2 or 1×3 (layout picker in the side panel); opens on one
+    panel, `+` adds a column, each panel can be closed
+  - each panel shows one file: pick any of its arrays; images get channel, slice,
+    metabolite and measurement controls, traces one line per series at the chosen
+    measurement
+  - a view selector per panel offers what the file supports: arrays; the fitted
+    spectrum (`*_global_spect`, with `*_global_spect_fit` and
+    `*_lorentzian_centers_ppm`); metabolite maps (`*_amplitude` or `*_area`), with a
+    voxel picker; k-space; waveforms (when there are any traces)
+  - a file double-clicked in the file list opens in the first panel
+  - side-panel tools: concatenation of several files' first image arrays along the
+    measurement axis, loaded into a panel; screenshot export; image adjustments;
+    settings
+  - on sign-in or sign-out the file list is re-fetched and the panels are cleared
+- **Simulator** (`/simulator`): "coming soon" placeholder. `/simulate` and
+  `/new-simulator` redirect to it.
+- Every header shows "Welcome, <name>" with Sign Out when signed in, and Sign In
+  otherwise.
+
+## Rules
+
+- **Backend errors:** raise `ApiError`/`BadRequest`/`NotFound`/`StorageUnavailable`
+  (`app/errors.py`). Never put exception text in a response.
+- **Backend identity:** comes from `@requires_auth`/`@optional_auth` via
+  `g.user_sub`, `g.user_name` and `g.user_groups`, never from the request body.
+- **Database and S3:** through `data.py` (`get_db()`, `get_s3_client()`).
+  - Configuration from env: `MONGO_URI`, `MONGO_DB_NAME` (default `hpmri_dev`;
+    production sets `hpmri_prod`), `S3_BUCKET` (default `medcap-data`), `CORS_ORIGINS`,
+    `MAX_UPLOAD_BYTES`, `PRESIGN_EXPIRY_SECONDS`, `TYGER_BUFFER_TTL` (default
+    `3.00:00:00`).
+- **Frontend HTTP:** only through `src/api/`; lint rejects `axios` imports
+  elsewhere.
+  - Sign-in state comes from `useCurrentUser()` (`src/auth/useCurrentUser.ts`).
+  - Cognito ids come from `VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID`.
+- **Frontend pages:** pages inside `MRDLayout` do not render their own header.
+- **Tests:** new or changed routes get tests in `server/tests/`. Visibility and
+  permission behaviour is tested in `test_access_integration.py`.
+- **CI** (`.github/workflows/ci.yml`): `pylint server`, `pytest` with a real
+  MongoDB, frontend build (blocking) and lint (non-blocking), backend image
+  build. Raise `fail-under` in `.pylintrc` as the score rises; never lower it.
+  Every job that touches AWS runs only when the repo variable `DEPLOY_ENABLED`
+  is `true`; prod Terraform applies only on manual dispatch. The backend deploy
+  needs Environment variables `ECS_CONTAINER_NAME` (`hpmri-api`) and
+  `PUBLIC_BASE_URL`.
+- **Secrets:** never commit `server/.env.development`. It holds temporary AWS
+  credentials; regenerate with `server/setup_aws.sh`.
+- **Local files:** ignore `server/.medcap/` and `server/venv/`.

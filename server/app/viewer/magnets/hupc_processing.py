@@ -2,13 +2,13 @@ import os
 import struct
 import traceback
 import numpy as np
-from flask import jsonify, send_file
+from flask import current_app, jsonify, send_file
 from PIL import Image
 # import cv2
 import pydicom
 from scipy.fft import fftn
 import io
-import boto3
+from data import get_s3_client
 
 local = False  # set to true to test files stored locally
 if local:
@@ -18,12 +18,22 @@ if local:
     DATASET_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/"
     FID_FOLDER = "/Users/benjaminyoon/Desktop/PIGI folder/Projects/Project4 HP MRI Web Application/hp-mri-web-application-yoonbenjamin/data/s_2023041103/fsems_rat_liver_03"
 else:
-    s3 = boto3.client("s3")
-    BUCKET_NAME = "medcap-data"
     DICOM_FOLDER = "MRS/s_2023041103/fsems_rat_liver_05.dmc/"
     EPSI_FOLDER = "MRS/s_2023041103/epsi_16x12_13c_"
     DATASET_FOLDER = "MRS/s_2023041103/"
     FID_FOLDER = "MRS/s_2023041103/fsems_rat_liver_05"
+
+
+# The S3 client is resolved on first use rather than at import. It used to be
+# built at module scope, which meant importing this module -- and therefore
+# calling create_app() at all -- reached for AWS credentials. Its sibling
+# mr_solutions_processing went further and listed a bucket at import time, so
+# the app could not start without live credentials and a reachable bucket.
+def _bucket():
+    """Bucket name from config, rather than another hardcoded copy."""
+    return current_app.config["S3_BUCKET"]
+
+
 EPSI_INFO = {"pictures_to_read_write": 1, "proton": 60, "centric": 1}
 PATH_EPSI = ""
 SCALE = True
@@ -42,7 +52,7 @@ def get_num_slider_values():
     if local:
         dicom_files = [file for file in os.listdir(DICOM_FOLDER) if file.endswith(".dcm")]
     else:
-        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DICOM_FOLDER)
+        response = get_s3_client().list_objects_v2(Bucket=_bucket(), Prefix=DICOM_FOLDER)
         dicom_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('.dcm')]
     num_slider_values = len(dicom_files)
     return num_slider_values
@@ -69,7 +79,7 @@ def count_datasets():
             ):
                 dataset_count += 1
     else:
-        response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix=DATASET_FOLDER, Delimiter="/") 
+        response = get_s3_client().list_objects_v2(Bucket=_bucket(), Prefix=DATASET_FOLDER, Delimiter="/") 
         epsi_folders = [obj['Prefix'] for obj in response.get('CommonPrefixes', [])]
         dataset_count = len([fid for fid in epsi_folders 
                              if fid.startswith("epsi_16x12_13c_") and fid.endswith(".fid/")])
@@ -94,7 +104,7 @@ def process_proton_picture(slider_value: int, data):
                 return jsonify({"error": "DICOM file not found"}), 404
             dcm = pydicom.dcmread(dicom_path)
         else:
-            s3.download_file(BUCKET_NAME, dicom_path, filename)
+            get_s3_client().download_file(_bucket(), dicom_path, filename)
             dcm = pydicom.dcmread(filename)
             os.remove(filename)
         slice_image = dcm.pixel_array
@@ -319,7 +329,7 @@ def read_write_procpar(read_line, file_path):
             read_lines = g.readlines()
     else:
         # procpar file is read as txt file
-        response = s3.get_object(Bucket=BUCKET_NAME, Key=file_path)
+        response = get_s3_client().get_object(Bucket=_bucket(), Key=file_path)
         read_lines = response["Body"].readlines()
         read_lines = [line.decode("utf-8") for line in read_lines]  # decode bytes to str
     for i, line in enumerate(read_lines):
@@ -347,7 +357,7 @@ def read_write_fid(file_path):
         with open(path, "rb") as f:
             fid = f
     else:
-        response = s3.get_object(Bucket=BUCKET_NAME, Key=path)
+        response = get_s3_client().get_object(Bucket=_bucket(), Key=path)
         fid = response['Body']
     blocks = struct.unpack(">i", fid.read(4))[0]
     traces = struct.unpack(">i", fid.read(4))[0]
