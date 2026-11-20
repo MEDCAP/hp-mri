@@ -48,7 +48,7 @@ jobs:
           role-to-assume: arn:aws:iam::862065604168:role/gha-terraform-plan
           aws-region: us-east-1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version_file: terraform/.terraform-version
 
@@ -144,7 +144,7 @@ jobs:
           role-to-assume: arn:aws:iam::862065604168:role/gha-terraform-apply-dev
           aws-region: us-east-1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version_file: terraform/.terraform-version
 
@@ -178,7 +178,7 @@ jobs:
           role-to-assume: arn:aws:iam::862065604168:role/gha-terraform-apply-prod
           aws-region: us-east-1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version_file: terraform/.terraform-version
 
